@@ -102,6 +102,12 @@
   .badge.sla-over{background:#fee2e2;color:#b91c1c;}
   .partUsedRow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px;}
 
+  .room-search-results{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+  .room-search-item{padding:9px 12px;font-size:13.5px;cursor:pointer;border-bottom:1px solid var(--border);}
+  .room-search-item:last-child{border-bottom:none;}
+  .room-search-item:hover{background:#f3f4f6;}
+  .room-search-empty{padding:10px 12px;font-size:13px;color:var(--sub);}
+
   @media (max-width:720px){
     .kpi-row{grid-template-columns:repeat(2,1fr);}
     .grid2{grid-template-columns:1fr;}
@@ -264,7 +270,7 @@
       <table>
         <thead>
           <tr>
-            <th>객실</th><th>공종</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>SLA</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
+            <th>객실</th><th>공종</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>SLA</th><th>예정일</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
@@ -399,15 +405,50 @@
   <!-- ===================== 기준정보 관리 패널 ===================== -->
   <div class="panel" id="panel-master">
     <div class="subtabs">
-      <div class="subtab active" data-subtab="parts" onclick="switchSubtab('parts')">수리부속·단가</div>
+      <div class="subtab active" data-subtab="roomsinfo" onclick="switchSubtab('roomsinfo')">객실정보</div>
+      <div class="subtab" data-subtab="parts" onclick="switchSubtab('parts')">수리부속·단가</div>
       <div class="subtab" data-subtab="locations" onclick="switchSubtab('locations')">하자부위</div>
       <div class="subtab" data-subtab="roomtypes" onclick="switchSubtab('roomtypes')">객실타입</div>
       <div class="subtab" data-subtab="categorymaster" onclick="switchSubtab('categorymaster')">공종</div>
-      <div class="subtab" data-subtab="roomsbulk" onclick="switchSubtab('roomsbulk')">객실 일괄등록</div>
+      <div class="subtab" data-subtab="employees" onclick="switchSubtab('employees')">직원</div>
+    </div>
+
+    <!-- 객실정보 -->
+    <div class="subpanel active" id="subpanel-roomsinfo">
+      <div class="card">
+        <h3>객실 개별 등록</h3>
+        <div class="masterform">
+          <input id="roomNumberInput" placeholder="객실번호 (예: 1001)" style="width:140px;" />
+          <select id="roomTypeSelectForRoom"></select>
+          <input id="roomFloorInput" placeholder="층 (예: 7F, 선택)" style="width:120px;" />
+          <button class="btn small" onclick="addSingleRoom()">+ 등록</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>객실 일괄등록</h3>
+        <p style="font-size:13px;color:var(--sub);margin-top:-4px;">
+          한 줄에 "호실번호,타입명,층(선택)" 형식으로 입력해주세요. 엑셀에서 복사해 붙여넣어도 됩니다.<br/>
+          예시: <code>701,스튜디오 로프트,7F</code>
+        </p>
+        <textarea id="bulkRoomsInput" rows="6" style="width:100%;font-family:monospace;font-size:13px;" placeholder="701,스튜디오 로프트,7F&#10;702,스튜디오 로프트,7F&#10;709,패밀리 투룸 오션,7F"></textarea>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button class="btn" onclick="submitBulkRooms()">일괄 등록</button>
+          <span id="bulkRoomsResult" style="font-size:13px;color:var(--sub);"></span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>등록된 객실 목록 <span style="color:#9ca3af;font-weight:400;font-size:12px;" id="roomsCountLabel"></span></h3>
+        <input id="roomsSearchBox" placeholder="객실번호 또는 타입 검색" style="margin-bottom:10px;width:240px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
+        <table>
+          <thead><tr><th>객실번호</th><th>타입</th><th>타입코드</th><th>층</th><th></th></tr></thead>
+          <tbody id="roomsInfoTableBody"></tbody>
+        </table>
+        <div class="empty" id="roomsInfoEmpty" style="display:none;">등록된 객실이 없습니다. 위에서 등록해주세요.</div>
+      </div>
     </div>
 
     <!-- 수리부속 -->
-    <div class="subpanel active" id="subpanel-parts">
+    <div class="subpanel" id="subpanel-parts">
       <div class="card">
         <h3>수리부속 등록</h3>
         <div class="masterform">
@@ -448,11 +489,12 @@
         <h3>객실타입 등록</h3>
         <div class="masterform">
           <input id="roomTypeName" placeholder="객실타입명 (예: 스튜디오 로프트)" />
+          <input id="roomTypeCode" placeholder="타입코드 (예: SL, SLF)" style="width:120px;text-transform:uppercase;" />
           <input id="roomTypeDesc" placeholder="설명 (선택)" />
           <button class="btn small" onclick="addRoomType()">+ 추가</button>
         </div>
         <table>
-          <thead><tr><th>타입명</th><th>설명</th><th></th></tr></thead>
+          <thead><tr><th>타입명</th><th>코드</th><th>설명</th><th></th></tr></thead>
           <tbody id="roomTypesTableBody"></tbody>
         </table>
       </div>
@@ -473,21 +515,22 @@
       </div>
     </div>
 
-    <!-- 객실 일괄등록 -->
-    <div class="subpanel" id="subpanel-roomsbulk">
+    <!-- 직원 -->
+    <div class="subpanel" id="subpanel-employees">
       <div class="card">
-        <h3>객실 일괄등록</h3>
-        <p style="font-size:13px;color:var(--sub);margin-top:-4px;">
-          한 줄에 "호실번호,타입명,층(선택)" 형식으로 입력해주세요. 엑셀에서 복사해 붙여넣어도 됩니다.<br/>
-          예시: <code>701,스튜디오 로프트,7F</code>
-        </p>
-        <textarea id="bulkRoomsInput" rows="8" style="width:100%;font-family:monospace;font-size:13px;" placeholder="701,스튜디오 로프트,7F&#10;702,스튜디오 로프트,7F&#10;709,패밀리 투룸 오션,7F"></textarea>
-        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-          <button class="btn" onclick="submitBulkRooms()">일괄 등록</button>
-          <span id="bulkRoomsResult" style="font-size:13px;color:var(--sub);"></span>
+        <h3>직원 등록</h3>
+        <div class="masterform">
+          <input id="empName" placeholder="이름 (예: 이성민)" />
+          <input id="empRole" placeholder="직책/역할 (선택, 예: 시설팀)" />
+          <button class="btn small" onclick="addEmployee()">+ 추가</button>
         </div>
+        <table>
+          <thead><tr><th>이름</th><th>역할</th><th>상태</th><th></th></tr></thead>
+          <tbody id="employeesTableBody"></tbody>
+        </table>
       </div>
     </div>
+
   </div>
 
 </div>
@@ -497,13 +540,12 @@
   <div class="modal">
     <h3 id="modalTitle">하자 등록</h3>
     <input type="hidden" id="editDefectId" />
-    <div class="form-row">
+    <div class="form-row" style="position:relative;">
       <label>객실 선택</label>
-      <select id="formRoom"></select>
-    </div>
-    <div class="form-row">
-      <label>새 객실번호 등록 (목록에 없는 경우)</label>
-      <input id="formNewRoom" placeholder="예: 1203 (입력 시 자동 등록)" />
+      <input id="formRoomSearch" placeholder="객실번호 또는 타입 검색 (예: 1001, SLF)" autocomplete="off" />
+      <input type="hidden" id="formRoom" />
+      <div id="formRoomResults" class="room-search-results" style="display:none;"></div>
+      <div style="font-size:12px;color:var(--sub);margin-top:4px;">목록에 없는 객실은 '기준정보 관리 → 객실정보'에서 먼저 등록해주세요.</div>
     </div>
     <div class="form-row">
       <label>공종</label>
@@ -539,9 +581,16 @@
         <option value="완료">완료</option>
       </select>
     </div>
-    <div class="form-row checkrow">
-      <input type="checkbox" id="formOutsourced" />
-      <label style="margin:0;">외주 처리</label>
+    <div class="form-row">
+      <label>예정일 (처리 목표일)</label>
+      <input id="formDueDate" type="date" />
+    </div>
+    <div class="form-row">
+      <label>처리방식</label>
+      <select id="formProcessType">
+        <option value="자체">자체처리</option>
+        <option value="외주">외주처리</option>
+      </select>
     </div>
     <div class="form-row" id="vendorRow" style="display:none;">
       <label>외주업체명</label>
@@ -560,11 +609,11 @@
     </div>
     <div class="form-row">
       <label>담당자</label>
-      <input id="formAssigned" placeholder="예: 김민수" />
+      <select id="formAssigned" onchange="handleManualEmployeeInput(this)"></select>
     </div>
     <div class="form-row">
       <label>등록자</label>
-      <input id="formReporter" placeholder="예: 이성민" />
+      <select id="formReporter" onchange="handleManualEmployeeInput(this)"></select>
     </div>
 
     <div class="form-row">
@@ -649,6 +698,7 @@ let DEFECTS = [];
 let ROOM_TYPES = [];
 let LOCATIONS = [];
 let PARTS = [];
+let EMPLOYEES = [];
 let CURRENT_PARTS_USED = [];  // 모달에서 임시로 들고 있는 사용부품 목록 (저장 전)
 
 // ---------- 설정 로드 ----------
@@ -715,13 +765,14 @@ let SAFETY_FACTOR = 1.5;
 
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:cats, error:e2}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:cats, error:e2}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
     sb.from('defect_categories').select('*').order('sort_order'),
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*, defect_categories(name)').order('sort_order'),
     sb.from('defect_parts').select('*, defect_categories(name)').order('name'),
-    sb.from('system_settings').select('*')
+    sb.from('system_settings').select('*'),
+    sb.from('employees').select('*').order('name')
   ]);
   if(e1) console.error(e1);
   if(e2) console.error(e2);
@@ -729,11 +780,13 @@ async function loadAll(){
   if(e4) console.error('defect_locations 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e4);
   if(e5) console.error('defect_parts 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e5);
   if(e6) console.error('system_settings 로드 실패(마스터 SQL v4를 실행했는지 확인하세요):', e6);
+  if(e7) console.error('employees 로드 실패(마스터 SQL v5를 실행했는지 확인하세요):', e7);
   ROOMS = rooms||[];
   CATEGORIES = cats||[];
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
   PARTS = parts||[];
+  EMPLOYEES = emps||[];
   const sf = (settings||[]).find(s=>s.key==='parts_safety_factor');
   if(sf) SAFETY_FACTOR = Number(sf.value) || 1.5;
   populateRoomFilter();
@@ -768,9 +821,6 @@ function populateCategoryFilter(){
     CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 }
 function populateFormSelects(){
-  document.getElementById('formRoom').innerHTML =
-    '<option value="">— 선택 안함 (새 객실번호 입력시 자동등록) —</option>' +
-    ROOMS.map(r=>`<option value="${r.id}">${r.room_number} (${r.room_type||''})</option>`).join('');
   document.getElementById('formCategory').innerHTML =
     CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
   const locSel = document.getElementById('formLocation');
@@ -787,6 +837,43 @@ function populateFormSelects(){
     const el = document.getElementById(id);
     if(el) el.innerHTML = partOptions;
   });
+
+  const empOptions = '<option value="">— 선택 안함 —</option>' +
+    EMPLOYEES.filter(e=>e.is_active).map(e=>`<option value="${e.name}">${e.name}${e.role? ' ('+e.role+')':''}</option>`).join('') +
+    '<option value="__manual__">+ 직접 입력...</option>';
+  ['formAssigned','formReporter'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = empOptions;
+  });
+}
+
+function setSelectValueWithFallback(selectId, value){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  if(!value){ sel.value = ''; return; }
+  const exists = Array.from(sel.options).some(o=>o.value===value);
+  if(!exists){
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value;
+    sel.insertBefore(opt, sel.lastElementChild);
+  }
+  sel.value = value;
+}
+
+function handleManualEmployeeInput(selectEl){
+  if(selectEl.value==='__manual__'){
+    const name = prompt('이름을 입력해주세요.');
+    if(name && name.trim()){
+      const opt = document.createElement('option');
+      opt.value = name.trim();
+      opt.textContent = name.trim() + ' (신규 입력)';
+      selectEl.insertBefore(opt, selectEl.lastElementChild);
+      selectEl.value = name.trim();
+    } else {
+      selectEl.value = '';
+    }
+  }
 }
 
 // ---------- KPI ----------
@@ -856,6 +943,7 @@ function renderDefectsTable(){
         </select>
       </td>
       <td>${(()=>{ const sla=getSlaInfo(d); return sla? `<span class="badge ${sla.level}">${sla.days}일</span>` : '<span class="badge sla-ok">완료</span>'; })()}</td>
+      <td>${d.due_date? `${d.due_date}${isOverdue(d)? ' <span class=\"badge sla-over\">초과</span>':''}` : '-'}</td>
       <td>${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
       <td>${Number(d.total_cost||0).toLocaleString()}원</td>
       <td>${date}</td>
@@ -892,10 +980,16 @@ function getSlaInfo(defect){
 // ---------- 메인 대시보드 ----------
 let chartMonthly=null, chartStatusMain=null, chartCostCompare=null, chartRepeatRatio=null;
 
+function isOverdue(defect){
+  if(!defect.due_date || defect.status==='완료') return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return new Date(defect.due_date) < today;
+}
+
 function renderTodoList(){
-  const items = DEFECTS.filter(d=>d.status!=='완료').map(d=>({...d, sla:getSlaInfo(d)}))
-    .filter(d=> d.priority==='긴급' || (d.sla && d.sla.days>=3))
-    .sort((a,b)=> (b.sla?.days||0) - (a.sla?.days||0));
+  const items = DEFECTS.filter(d=>d.status!=='완료').map(d=>({...d, sla:getSlaInfo(d), overdue:isOverdue(d)}))
+    .filter(d=> d.priority==='긴급' || (d.sla && d.sla.days>=3) || d.overdue)
+    .sort((a,b)=> (b.overdue - a.overdue) || ((b.sla?.days||0) - (a.sla?.days||0)));
   const body = document.getElementById('todoTableBody');
   document.getElementById('todoEmpty').style.display = items.length? 'none':'block';
   if(body){
@@ -906,7 +1000,10 @@ function renderTodoList(){
         <td><span class="badge p-${d.priority}">${d.priority}</span></td>
         <td>${d.status}</td>
         <td>${d.sla? d.sla.days+'일' : '-'}</td>
-        <td>${d.sla? `<span class="badge ${d.sla.level}">${d.sla.label}</span>` : '-'}</td>
+        <td>
+          ${d.sla? `<span class="badge ${d.sla.level}">${d.sla.label}</span>` : ''}
+          ${d.overdue? `<span class="badge sla-over">예정일 초과</span>` : ''}
+        </td>
       </tr>`).join('');
   }
 }
@@ -1117,14 +1214,16 @@ function openNewDefectModal(){
   document.getElementById('modalTitle').textContent = '하자 등록';
   document.getElementById('editDefectId').value = '';
   document.getElementById('formRoom').value = '';
-  document.getElementById('formNewRoom').value = '';
+  document.getElementById('formRoomSearch').value = '';
+  document.getElementById('formRoomResults').style.display = 'none';
   document.getElementById('formCategory').selectedIndex = 0;
   document.getElementById('formLocation').value = '';
   document.getElementById('formTitle').value = '';
   document.getElementById('formDesc').value = '';
   document.getElementById('formPriority').value = '보통';
   document.getElementById('formStatus').value = '접수';
-  document.getElementById('formOutsourced').checked = false;
+  document.getElementById('formDueDate').value = '';
+  document.getElementById('formProcessType').value = '자체';
   document.getElementById('formVendor').value = '';
   document.getElementById('formAssigned').value = '';
   document.getElementById('formReporter').value = '';
@@ -1143,17 +1242,19 @@ async function openEditModal(id){
   document.getElementById('modalTitle').textContent = '하자 수정';
   document.getElementById('editDefectId').value = d.id;
   document.getElementById('formRoom').value = d.room_id;
-  document.getElementById('formNewRoom').value = '';
+  document.getElementById('formRoomSearch').value = d.rooms?.room_number || '';
+  document.getElementById('formRoomResults').style.display = 'none';
   document.getElementById('formCategory').value = d.category_id;
   document.getElementById('formLocation').value = d.location_id||'';
   document.getElementById('formTitle').value = d.title||'';
   document.getElementById('formDesc').value = d.description||'';
   document.getElementById('formPriority').value = d.priority;
   document.getElementById('formStatus').value = d.status;
-  document.getElementById('formOutsourced').checked = !!d.is_outsourced;
+  document.getElementById('formDueDate').value = d.due_date||'';
+  document.getElementById('formProcessType').value = d.is_outsourced? '외주':'자체';
   document.getElementById('formVendor').value = d.vendor_name||'';
-  document.getElementById('formAssigned').value = d.assigned_to||'';
-  document.getElementById('formReporter').value = d.reported_by||'';
+  setSelectValueWithFallback('formAssigned', d.assigned_to);
+  setSelectValueWithFallback('formReporter', d.reported_by);
   document.getElementById('vendorRow').style.display = d.is_outsourced? 'block':'none';
   document.getElementById('formVacant').checked = !!d.is_vacant;
   document.getElementById('formVacantDays').value = d.vacant_days||'';
@@ -1171,6 +1272,51 @@ async function openEditModal(id){
 function closeDefectModal(){
   document.getElementById('defectModal').classList.remove('active');
 }
+
+// ---------- 객실 검색형 선택 (하자 등록 모달) ----------
+// 객실번호(숫자 일부 일치) 또는 타입명/타입코드로 검색해 매칭되는 객실만 목록으로 보여줍니다.
+// 기준정보에 등록되지 않은 객실은 검색 결과에 나타나지 않으므로 선택 자체가 불가능합니다.
+function searchRoomsForModal(query){
+  const q = query.trim().toLowerCase();
+  const resultsBox = document.getElementById('formRoomResults');
+  if(!q){ resultsBox.style.display = 'none'; return; }
+
+  const matched = ROOMS.filter(r=>{
+    const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
+    const hay = `${r.room_number} ${type?.name||r.room_type||''} ${type?.type_code||''}`.toLowerCase();
+    return hay.includes(q);
+  }).slice(0, 20);
+
+  if(!matched.length){
+    resultsBox.innerHTML = '<div class="room-search-empty">일치하는 객실이 없습니다. 기준정보 관리에서 먼저 등록해주세요.</div>';
+  } else {
+    resultsBox.innerHTML = matched.map(r=>{
+      const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
+      const label = `${r.room_number}${type? ' · '+type.name+(type.type_code? ' ('+type.type_code+')':'') : ''}`;
+      return `<div class="room-search-item" onclick="selectRoomForModal(${r.id}, '${escapeHtml(label).replace(/'/g,"\\'")}')">${escapeHtml(label)}</div>`;
+    }).join('');
+  }
+  resultsBox.style.display = 'block';
+}
+
+function selectRoomForModal(roomId, label){
+  document.getElementById('formRoom').value = roomId;
+  document.getElementById('formRoomSearch').value = label;
+  document.getElementById('formRoomResults').style.display = 'none';
+}
+
+document.addEventListener('input', e=>{
+  if(e.target && e.target.id==='formRoomSearch'){
+    document.getElementById('formRoom').value = '';
+    searchRoomsForModal(e.target.value);
+  }
+});
+document.addEventListener('click', e=>{
+  if(e.target && e.target.id!=='formRoomSearch' && !e.target.closest('#formRoomResults')){
+    const box = document.getElementById('formRoomResults');
+    if(box) box.style.display = 'none';
+  }
+});
 
 // ---------- 빠른 등록 모달 (모바일 우선) ----------
 function openQuickDefectModal(){
@@ -1254,8 +1400,8 @@ async function saveQuickDefect(){
   showToast('빠른 등록 완료되었습니다.');
   await loadDefects();
 }
-document.getElementById('formOutsourced').addEventListener('change', e=>{
-  document.getElementById('vendorRow').style.display = e.target.checked? 'block':'none';
+document.getElementById('formProcessType').addEventListener('change', e=>{
+  document.getElementById('vendorRow').style.display = e.target.value==='외주'? 'block':'none';
 });
 document.getElementById('formVacant').addEventListener('change', e=>{
   document.getElementById('vacantDaysRow').style.display = e.target.checked? 'block':'none';
@@ -1264,20 +1410,11 @@ document.getElementById('formVacant').addEventListener('change', e=>{
 async function saveDefect(){
   const id = document.getElementById('editDefectId').value;
   let roomId = document.getElementById('formRoom').value;
-  const newRoomNumber = document.getElementById('formNewRoom').value.trim();
   const categoryId = document.getElementById('formCategory').value;
   const title = document.getElementById('formTitle').value.trim();
 
   if(!title){ alert('하자 제목을 입력해주세요.'); return; }
-  if(!roomId && !newRoomNumber){ alert('객실을 선택하거나 새 객실번호를 입력해주세요.'); return; }
-
-  if(newRoomNumber){
-    const {data, error} = await sb.from('rooms').insert({room_number:newRoomNumber}).select().single();
-    if(error){ alert('새 객실 등록 실패: '+error.message); return; }
-    roomId = data.id;
-    ROOMS.push(data);
-    populateRoomFilter(); populateFormSelects();
-  }
+  if(!roomId){ alert('객실을 검색해서 목록에서 선택해주세요. 목록에 없으면 기준정보 관리에서 먼저 등록해야 합니다.'); return; }
 
   const locationId = document.getElementById('formLocation').value;
   const payload = {
@@ -1288,7 +1425,8 @@ async function saveDefect(){
     description: document.getElementById('formDesc').value.trim(),
     priority: document.getElementById('formPriority').value,
     status: document.getElementById('formStatus').value,
-    is_outsourced: document.getElementById('formOutsourced').checked,
+    due_date: document.getElementById('formDueDate').value || null,
+    is_outsourced: document.getElementById('formProcessType').value==='외주',
     vendor_name: document.getElementById('formVendor').value.trim() || null,
     assigned_to: document.getElementById('formAssigned').value.trim() || null,
     reported_by: document.getElementById('formReporter').value.trim() || null,
@@ -1373,7 +1511,121 @@ function renderAllMasterTables(){
   renderLocationsTable();
   renderRoomTypesTable();
   renderCategoryMasterTable();
+  renderRoomsInfoTable();
+  populateRoomTypeSelectForRoom();
+  renderEmployeesTable();
 }
+
+function renderEmployeesTable(){
+  const body = document.getElementById('employeesTableBody');
+  if(!body) return;
+  body.innerHTML = EMPLOYEES.map(e=>`
+    <tr>
+      <td>${escapeHtml(e.name)}</td>
+      <td>${escapeHtml(e.role||'-')}</td>
+      <td><span class="badge" style="${e.is_active?'background:#dcfce7;color:#166534;':'background:#f1f5f9;color:#94a3b8;'}">${e.is_active?'활성':'비활성'}</span></td>
+      <td><button class="btn small secondary" onclick="toggleEmployeeActive(${e.id}, ${!e.is_active})">${e.is_active?'비활성화':'활성화'}</button></td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">등록된 직원이 없습니다.</td></tr>';
+}
+
+async function addEmployee(){
+  const name = document.getElementById('empName').value.trim();
+  const role = document.getElementById('empRole').value.trim();
+  if(!name){ alert('이름을 입력해주세요.'); return; }
+  const {error} = await sb.from('employees').insert({name, role: role||null});
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('empName').value='';
+  document.getElementById('empRole').value='';
+  showToast('직원이 등록되었습니다.');
+  const {data} = await sb.from('employees').select('*').order('name');
+  EMPLOYEES = data||[];
+  populateFormSelects();
+  renderEmployeesTable();
+}
+
+async function toggleEmployeeActive(id, newVal){
+  const {error} = await sb.from('employees').update({is_active:newVal}).eq('id', id);
+  if(error){ alert('변경 실패: '+error.message); return; }
+  const {data} = await sb.from('employees').select('*').order('name');
+  EMPLOYEES = data||[];
+  populateFormSelects();
+  renderEmployeesTable();
+}
+
+function populateRoomTypeSelectForRoom(){
+  const sel = document.getElementById('roomTypeSelectForRoom');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— 타입 선택 —</option>' +
+    ROOM_TYPES.map(t=>`<option value="${t.id}">${t.name}${t.type_code? ' ('+t.type_code+')':''}</option>`).join('');
+}
+
+function renderRoomsInfoTable(filterText){
+  const body = document.getElementById('roomsInfoTableBody');
+  if(!body) return;
+  const q = (filterText!==undefined? filterText : (document.getElementById('roomsSearchBox')?.value||'')).trim().toLowerCase();
+  let rows = ROOMS;
+  if(q){
+    rows = ROOMS.filter(r=>{
+      const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
+      const hay = `${r.room_number} ${r.room_type||''} ${type?.name||''} ${type?.type_code||''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
+  document.getElementById('roomsCountLabel').textContent = `(총 ${ROOMS.length}개)`;
+  document.getElementById('roomsInfoEmpty').style.display = rows.length? 'none':'block';
+  body.innerHTML = rows.map(r=>{
+    const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
+    return `
+    <tr>
+      <td><b>${escapeHtml(r.room_number)}</b></td>
+      <td>${escapeHtml(type?.name || r.room_type || '-')}</td>
+      <td>${escapeHtml(type?.type_code||'-')}</td>
+      <td>${escapeHtml(r.floor||'-')}</td>
+      <td><button class="btn small secondary" onclick="deleteRoom(${r.id})">삭제</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function addSingleRoom(){
+  const roomNumber = document.getElementById('roomNumberInput').value.trim();
+  const typeId = document.getElementById('roomTypeSelectForRoom').value;
+  const floor = document.getElementById('roomFloorInput').value.trim();
+  if(!roomNumber){ alert('객실번호를 입력해주세요.'); return; }
+  if(ROOMS.some(r=>r.room_number===roomNumber)){ alert('이미 등록된 객실번호입니다.'); return; }
+  const type = ROOM_TYPES.find(t=>String(t.id)===String(typeId));
+  const {error} = await sb.from('rooms').insert({
+    room_number: roomNumber,
+    room_type_id: typeId? Number(typeId): null,
+    room_type: type? type.name : null,
+    floor: floor || null
+  });
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('roomNumberInput').value='';
+  document.getElementById('roomFloorInput').value='';
+  showToast('객실이 등록되었습니다.');
+  await refreshRoomsAndForms();
+}
+
+async function deleteRoom(id){
+  if(!confirm('이 객실을 삭제하시겠습니까? 연결된 하자 이력도 함께 삭제됩니다.')) return;
+  const {error} = await sb.from('rooms').delete().eq('id', id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  showToast('객실이 삭제되었습니다.');
+  await refreshRoomsAndForms();
+  await loadDefects();
+}
+
+async function refreshRoomsAndForms(){
+  const {data: refreshedRooms} = await sb.from('rooms').select('*').order('room_number');
+  ROOMS = refreshedRooms||[];
+  populateRoomFilter();
+  populateFormSelects();
+  renderRoomsInfoTable();
+}
+
+document.addEventListener('input', e=>{
+  if(e.target && e.target.id==='roomsSearchBox') renderRoomsInfoTable(e.target.value);
+});
 
 function populateMasterCategorySelects(){
   const opts = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
@@ -1459,17 +1711,20 @@ function renderRoomTypesTable(){
   body.innerHTML = ROOM_TYPES.map(r=>`
     <tr>
       <td>${escapeHtml(r.name)}</td>
+      <td>${escapeHtml(r.type_code||'-')}</td>
       <td>${escapeHtml(r.description||'-')}</td>
       <td><button class="btn small secondary" onclick="deleteRoomType(${r.id})">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
 }
 async function addRoomType(){
   const name = document.getElementById('roomTypeName').value.trim();
+  const code = document.getElementById('roomTypeCode').value.trim().toUpperCase();
   const desc = document.getElementById('roomTypeDesc').value.trim();
   if(!name){ alert('타입명을 입력해주세요.'); return; }
-  const {error} = await sb.from('room_types').insert({name, description: desc||null});
+  const {error} = await sb.from('room_types').insert({name, type_code: code||null, description: desc||null});
   if(error){ alert('등록 실패: '+error.message); return; }
   document.getElementById('roomTypeName').value='';
+  document.getElementById('roomTypeCode').value='';
   document.getElementById('roomTypeDesc').value='';
   showToast('객실타입이 등록되었습니다.');
   await reloadMasterData();
@@ -1512,11 +1767,15 @@ async function submitBulkRooms(){
   lines.forEach(line=>{
     const parts = line.split(',').map(p=>p.trim());
     const roomNumber = parts[0];
-    const roomType = parts[1] || null;
+    const roomTypeName = parts[1] || null;
     const floor = parts[2] || null;
     if(!roomNumber) return;
     if(existingNumbers.has(roomNumber)){ skipped.push(roomNumber); return; }
-    toInsert.push({room_number: roomNumber, room_type: roomType, floor});
+    const matchedType = roomTypeName? ROOM_TYPES.find(t=>t.name===roomTypeName) : null;
+    toInsert.push({
+      room_number: roomNumber, room_type: roomTypeName,
+      room_type_id: matchedType? matchedType.id : null, floor
+    });
     existingNumbers.add(roomNumber);
   });
 
@@ -1533,12 +1792,7 @@ async function submitBulkRooms(){
   document.getElementById('bulkRoomsInput').value = '';
   showToast(`객실 ${toInsert.length}건이 등록되었습니다.`);
 
-  const {data: refreshedRooms} = await sb.from('rooms').select('*').order('room_number');
-  ROOMS = refreshedRooms||[];
-  populateRoomFilter();
-  populateFormSelects();
-
-  await reloadMasterData();
+  await refreshRoomsAndForms();
   await loadDefects();
 }
 
