@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>객실 하자관리 대시보드</title>
+<title>시흥 웨이브파크 하자관리</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -39,6 +39,7 @@
   .kpi.ok .num{color:var(--ok);}
 
   .grid2{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-bottom:20px;}
+  .section-label{font-size:12px;color:var(--sub);text-transform:uppercase;letter-spacing:.04em;margin:4px 0 10px;font-weight:700;}
   .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;}
   .card h3{margin:0 0 12px;font-size:15px;font-weight:700;}
 
@@ -113,8 +114,11 @@
 <body>
 
 <div class="topbar">
-  <h1>🏨 객실 하자관리 대시보드</h1>
-  <div class="status" id="connStatus">Supabase 연결 대기중…</div>
+  <h1>🏨 시흥 웨이브파크 하자관리</h1>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="status" id="connStatus">Supabase 연결 대기중…</div>
+    <button class="btn secondary small" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;">⚙️</button>
+  </div>
 </div>
 
 <div class="tabs">
@@ -123,7 +127,6 @@
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 통계</div>
   <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
-  <div class="tab" data-tab="settings" onclick="switchTab('settings')">연결 설정</div>
 </div>
 
 <div class="container">
@@ -166,34 +169,65 @@
       <div class="kpi"><div class="num" id="kpiRepeatedPct">–</div><div class="label">반복하자율(%)</div></div>
     </div>
 
-    <div class="card" id="todoCard">
-      <h3>⏰ 오늘 처리할 항목 / SLA 임박·초과</h3>
-      <table>
-        <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>SLA</th></tr></thead>
-        <tbody id="todoTableBody"></tbody>
-      </table>
-      <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
+    <div class="section-label">우선 확인 — 즉시 조치 필요</div>
+    <div class="grid2">
+      <div class="card" id="todoCard">
+        <h3>⏰ 오늘 처리할 항목 / SLA 임박·초과</h3>
+        <table>
+          <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>SLA</th></tr></thead>
+          <tbody id="todoTableBody"></tbody>
+        </table>
+        <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
+      </div>
+      <div class="card">
+        <h3>🔧 부품 재고 경고</h3>
+        <table>
+          <thead><tr><th>부속명</th><th>현재고/기준</th><th>상태</th></tr></thead>
+          <tbody id="stockAlertTableBody"></tbody>
+        </table>
+        <div class="empty" id="stockAlertEmpty" style="display:none;">발주가 필요한 부속이 없습니다.</div>
+      </div>
     </div>
 
+    <div class="section-label">추이 · 비교</div>
     <div class="grid2">
       <div class="card">
         <h3>월별 하자 발생 추이</h3>
         <canvas id="chartMonthly" height="220"></canvas>
       </div>
       <div class="card">
-        <h3>처리 현황 (상태별)</h3>
-        <canvas id="chartStatusMain" height="220"></canvas>
-      </div>
-    </div>
-
-    <div class="grid2">
-      <div class="card">
         <h3>외주 vs 자체 수리비용</h3>
         <canvas id="chartCostCompare" height="220"></canvas>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h3>처리 현황 (상태별)</h3>
+        <canvas id="chartStatusMain" height="220"></canvas>
       </div>
       <div class="card">
         <h3>반복하자 비율</h3>
         <canvas id="chartRepeatRatio" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="section-label">상세 — 필요할 때 펼쳐보기</div>
+    <div class="grid2">
+      <div class="card">
+        <h3>객실타입별 집계</h3>
+        <table>
+          <thead><tr><th>타입</th><th>발생건수</th><th>반복건수</th><th>방막건수</th></tr></thead>
+          <tbody id="roomTypeSummaryBody"></tbody>
+        </table>
+        <div class="empty" id="roomTypeSummaryEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
+      </div>
+      <div class="card">
+        <h3>외주업체별 처리현황</h3>
+        <table>
+          <thead><tr><th>업체명</th><th>처리건수</th><th>총비용</th></tr></thead>
+          <tbody id="vendorSummaryBody"></tbody>
+        </table>
+        <div class="empty" id="vendorSummaryEmpty" style="display:none;">외주 처리 이력이 없습니다.</div>
       </div>
     </div>
 
@@ -369,6 +403,7 @@
       <div class="subtab" data-subtab="locations" onclick="switchSubtab('locations')">하자부위</div>
       <div class="subtab" data-subtab="roomtypes" onclick="switchSubtab('roomtypes')">객실타입</div>
       <div class="subtab" data-subtab="categorymaster" onclick="switchSubtab('categorymaster')">공종</div>
+      <div class="subtab" data-subtab="roomsbulk" onclick="switchSubtab('roomsbulk')">객실 일괄등록</div>
     </div>
 
     <!-- 수리부속 -->
@@ -435,6 +470,22 @@
           <thead><tr><th>공종명</th><th></th></tr></thead>
           <tbody id="categoryMasterTableBody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- 객실 일괄등록 -->
+    <div class="subpanel" id="subpanel-roomsbulk">
+      <div class="card">
+        <h3>객실 일괄등록</h3>
+        <p style="font-size:13px;color:var(--sub);margin-top:-4px;">
+          한 줄에 "호실번호,타입명,층(선택)" 형식으로 입력해주세요. 엑셀에서 복사해 붙여넣어도 됩니다.<br/>
+          예시: <code>701,스튜디오 로프트,7F</code>
+        </p>
+        <textarea id="bulkRoomsInput" rows="8" style="width:100%;font-family:monospace;font-size:13px;" placeholder="701,스튜디오 로프트,7F&#10;702,스튜디오 로프트,7F&#10;709,패밀리 투룸 오션,7F"></textarea>
+        <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <button class="btn" onclick="submitBulkRooms()">일괄 등록</button>
+          <span id="bulkRoomsResult" style="font-size:13px;color:var(--sub);"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -925,6 +976,60 @@ async function renderMainDashboard(){
     });
   }
 
+  // 부품 재고 경고 (발주 필요 부속 목록)
+  try{
+    const {data: partsUsedForStock} = await sb.from('defect_parts_used').select('part_id, quantity, created_at');
+    const alertRows = PARTS.map(p=>{
+      const avgUsage = getEffectiveMonthlyUsage(p, partsUsedForStock||[]);
+      const factor = p.safety_factor!=null ? Number(p.safety_factor) : SAFETY_FACTOR;
+      const threshold = avgUsage * factor;
+      return {...p, avgUsage, threshold, needOrder: Number(p.current_stock||0) < threshold};
+    }).filter(r=>r.needOrder).sort((a,b)=> (a.current_stock - a.threshold) - (b.current_stock - b.threshold));
+    const alertBody = document.getElementById('stockAlertTableBody');
+    if(alertBody){
+      document.getElementById('stockAlertEmpty').style.display = alertRows.length? 'none':'block';
+      alertBody.innerHTML = alertRows.slice(0,8).map(r=>`
+        <tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${r.current_stock||0} / ${r.threshold.toFixed(1)}</td>
+          <td><span class="badge" style="background:#fee2e2;color:#b91c1c;">⚠ 발주필요</span></td>
+        </tr>`).join('');
+    }
+  }catch(e){ console.error('부품 재고 경고 집계 실패:', e); }
+
+  // 객실타입별 집계
+  const typeMap = {};
+  DEFECTS.forEach(d=>{
+    const typeName = d.rooms?.room_type || '미지정';
+    if(!typeMap[typeName]) typeMap[typeName] = {name:typeName, total:0, repeated:0, vacant:0};
+    typeMap[typeName].total++;
+    if(d.is_repeated) typeMap[typeName].repeated++;
+    if(d.is_vacant) typeMap[typeName].vacant++;
+  });
+  const typeRows = Object.values(typeMap).sort((a,b)=>b.total-a.total);
+  const typeBody = document.getElementById('roomTypeSummaryBody');
+  if(typeBody){
+    document.getElementById('roomTypeSummaryEmpty').style.display = typeRows.length? 'none':'block';
+    typeBody.innerHTML = typeRows.map(r=>`
+      <tr><td>${escapeHtml(r.name)}</td><td>${r.total}</td><td>${r.repeated}</td><td>${r.vacant}</td></tr>`).join('');
+  }
+
+  // 외주업체별 처리현황
+  const vendorMap = {};
+  DEFECTS.filter(d=>d.is_outsourced && d.vendor_name).forEach(d=>{
+    const v = d.vendor_name;
+    if(!vendorMap[v]) vendorMap[v] = {name:v, count:0, cost:0};
+    vendorMap[v].count++;
+    vendorMap[v].cost += Number(d.total_cost||0);
+  });
+  const vendorRows = Object.values(vendorMap).sort((a,b)=>b.cost-a.cost);
+  const vendorBody = document.getElementById('vendorSummaryBody');
+  if(vendorBody){
+    document.getElementById('vendorSummaryEmpty').style.display = vendorRows.length? 'none':'block';
+    vendorBody.innerHTML = vendorRows.map(r=>`
+      <tr><td>${escapeHtml(r.name)}</td><td>${r.count}</td><td>${r.cost.toLocaleString()}원</td></tr>`).join('');
+  }
+
   // 수리부속 사용량/비용 TOP 10
   const {data: partsUsed, error} = await sb
     .from('defect_parts_used')
@@ -1392,6 +1497,49 @@ async function addCategory(){
   document.getElementById('catName').value='';
   showToast('공종이 등록되었습니다.');
   await reloadMasterData();
+}
+
+// 객실 일괄등록: "호실,타입명,층" 형식의 줄바꿈 텍스트를 한 번에 rooms 테이블에 등록합니다.
+// 이미 존재하는 호실번호는 건너뛰고(중복 방지), 새 호실만 추가합니다.
+async function submitBulkRooms(){
+  const raw = document.getElementById('bulkRoomsInput').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
+  if(!lines.length){ alert('등록할 객실 목록을 입력해주세요.'); return; }
+
+  const existingNumbers = new Set(ROOMS.map(r=>r.room_number));
+  const toInsert = [];
+  const skipped = [];
+  lines.forEach(line=>{
+    const parts = line.split(',').map(p=>p.trim());
+    const roomNumber = parts[0];
+    const roomType = parts[1] || null;
+    const floor = parts[2] || null;
+    if(!roomNumber) return;
+    if(existingNumbers.has(roomNumber)){ skipped.push(roomNumber); return; }
+    toInsert.push({room_number: roomNumber, room_type: roomType, floor});
+    existingNumbers.add(roomNumber);
+  });
+
+  if(!toInsert.length){
+    document.getElementById('bulkRoomsResult').textContent = `등록할 신규 객실이 없습니다. (중복 ${skipped.length}건 건너뜀)`;
+    return;
+  }
+
+  const {error} = await sb.from('rooms').insert(toInsert);
+  if(error){ alert('일괄등록 실패: '+error.message); return; }
+
+  document.getElementById('bulkRoomsResult').textContent =
+    `${toInsert.length}건 등록 완료${skipped.length? `, 중복 ${skipped.length}건(${skipped.join(', ')}) 건너뜀`:''}`;
+  document.getElementById('bulkRoomsInput').value = '';
+  showToast(`객실 ${toInsert.length}건이 등록되었습니다.`);
+
+  const {data: refreshedRooms} = await sb.from('rooms').select('*').order('room_number');
+  ROOMS = refreshedRooms||[];
+  populateRoomFilter();
+  populateFormSelects();
+
+  await reloadMasterData();
+  await loadDefects();
 }
 
 async function reloadMasterData(){
