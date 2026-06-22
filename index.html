@@ -433,7 +433,7 @@
           <span id="bulkRoomsResult" style="font-size:13px;color:var(--sub);"></span>
         </div>
         <div style="font-size:12px;color:var(--sub);margin-top:8px;">
-          엑셀 파일은 헤더 없이 1열=객실번호, 2열=영문 타입명 순서로 정리해주세요.
+          엑셀 파일은 헤더 없이 한 행에 객실번호와 영문 타입코드만 있으면 됩니다 (열 순서 자동 인식, 헤더가 있어도 헤더행은 자동 무시됩니다).
         </div>
       </div>
       <div class="card">
@@ -1827,14 +1827,20 @@ async function handleExcelRoomUpload(event){
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
 
-    // 1열=객실번호, 2열=영문 타입명(타입코드). 이미 등록된 타입코드와 일치하면 그 타입을 쓰고,
-    // 없으면 해당 영문명을 타입명+타입코드로 동시에 새로 등록합니다.
+    // 한 행에 [객실번호, 영문타입코드]가 어느 순서로 있어도 자동 인식합니다.
+    // 숫자로 시작하는 값은 객실번호, 나머지(영문/한글 등)는 타입으로 판단합니다.
     const candidates = [];
     const newTypesNeeded = new Map();
     rows.forEach(row=>{
       if(!row || !row.length) return;
-      const roomNumber = String(row[0]||'').trim();
-      const typeLabel = String(row[1]||'').trim();
+      const cellA = String(row[0]??'').trim();
+      const cellB = String(row[1]??'').trim();
+      if(!cellA && !cellB) return;
+      const isNumeric = v => /^\d+$/.test(v);
+      let roomNumber, typeLabel;
+      if(isNumeric(cellA)){ roomNumber = cellA; typeLabel = cellB; }
+      else if(isNumeric(cellB)){ roomNumber = cellB; typeLabel = cellA; }
+      else { roomNumber = cellA; typeLabel = cellB; } // 둘 다 숫자가 아니면 기존 순서(객실번호,타입) 가정
       if(!roomNumber) return;
       let type = ROOM_TYPES.find(t=>t.type_code===typeLabel || t.name===typeLabel) || newTypesNeeded.get(typeLabel);
       if(!type && typeLabel){
