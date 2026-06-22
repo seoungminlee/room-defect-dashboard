@@ -86,6 +86,17 @@
 
   .room-card-link{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;}
   .toast{position:fixed;bottom:24px;right:24px;background:#1c1f24;color:#fff;padding:12px 18px;border-radius:8px;font-size:13.5px;z-index:200;display:none;}
+
+  /* 기준정보 관리 */
+  .subtabs{display:flex;gap:6px;margin-bottom:16px;}
+  .subtab{padding:7px 14px;font-size:13px;font-weight:600;border-radius:7px;background:#fff;border:1px solid var(--border);color:var(--sub);cursor:pointer;}
+  .subtab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .subpanel{display:none;}
+  .subpanel.active{display:block;}
+  .masterform{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+  .masterform input,.masterform select{padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;}
+  .badge.inactive{background:#f1f5f9;color:#94a3b8;}
+  .partUsedRow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px;}
 </style>
 </head>
 <body>
@@ -98,6 +109,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 대시보드</div>
+  <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
   <div class="tab" data-tab="settings" onclick="switchTab('settings')">연결 설정</div>
 </div>
 
@@ -134,6 +146,12 @@
       <div class="kpi"><div class="num" id="kpiOutsourced">–</div><div class="label">외주 처리중</div></div>
       <div class="kpi ok"><div class="num" id="kpiDoneMonth">–</div><div class="label">이번달 완료</div></div>
     </div>
+    <div class="kpi-row">
+      <div class="kpi danger"><div class="num" id="kpiVacantRooms">–</div><div class="label">방막중 객실</div></div>
+      <div class="kpi warn"><div class="num" id="kpiVacantDays">–</div><div class="label">총 방막일수 (누적)</div></div>
+      <div class="kpi"><div class="num" id="kpiRepeated">–</div><div class="label">반복하자 건수</div></div>
+      <div class="kpi"><div class="num" id="kpiRepeatedPct">–</div><div class="label">반복하자율(%)</div></div>
+    </div>
 
     <div class="filterbar">
       <select id="filterRoom"><option value="">전체 객실</option></select>
@@ -154,7 +172,7 @@
       <table>
         <thead>
           <tr>
-            <th>객실</th><th>공종</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>등록일</th><th>담당자</th><th></th>
+            <th>객실</th><th>공종</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
@@ -179,10 +197,89 @@
       <h3>공종별 상세 집계</h3>
       <table>
         <thead>
-          <tr><th>공종</th><th>접수</th><th>확인</th><th>조치중</th><th>완료</th><th>외주 비중</th><th>총 건수</th></tr>
+          <tr><th>공종</th><th>접수</th><th>확인</th><th>조치중</th><th>완료</th><th>외주 비중</th><th>총 건수</th><th>총 발생비용</th></tr>
         </thead>
         <tbody id="categorySummaryBody"></tbody>
+        <tfoot>
+          <tr style="font-weight:700;"><td colspan="6" style="text-align:right;">전체 합계</td><td id="grandTotalCount">-</td><td id="grandTotalCost">-</td></tr>
+        </tfoot>
       </table>
+    </div>
+  </div>
+
+  <!-- ===================== 기준정보 관리 패널 ===================== -->
+  <div class="panel" id="panel-master">
+    <div class="subtabs">
+      <div class="subtab active" data-subtab="parts" onclick="switchSubtab('parts')">수리부속·단가</div>
+      <div class="subtab" data-subtab="locations" onclick="switchSubtab('locations')">하자부위</div>
+      <div class="subtab" data-subtab="roomtypes" onclick="switchSubtab('roomtypes')">객실타입</div>
+      <div class="subtab" data-subtab="categorymaster" onclick="switchSubtab('categorymaster')">공종</div>
+    </div>
+
+    <!-- 수리부속 -->
+    <div class="subpanel active" id="subpanel-parts">
+      <div class="card">
+        <h3>수리부속 등록</h3>
+        <div class="masterform">
+          <input id="partName" placeholder="부속명 (예: 변기 시트)" />
+          <select id="partCategory"></select>
+          <input id="partUnit" placeholder="단위 (예: 개, m, set)" value="개" />
+          <input id="partPrice" type="number" placeholder="단가(원)" />
+          <input id="partVendor" placeholder="주거래처 (선택)" />
+          <button class="btn small" onclick="addPart()">+ 추가</button>
+        </div>
+        <table>
+          <thead><tr><th>부속명</th><th>공종</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th></tr></thead>
+          <tbody id="partsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 하자부위 -->
+    <div class="subpanel" id="subpanel-locations">
+      <div class="card">
+        <h3>하자부위 등록</h3>
+        <div class="masterform">
+          <input id="locName" placeholder="부위명 (예: 화장실 벽면)" />
+          <select id="locCategory"></select>
+          <button class="btn small" onclick="addLocation()">+ 추가</button>
+        </div>
+        <table>
+          <thead><tr><th>부위명</th><th>관련 공종</th><th></th></tr></thead>
+          <tbody id="locationsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 객실타입 -->
+    <div class="subpanel" id="subpanel-roomtypes">
+      <div class="card">
+        <h3>객실타입 등록</h3>
+        <div class="masterform">
+          <input id="roomTypeName" placeholder="객실타입명 (예: 스튜디오 로프트)" />
+          <input id="roomTypeDesc" placeholder="설명 (선택)" />
+          <button class="btn small" onclick="addRoomType()">+ 추가</button>
+        </div>
+        <table>
+          <thead><tr><th>타입명</th><th>설명</th><th></th></tr></thead>
+          <tbody id="roomTypesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 공종 -->
+    <div class="subpanel" id="subpanel-categorymaster">
+      <div class="card">
+        <h3>공종 등록</h3>
+        <div class="masterform">
+          <input id="catName" placeholder="공종명 (예: 목공)" />
+          <button class="btn small" onclick="addCategory()">+ 추가</button>
+        </div>
+        <table>
+          <thead><tr><th>공종명</th><th></th></tr></thead>
+          <tbody id="categoryMasterTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -204,6 +301,10 @@
     <div class="form-row">
       <label>공종</label>
       <select id="formCategory"></select>
+    </div>
+    <div class="form-row">
+      <label>하자부위</label>
+      <select id="formLocation"><option value="">— 선택 안함 —</option></select>
     </div>
     <div class="form-row">
       <label>하자 제목</label>
@@ -239,6 +340,17 @@
       <label>외주업체명</label>
       <input id="formVendor" placeholder="예: OO인테리어" />
     </div>
+    <div class="form-row checkrow">
+      <input type="checkbox" id="formVacant" />
+      <label style="margin:0;">방막 처리 (이 하자로 객실 판매 불가)</label>
+    </div>
+    <div class="form-row" id="vacantDaysRow" style="display:none;">
+      <label>방막기간(일)</label>
+      <input id="formVacantDays" type="number" placeholder="예: 2" />
+    </div>
+    <div style="font-size:12px;color:var(--sub);margin-top:-8px;margin-bottom:14px;">
+      ※ 반복하자 여부는 등록 시 같은 객실·공종 기준 자동 판별됩니다 (최근 30일 내 동일 사례 존재 시).
+    </div>
     <div class="form-row">
       <label>담당자</label>
       <input id="formAssigned" placeholder="예: 김민수" />
@@ -247,6 +359,21 @@
       <label>등록자</label>
       <input id="formReporter" placeholder="예: 이성민" />
     </div>
+
+    <div class="form-row">
+      <label>사용 부속 / 발생비용 <span style="color:#9ca3af;font-weight:400;">(저장 후 등록 가능)</span></label>
+      <div id="partsUsedList"></div>
+      <div id="partsUsedAddRow" style="display:none;">
+        <div class="masterform" style="margin-top:6px;">
+          <select id="useePartSelect"></select>
+          <input id="useePartQty" type="number" placeholder="수량" value="1" style="width:70px;" />
+          <input id="useePartLabor" type="number" placeholder="인건비(원)" style="width:110px;" />
+          <button class="btn small" onclick="addPartUsage()">+ 추가</button>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:12.5px;color:var(--sub);" id="totalCostDisplay"></div>
+    </div>
+
     <div class="form-actions">
       <button class="btn secondary" onclick="closeDefectModal()">취소</button>
       <button class="btn" onclick="saveDefect()">저장</button>
@@ -261,6 +388,10 @@ let sb = null;
 let ROOMS = [];
 let CATEGORIES = [];
 let DEFECTS = [];
+let ROOM_TYPES = [];
+let LOCATIONS = [];
+let PARTS = [];
+let CURRENT_PARTS_USED = [];  // 모달에서 임시로 들고 있는 사용부품 목록 (저장 전)
 
 // ---------- 설정 로드 ----------
 function loadConfig(){
@@ -303,19 +434,38 @@ function switchTab(name){
   if(name==='categories'){
     try{ renderCategoryDashboard(); }catch(e){ console.error(e); }
   }
+  if(name==='master'){
+    try{ renderAllMasterTables(); }catch(e){ console.error(e); }
+  }
+}
+
+function switchSubtab(name){
+  document.querySelectorAll('.subtab').forEach(t=>t.classList.toggle('active', t.dataset.subtab===name));
+  document.querySelectorAll('.subpanel').forEach(p=>p.classList.remove('active'));
+  const panel = document.getElementById('subpanel-'+name);
+  if(panel) panel.classList.add('active');
 }
 
 // ---------- 데이터 로드 ----------
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:cats, error:e2}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:cats, error:e2}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
-    sb.from('defect_categories').select('*').order('sort_order')
+    sb.from('defect_categories').select('*').order('sort_order'),
+    sb.from('room_types').select('*').order('sort_order'),
+    sb.from('defect_locations').select('*, defect_categories(name)').order('sort_order'),
+    sb.from('defect_parts').select('*, defect_categories(name)').order('name')
   ]);
   if(e1) console.error(e1);
   if(e2) console.error(e2);
+  if(e3) console.error('room_types 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e3);
+  if(e4) console.error('defect_locations 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e4);
+  if(e5) console.error('defect_parts 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e5);
   ROOMS = rooms||[];
   CATEGORIES = cats||[];
+  ROOM_TYPES = rtypes||[];
+  LOCATIONS = locs||[];
+  PARTS = parts||[];
   populateRoomFilter();
   populateCategoryFilter();
   populateFormSelects();
@@ -326,7 +476,7 @@ async function loadDefects(){
   if(!sb) return;
   const {data, error} = await sb
     .from('defects')
-    .select('*, rooms(room_number,floor,room_type), defect_categories(name)')
+    .select('*, rooms(room_number,floor,room_type), defect_categories(name), defect_locations(name)')
     .order('created_at', {ascending:false});
   if(error){ console.error(error); showToast('하자 목록 로드 실패: '+error.message); return; }
   DEFECTS = data||[];
@@ -352,6 +502,15 @@ function populateFormSelects(){
     ROOMS.map(r=>`<option value="${r.id}">${r.room_number} (${r.room_type||''})</option>`).join('');
   document.getElementById('formCategory').innerHTML =
     CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const locSel = document.getElementById('formLocation');
+  if(locSel){
+    locSel.innerHTML = '<option value="">— 선택 안함 —</option>' +
+      LOCATIONS.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  }
+  const partSel = document.getElementById('useePartSelect');
+  if(partSel){
+    partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name} (${Number(p.unit_price).toLocaleString()}원/${p.unit})</option>`).join('');
+  }
 }
 
 // ---------- KPI ----------
@@ -369,6 +528,15 @@ function renderKpis(){
   document.getElementById('kpiUrgent').textContent = urgent;
   document.getElementById('kpiOutsourced').textContent = outsourced;
   document.getElementById('kpiDoneMonth').textContent = doneMonth;
+
+  const vacantRooms = DEFECTS.filter(d=>d.is_vacant && d.status!=='완료').length;
+  const totalVacantDays = DEFECTS.reduce((s,d)=> s + Number(d.vacant_days||0), 0);
+  const repeatedCount = DEFECTS.filter(d=>d.is_repeated).length;
+  const repeatedPct = DEFECTS.length? Math.round(repeatedCount/DEFECTS.length*1000)/10 : 0;
+  document.getElementById('kpiVacantRooms').textContent = vacantRooms;
+  document.getElementById('kpiVacantDays').textContent = totalVacantDays;
+  document.getElementById('kpiRepeated').textContent = repeatedCount;
+  document.getElementById('kpiRepeatedPct').textContent = repeatedPct + '%';
 }
 
 // ---------- 객실별 테이블 ----------
@@ -397,8 +565,12 @@ function renderDefectsTable(){
     const date = new Date(d.created_at).toLocaleDateString('ko-KR');
     return `
     <tr>
-      <td><b>${d.rooms?.room_number||'-'}</b> <span style="color:#9ca3af;font-size:12px;">${d.rooms?.floor||''}</span></td>
+      <td>
+        <b>${d.rooms?.room_number||'-'}</b> <span style="color:#9ca3af;font-size:12px;">${d.rooms?.floor||''}</span>
+        ${d.is_repeated? '<div><span class="badge" style="background:#fef9c3;color:#854d0e;">🔁 반복하자</span></div>':''}
+      </td>
       <td>${d.defect_categories?.name||'-'}</td>
+      <td>${d.defect_locations?.name||'-'}</td>
       <td>${escapeHtml(d.title)}</td>
       <td><span class="badge p-${d.priority}">${d.priority}</span></td>
       <td><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
@@ -407,6 +579,8 @@ function renderDefectsTable(){
           ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
         </select>
       </td>
+      <td>${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
+      <td>${Number(d.total_cost||0).toLocaleString()}원</td>
       <td>${date}</td>
       <td>${d.assigned_to||'-'}</td>
       <td><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
@@ -434,11 +608,13 @@ function renderCategoryDashboard(){
     const items = DEFECTS.filter(d=>d.category_id===c.id);
     const byStatus = s=>items.filter(d=>d.status===s).length;
     const outsourcedCount = items.filter(d=>d.is_outsourced).length;
+    const totalCost = items.reduce((sum,d)=> sum + Number(d.total_cost||0), 0);
     return {
       name:c.name,
       접수:byStatus('접수'), 확인:byStatus('확인'), 조치중:byStatus('조치중'), 완료:byStatus('완료'),
       total:items.length,
-      outsourcedPct: items.length? Math.round(outsourcedCount/items.length*100):0
+      outsourcedPct: items.length? Math.round(outsourcedCount/items.length*100):0,
+      totalCost
     };
   });
 
@@ -449,7 +625,15 @@ function renderCategoryDashboard(){
       <td>${s.접수}</td><td>${s.확인}</td><td>${s.조치중}</td><td>${s.완료}</td>
       <td>${s.outsourcedPct}%</td>
       <td><b>${s.total}</b></td>
+      <td>${s.totalCost.toLocaleString()}원</td>
     </tr>`).join('');
+
+  const grandTotalCount = summary.reduce((s,x)=>s+x.total,0);
+  const grandTotalCost = summary.reduce((s,x)=>s+x.totalCost,0);
+  const gc = document.getElementById('grandTotalCount');
+  const gco = document.getElementById('grandTotalCost');
+  if(gc) gc.textContent = grandTotalCount;
+  if(gco) gco.textContent = grandTotalCost.toLocaleString()+'원';
 
   // 차트1: 공종별 미완료 건수
   const openCounts = summary.map(s=>s.접수+s.확인+s.조치중);
@@ -477,6 +661,7 @@ function openNewDefectModal(){
   document.getElementById('formRoom').value = '';
   document.getElementById('formNewRoom').value = '';
   document.getElementById('formCategory').selectedIndex = 0;
+  document.getElementById('formLocation').value = '';
   document.getElementById('formTitle').value = '';
   document.getElementById('formDesc').value = '';
   document.getElementById('formPriority').value = '보통';
@@ -486,9 +671,15 @@ function openNewDefectModal(){
   document.getElementById('formAssigned').value = '';
   document.getElementById('formReporter').value = '';
   document.getElementById('vendorRow').style.display = 'none';
+  document.getElementById('formVacant').checked = false;
+  document.getElementById('formVacantDays').value = '';
+  document.getElementById('vacantDaysRow').style.display = 'none';
+  CURRENT_PARTS_USED = [];
+  document.getElementById('partsUsedAddRow').style.display = 'none';
+  renderPartsUsedList();
   document.getElementById('defectModal').classList.add('active');
 }
-function openEditModal(id){
+async function openEditModal(id){
   const d = DEFECTS.find(x=>x.id===id);
   if(!d) return;
   document.getElementById('modalTitle').textContent = '하자 수정';
@@ -496,6 +687,7 @@ function openEditModal(id){
   document.getElementById('formRoom').value = d.room_id;
   document.getElementById('formNewRoom').value = '';
   document.getElementById('formCategory').value = d.category_id;
+  document.getElementById('formLocation').value = d.location_id||'';
   document.getElementById('formTitle').value = d.title||'';
   document.getElementById('formDesc').value = d.description||'';
   document.getElementById('formPriority').value = d.priority;
@@ -505,6 +697,17 @@ function openEditModal(id){
   document.getElementById('formAssigned').value = d.assigned_to||'';
   document.getElementById('formReporter').value = d.reported_by||'';
   document.getElementById('vendorRow').style.display = d.is_outsourced? 'block':'none';
+  document.getElementById('formVacant').checked = !!d.is_vacant;
+  document.getElementById('formVacantDays').value = d.vacant_days||'';
+  document.getElementById('vacantDaysRow').style.display = d.is_vacant? 'block':'none';
+  document.getElementById('partsUsedAddRow').style.display = 'block';
+
+  const {data, error} = await sb.from('defect_parts_used').select('*, defect_parts(name, unit)').eq('defect_id', id).order('created_at');
+  CURRENT_PARTS_USED = error? [] : (data||[]).map(r=>({
+    id:r.id, part_id:r.part_id, name: r.defect_parts?.name || r.part_name_manual || '부속',
+    quantity:r.quantity, unit_price:r.unit_price, labor_cost:r.labor_cost
+  }));
+  renderPartsUsedList();
   document.getElementById('defectModal').classList.add('active');
 }
 function closeDefectModal(){
@@ -512,6 +715,9 @@ function closeDefectModal(){
 }
 document.getElementById('formOutsourced').addEventListener('change', e=>{
   document.getElementById('vendorRow').style.display = e.target.checked? 'block':'none';
+});
+document.getElementById('formVacant').addEventListener('change', e=>{
+  document.getElementById('vacantDaysRow').style.display = e.target.checked? 'block':'none';
 });
 
 async function saveDefect(){
@@ -532,9 +738,11 @@ async function saveDefect(){
     populateRoomFilter(); populateFormSelects();
   }
 
+  const locationId = document.getElementById('formLocation').value;
   const payload = {
     room_id: Number(roomId),
     category_id: Number(categoryId),
+    location_id: locationId? Number(locationId) : null,
     title,
     description: document.getElementById('formDesc').value.trim(),
     priority: document.getElementById('formPriority').value,
@@ -542,19 +750,225 @@ async function saveDefect(){
     is_outsourced: document.getElementById('formOutsourced').checked,
     vendor_name: document.getElementById('formVendor').value.trim() || null,
     assigned_to: document.getElementById('formAssigned').value.trim() || null,
-    reported_by: document.getElementById('formReporter').value.trim() || null
+    reported_by: document.getElementById('formReporter').value.trim() || null,
+    is_vacant: document.getElementById('formVacant').checked,
+    vacant_days: Number(document.getElementById('formVacantDays').value || 0)
   };
 
-  let error;
+  let error, savedId = id? Number(id) : null;
   if(id){
     ({error} = await sb.from('defects').update(payload).eq('id', id));
   } else {
-    ({error} = await sb.from('defects').insert(payload));
+    const {data, error:insErr} = await sb.from('defects').insert(payload).select().single();
+    error = insErr;
+    if(data) savedId = data.id;
   }
   if(error){ alert('저장 실패: '+error.message); return; }
+
+  // 새로 추가된(아직 DB에 없는) 사용부품들을 저장
+  const newParts = CURRENT_PARTS_USED.filter(p=>!p.id);
+  if(savedId && newParts.length){
+    const rows = newParts.map(p=>({
+      defect_id: savedId, part_id: p.part_id, quantity: p.quantity,
+      unit_price: p.unit_price, labor_cost: p.labor_cost||0
+    }));
+    const {error: peErr} = await sb.from('defect_parts_used').insert(rows);
+    if(peErr) console.error('부품 사용 저장 실패:', peErr);
+  }
+
   closeDefectModal();
   showToast('저장되었습니다.');
   await loadDefects();
+}
+
+// ---------- 사용부품/비용 입력 ----------
+function renderPartsUsedList(){
+  const box = document.getElementById('partsUsedList');
+  if(!box) return;
+  if(!CURRENT_PARTS_USED.length){
+    box.innerHTML = '<div style="font-size:12.5px;color:var(--sub);">등록된 부속/비용이 없습니다.</div>';
+  } else {
+    box.innerHTML = CURRENT_PARTS_USED.map((p,idx)=>{
+      const sum = (p.quantity*p.unit_price) + (p.labor_cost||0);
+      return `<div class="partUsedRow">
+        <span>${escapeHtml(p.name)} × ${p.quantity} (${Number(p.unit_price).toLocaleString()}원) ${p.labor_cost?'+ 인건비 '+Number(p.labor_cost).toLocaleString()+'원':''}</span>
+        <span><b>${sum.toLocaleString()}원</b> <button class="btn small secondary" onclick="removePartUsage(${idx})">삭제</button></span>
+      </div>`;
+    }).join('');
+  }
+  const total = CURRENT_PARTS_USED.reduce((s,p)=> s + (p.quantity*p.unit_price) + (p.labor_cost||0), 0);
+  document.getElementById('totalCostDisplay').textContent = '예상 발생비용 합계: ' + total.toLocaleString() + '원';
+  document.getElementById('partsUsedAddRow').style.display = 'block';
+}
+
+function addPartUsage(){
+  const partId = document.getElementById('useePartSelect').value;
+  const qty = Number(document.getElementById('useePartQty').value || 1);
+  const labor = Number(document.getElementById('useePartLabor').value || 0);
+  const part = PARTS.find(p=>String(p.id)===String(partId));
+  if(!part){ alert('부속을 선택해주세요.'); return; }
+  CURRENT_PARTS_USED.push({
+    part_id: part.id, name: part.name, quantity: qty, unit_price: Number(part.unit_price), labor_cost: labor
+  });
+  document.getElementById('useePartQty').value = 1;
+  document.getElementById('useePartLabor').value = '';
+  renderPartsUsedList();
+}
+
+async function removePartUsage(idx){
+  const item = CURRENT_PARTS_USED[idx];
+  if(item.id){
+    const {error} = await sb.from('defect_parts_used').delete().eq('id', item.id);
+    if(error){ alert('삭제 실패: '+error.message); return; }
+  }
+  CURRENT_PARTS_USED.splice(idx,1);
+  renderPartsUsedList();
+}
+
+// ---------- 기준정보 관리 ----------
+function renderAllMasterTables(){
+  populateMasterCategorySelects();
+  renderPartsTable();
+  renderLocationsTable();
+  renderRoomTypesTable();
+  renderCategoryMasterTable();
+}
+
+function populateMasterCategorySelects(){
+  const opts = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const a = document.getElementById('partCategory');
+  const b = document.getElementById('locCategory');
+  if(a) a.innerHTML = '<option value="">— 공종 선택 —</option>' + opts;
+  if(b) b.innerHTML = '<option value="">— 공종 선택 —</option>' + opts;
+}
+
+// 수리부속
+function renderPartsTable(){
+  const body = document.getElementById('partsTableBody');
+  if(!body) return;
+  body.innerHTML = PARTS.map(p=>`
+    <tr>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${p.defect_categories?.name||'-'}</td>
+      <td>${escapeHtml(p.unit)}</td>
+      <td>${Number(p.unit_price).toLocaleString()}원</td>
+      <td>${escapeHtml(p.vendor_name||'-')}</td>
+      <td><span class="badge ${p.is_active?'ok-badge':'inactive'}" style="${p.is_active?'background:#dcfce7;color:#166534;':''}">${p.is_active?'활성':'비활성'}</span></td>
+      <td><button class="btn small secondary" onclick="togglePartActive(${p.id}, ${!p.is_active})">${p.is_active?'비활성화':'활성화'}</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
+}
+async function addPart(){
+  const name = document.getElementById('partName').value.trim();
+  const categoryId = document.getElementById('partCategory').value;
+  const unit = document.getElementById('partUnit').value.trim() || '개';
+  const price = Number(document.getElementById('partPrice').value || 0);
+  const vendor = document.getElementById('partVendor').value.trim();
+  if(!name){ alert('부속명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_parts').insert({
+    name, category_id: categoryId? Number(categoryId): null, unit, unit_price: price, vendor_name: vendor || null
+  });
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('partName').value='';
+  document.getElementById('partPrice').value='';
+  document.getElementById('partVendor').value='';
+  showToast('수리부속이 등록되었습니다.');
+  await reloadMasterData();
+}
+async function togglePartActive(id, newVal){
+  const {error} = await sb.from('defect_parts').update({is_active:newVal}).eq('id', id);
+  if(error){ alert('변경 실패: '+error.message); return; }
+  await reloadMasterData();
+}
+
+// 하자부위
+function renderLocationsTable(){
+  const body = document.getElementById('locationsTableBody');
+  if(!body) return;
+  body.innerHTML = LOCATIONS.map(l=>`
+    <tr>
+      <td>${escapeHtml(l.name)}</td>
+      <td>${l.defect_categories?.name||'-'}</td>
+      <td><button class="btn small secondary" onclick="deleteLocation(${l.id})">삭제</button></td>
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--sub);padding:20px;">등록된 하자부위가 없습니다.</td></tr>';
+}
+async function addLocation(){
+  const name = document.getElementById('locName').value.trim();
+  const categoryId = document.getElementById('locCategory').value;
+  if(!name){ alert('부위명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_locations').insert({name, category_id: categoryId? Number(categoryId): null});
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('locName').value='';
+  showToast('하자부위가 등록되었습니다.');
+  await reloadMasterData();
+}
+async function deleteLocation(id){
+  if(!confirm('이 하자부위를 삭제하시겠습니까?')) return;
+  const {error} = await sb.from('defect_locations').delete().eq('id', id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  await reloadMasterData();
+}
+
+// 객실타입
+function renderRoomTypesTable(){
+  const body = document.getElementById('roomTypesTableBody');
+  if(!body) return;
+  body.innerHTML = ROOM_TYPES.map(r=>`
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td>${escapeHtml(r.description||'-')}</td>
+      <td><button class="btn small secondary" onclick="deleteRoomType(${r.id})">삭제</button></td>
+    </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
+}
+async function addRoomType(){
+  const name = document.getElementById('roomTypeName').value.trim();
+  const desc = document.getElementById('roomTypeDesc').value.trim();
+  if(!name){ alert('타입명을 입력해주세요.'); return; }
+  const {error} = await sb.from('room_types').insert({name, description: desc||null});
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('roomTypeName').value='';
+  document.getElementById('roomTypeDesc').value='';
+  showToast('객실타입이 등록되었습니다.');
+  await reloadMasterData();
+}
+async function deleteRoomType(id){
+  if(!confirm('이 객실타입을 삭제하시겠습니까?')) return;
+  const {error} = await sb.from('room_types').delete().eq('id', id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  await reloadMasterData();
+}
+
+// 공종
+function renderCategoryMasterTable(){
+  const body = document.getElementById('categoryMasterTableBody');
+  if(!body) return;
+  body.innerHTML = CATEGORIES.map(c=>`
+    <tr><td>${escapeHtml(c.name)}</td><td>-</td></tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--sub);padding:20px;">등록된 공종이 없습니다.</td></tr>';
+}
+async function addCategory(){
+  const name = document.getElementById('catName').value.trim();
+  if(!name){ alert('공종명을 입력해주세요.'); return; }
+  const maxOrder = CATEGORIES.reduce((m,c)=>Math.max(m,c.sort_order||0),0);
+  const {error} = await sb.from('defect_categories').insert({name, sort_order: maxOrder+1});
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('catName').value='';
+  showToast('공종이 등록되었습니다.');
+  await reloadMasterData();
+}
+
+async function reloadMasterData(){
+  const [{data:rtypes}, {data:locs}, {data:parts}, {data:cats}] = await Promise.all([
+    sb.from('room_types').select('*').order('sort_order'),
+    sb.from('defect_locations').select('*, defect_categories(name)').order('sort_order'),
+    sb.from('defect_parts').select('*, defect_categories(name)').order('name'),
+    sb.from('defect_categories').select('*').order('sort_order')
+  ]);
+  ROOM_TYPES = rtypes||[];
+  LOCATIONS = locs||[];
+  PARTS = parts||[];
+  CATEGORIES = cats||[];
+  populateCategoryFilter();
+  populateFormSelects();
+  renderAllMasterTables();
 }
 
 // ---------- 유틸 ----------
