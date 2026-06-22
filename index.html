@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>객실 하자관리 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --border:#e3e5e9; --text:#1c1f24; --sub:#6b7280;
+    --accent:#2563eb; --danger:#dc2626; --warn:#d97706; --ok:#16a34a; --muted:#9ca3af;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text);}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+  .topbar h1{font-size:18px;margin:0;font-weight:700;}
+  .topbar .status{font-size:13px;color:var(--sub);}
+  .tabs{display:flex;gap:4px;padding:0 24px;background:var(--card);border-bottom:1px solid var(--border);}
+  .tab{padding:12px 16px;font-size:14px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .container{max-width:1280px;margin:0 auto;padding:20px 24px 60px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* 설정 안내 박스 */
+  .setup-box{background:#fff8e1;border:1px solid #f0d98c;border-radius:10px;padding:16px 18px;margin-bottom:20px;font-size:13.5px;line-height:1.6;}
+  .setup-box code{background:#00000010;padding:2px 6px;border-radius:4px;font-size:12.5px;}
+  .setup-box input{width:100%;padding:8px 10px;margin-top:6px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  .setup-box button{margin-top:10px;background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;}
+
+  /* 요약 카드 */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+  .kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;}
+  .kpi .num{font-size:26px;font-weight:800;}
+  .kpi .label{font-size:13px;color:var(--sub);margin-top:4px;}
+  .kpi.danger .num{color:var(--danger);}
+  .kpi.warn .num{color:var(--warn);}
+  .kpi.ok .num{color:var(--ok);}
+
+  .grid2{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;margin-bottom:20px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  .card h3{margin:0 0 12px;font-size:15px;font-weight:700;}
+
+  /* 필터 바 */
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  .filterbar select,.filterbar input{padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:#fff;}
+  .filterbar .spacer{flex:1;}
+  .btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .btn.small{padding:5px 10px;font-size:12px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);color:var(--sub);font-weight:600;background:#fafbfc;}
+  td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  tr:hover td{background:#f9fafb;}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;}
+  .badge.s-접수{background:#fee2e2;color:#b91c1c;}
+  .badge.s-확인{background:#fef3c7;color:#92400e;}
+  .badge.s-조치중{background:#dbeafe;color:#1e40af;}
+  .badge.s-완료{background:#dcfce7;color:#166534;}
+  .badge.p-긴급{background:#fee2e2;color:#b91c1c;}
+  .badge.p-높음{background:#ffedd5;color:#c2410c;}
+  .badge.p-보통{background:#f1f5f9;color:#475569;}
+  .badge.p-낮음{background:#f1f5f9;color:#94a3b8;}
+  .badge.outsourced{background:#ede9fe;color:#6d28d9;}
+  .badge.internal{background:#e0f2fe;color:#0369a1;}
+
+  select.status-select{border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12.5px;font-weight:600;}
+
+  .empty{text-align:center;padding:40px;color:var(--sub);font-size:14px;}
+
+  /* 모달 */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:100;}
+  .overlay.active{display:flex;}
+  .modal{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+  .modal h3{margin:0 0 16px;font-size:17px;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;}
+  .form-row input,.form-row select,.form-row textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font-size:13.5px;font-family:inherit;}
+  .form-row textarea{resize:vertical;min-height:70px;}
+  .form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;}
+  .checkrow{display:flex;align-items:center;gap:8px;}
+  .checkrow input{width:auto;}
+
+  .room-card-link{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:none;}
+  .toast{position:fixed;bottom:24px;right:24px;background:#1c1f24;color:#fff;padding:12px 18px;border-radius:8px;font-size:13.5px;z-index:200;display:none;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🏨 객실 하자관리 대시보드</h1>
+  <div class="status" id="connStatus">Supabase 연결 대기중…</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
+  <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 대시보드</div>
+  <div class="tab" data-tab="settings" onclick="switchTab('settings')">연결 설정</div>
+</div>
+
+<div class="container">
+
+  <!-- ===================== 설정 패널 ===================== -->
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <h3>Supabase 연결 설정</h3>
+      <div class="setup-box">
+        1. supabase.com에서 프로젝트를 만드신 뒤, <code>Project Settings → API</code> 메뉴에서<br/>
+        <b>Project URL</b>과 <b>anon public key</b> 두 가지를 복사해 아래에 붙여넣으세요.<br/>
+        2. <code>SQL Editor</code>에서 제공된 supabase_schema.sql 파일 내용을 실행해 표를 먼저 만들어주세요.<br/>
+        3. 아래에 입력 후 "연결하기"를 누르면 이 브라우저에 저장되어 다음에 다시 입력할 필요가 없습니다.
+        <div class="form-row" style="margin-top:12px;">
+          <label>Project URL</label>
+          <input id="cfgUrl" placeholder="https://xxxxxxxx.supabase.co" />
+        </div>
+        <div class="form-row">
+          <label>anon public key</label>
+          <input id="cfgKey" placeholder="eyJhbGciOiJI..." />
+        </div>
+        <button onclick="saveConfig()">연결하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 객실별 하자 리스트 패널 ===================== -->
+  <div class="panel active" id="panel-rooms">
+
+    <div class="kpi-row">
+      <div class="kpi danger"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중)</div></div>
+      <div class="kpi warn"><div class="num" id="kpiUrgent">–</div><div class="label">긴급 우선순위</div></div>
+      <div class="kpi"><div class="num" id="kpiOutsourced">–</div><div class="label">외주 처리중</div></div>
+      <div class="kpi ok"><div class="num" id="kpiDoneMonth">–</div><div class="label">이번달 완료</div></div>
+    </div>
+
+    <div class="filterbar">
+      <select id="filterRoom"><option value="">전체 객실</option></select>
+      <select id="filterCategory"><option value="">전체 공종</option></select>
+      <select id="filterStatus">
+        <option value="">전체 상태</option>
+        <option value="접수">접수</option>
+        <option value="확인">확인</option>
+        <option value="조치중">조치중</option>
+        <option value="완료">완료</option>
+      </select>
+      <input id="searchBox" placeholder="객실번호/제목 검색" style="min-width:180px;"/>
+      <div class="spacer"></div>
+      <button class="btn" onclick="openNewDefectModal()">+ 하자 등록</button>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>객실</th><th>공종</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>등록일</th><th>담당자</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="defectsTableBody"></tbody>
+      </table>
+      <div class="empty" id="defectsEmpty" style="display:none;">표시할 하자가 없습니다. 우측 상단의 "+ 하자 등록"으로 추가해보세요.</div>
+    </div>
+  </div>
+
+  <!-- ===================== 공종별 대시보드 패널 ===================== -->
+  <div class="panel" id="panel-categories">
+    <div class="grid2">
+      <div class="card">
+        <h3>공종별 미완료 하자 건수</h3>
+        <canvas id="chartByCategory" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h3>상태별 분포</h3>
+        <canvas id="chartByStatus" height="220"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h3>공종별 상세 집계</h3>
+      <table>
+        <thead>
+          <tr><th>공종</th><th>접수</th><th>확인</th><th>조치중</th><th>완료</th><th>외주 비중</th><th>총 건수</th></tr>
+        </thead>
+        <tbody id="categorySummaryBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== 하자 등록/수정 모달 ===================== -->
+<div class="overlay" id="defectModal">
+  <div class="modal">
+    <h3 id="modalTitle">하자 등록</h3>
+    <input type="hidden" id="editDefectId" />
+    <div class="form-row">
+      <label>객실 선택</label>
+      <select id="formRoom"></select>
+    </div>
+    <div class="form-row">
+      <label>새 객실번호 등록 (목록에 없는 경우)</label>
+      <input id="formNewRoom" placeholder="예: 1203 (입력 시 자동 등록)" />
+    </div>
+    <div class="form-row">
+      <label>공종</label>
+      <select id="formCategory"></select>
+    </div>
+    <div class="form-row">
+      <label>하자 제목</label>
+      <input id="formTitle" placeholder="예: 화장실 타일 깨짐" />
+    </div>
+    <div class="form-row">
+      <label>상세 설명</label>
+      <textarea id="formDesc" placeholder="위치, 증상 등을 자세히 적어주세요"></textarea>
+    </div>
+    <div class="form-row">
+      <label>우선순위</label>
+      <select id="formPriority">
+        <option value="긴급">긴급</option>
+        <option value="높음">높음</option>
+        <option value="보통" selected>보통</option>
+        <option value="낮음">낮음</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>상태</label>
+      <select id="formStatus">
+        <option value="접수">접수</option>
+        <option value="확인">확인</option>
+        <option value="조치중">조치중</option>
+        <option value="완료">완료</option>
+      </select>
+    </div>
+    <div class="form-row checkrow">
+      <input type="checkbox" id="formOutsourced" />
+      <label style="margin:0;">외주 처리</label>
+    </div>
+    <div class="form-row" id="vendorRow" style="display:none;">
+      <label>외주업체명</label>
+      <input id="formVendor" placeholder="예: OO인테리어" />
+    </div>
+    <div class="form-row">
+      <label>담당자</label>
+      <input id="formAssigned" placeholder="예: 김민수" />
+    </div>
+    <div class="form-row">
+      <label>등록자</label>
+      <input id="formReporter" placeholder="예: 이성민" />
+    </div>
+    <div class="form-actions">
+      <button class="btn secondary" onclick="closeDefectModal()">취소</button>
+      <button class="btn" onclick="saveDefect()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let sb = null;
+let ROOMS = [];
+let CATEGORIES = [];
+let DEFECTS = [];
+
+// ---------- 설정 로드 ----------
+function loadConfig(){
+  const url = localStorage.getItem('sb_url');
+  const key = localStorage.getItem('sb_key');
+  if(url && key){
+    initSupabase(url, key);
+  } else {
+    document.getElementById('connStatus').textContent = '⚠ 연결 안됨 — "연결 설정" 탭에서 설정하세요';
+    switchTab('settings');
+  }
+}
+
+function saveConfig(){
+  const url = document.getElementById('cfgUrl').value.trim();
+  const key = document.getElementById('cfgKey').value.trim();
+  if(!url || !key){ alert('URL과 key를 모두 입력해주세요.'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  initSupabase(url, key);
+  switchTab('rooms');
+}
+
+function initSupabase(url, key){
+  try{
+    sb = window.supabase.createClient(url, key);
+    document.getElementById('connStatus').textContent = '✅ Supabase 연결됨';
+    loadAll();
+  }catch(e){
+    document.getElementById('connStatus').textContent = '⚠ 연결 실패: ' + e.message;
+  }
+}
+
+// ---------- 탭 전환 ----------
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const panel = document.getElementById('panel-'+name);
+  if(panel) panel.classList.add('active');
+  if(name==='categories'){
+    try{ renderCategoryDashboard(); }catch(e){ console.error(e); }
+  }
+}
+
+// ---------- 데이터 로드 ----------
+async function loadAll(){
+  if(!sb) return;
+  const [{data:rooms, error:e1}, {data:cats, error:e2}] = await Promise.all([
+    sb.from('rooms').select('*').order('room_number'),
+    sb.from('defect_categories').select('*').order('sort_order')
+  ]);
+  if(e1) console.error(e1);
+  if(e2) console.error(e2);
+  ROOMS = rooms||[];
+  CATEGORIES = cats||[];
+  populateRoomFilter();
+  populateCategoryFilter();
+  populateFormSelects();
+  await loadDefects();
+}
+
+async function loadDefects(){
+  if(!sb) return;
+  const {data, error} = await sb
+    .from('defects')
+    .select('*, rooms(room_number,floor,room_type), defect_categories(name)')
+    .order('created_at', {ascending:false});
+  if(error){ console.error(error); showToast('하자 목록 로드 실패: '+error.message); return; }
+  DEFECTS = data||[];
+  renderKpis();
+  renderDefectsTable();
+  renderCategoryDashboard();
+}
+
+// ---------- 필터 옵션 채우기 ----------
+function populateRoomFilter(){
+  const sel = document.getElementById('filterRoom');
+  sel.innerHTML = '<option value="">전체 객실</option>' +
+    ROOMS.map(r=>`<option value="${r.id}">${r.room_number} (${r.room_type||''})</option>`).join('');
+}
+function populateCategoryFilter(){
+  const sel = document.getElementById('filterCategory');
+  sel.innerHTML = '<option value="">전체 공종</option>' +
+    CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+function populateFormSelects(){
+  document.getElementById('formRoom').innerHTML =
+    '<option value="">— 선택 안함 (새 객실번호 입력시 자동등록) —</option>' +
+    ROOMS.map(r=>`<option value="${r.id}">${r.room_number} (${r.room_type||''})</option>`).join('');
+  document.getElementById('formCategory').innerHTML =
+    CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+// ---------- KPI ----------
+function renderKpis(){
+  const open = DEFECTS.filter(d=>d.status!=='완료').length;
+  const urgent = DEFECTS.filter(d=>d.status!=='완료' && d.priority==='긴급').length;
+  const outsourced = DEFECTS.filter(d=>d.status!=='완료' && d.is_outsourced).length;
+  const now = new Date();
+  const doneMonth = DEFECTS.filter(d=>{
+    if(d.status!=='완료' || !d.resolved_at) return false;
+    const rd = new Date(d.resolved_at);
+    return rd.getFullYear()===now.getFullYear() && rd.getMonth()===now.getMonth();
+  }).length;
+  document.getElementById('kpiOpen').textContent = open;
+  document.getElementById('kpiUrgent').textContent = urgent;
+  document.getElementById('kpiOutsourced').textContent = outsourced;
+  document.getElementById('kpiDoneMonth').textContent = doneMonth;
+}
+
+// ---------- 객실별 테이블 ----------
+function getFilteredDefects(){
+  const roomId = document.getElementById('filterRoom').value;
+  const catId = document.getElementById('filterCategory').value;
+  const status = document.getElementById('filterStatus').value;
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  return DEFECTS.filter(d=>{
+    if(roomId && String(d.room_id)!==roomId) return false;
+    if(catId && String(d.category_id)!==catId) return false;
+    if(status && d.status!==status) return false;
+    if(q){
+      const hay = `${d.rooms?.room_number||''} ${d.title||''}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderDefectsTable(){
+  const rows = getFilteredDefects();
+  const body = document.getElementById('defectsTableBody');
+  document.getElementById('defectsEmpty').style.display = rows.length? 'none':'block';
+  body.innerHTML = rows.map(d=>{
+    const date = new Date(d.created_at).toLocaleDateString('ko-KR');
+    return `
+    <tr>
+      <td><b>${d.rooms?.room_number||'-'}</b> <span style="color:#9ca3af;font-size:12px;">${d.rooms?.floor||''}</span></td>
+      <td>${d.defect_categories?.name||'-'}</td>
+      <td>${escapeHtml(d.title)}</td>
+      <td><span class="badge p-${d.priority}">${d.priority}</span></td>
+      <td><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
+      <td>
+        <select class="status-select s-${d.status}" onchange="changeStatus(${d.id}, this.value)">
+          ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td>${date}</td>
+      <td>${d.assigned_to||'-'}</td>
+      <td><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('filterRoom').addEventListener('change', renderDefectsTable);
+document.getElementById('filterCategory').addEventListener('change', renderDefectsTable);
+document.getElementById('filterStatus').addEventListener('change', renderDefectsTable);
+document.getElementById('searchBox').addEventListener('input', renderDefectsTable);
+
+async function changeStatus(id, newStatus){
+  const {error} = await sb.from('defects').update({status:newStatus}).eq('id', id);
+  if(error){ showToast('상태 변경 실패: '+error.message); return; }
+  showToast('상태가 변경되었습니다.');
+  await loadDefects();
+}
+
+// ---------- 공종별 대시보드 ----------
+let chart1=null, chart2=null;
+function renderCategoryDashboard(){
+  if(!CATEGORIES.length) return;
+  const summary = CATEGORIES.map(c=>{
+    const items = DEFECTS.filter(d=>d.category_id===c.id);
+    const byStatus = s=>items.filter(d=>d.status===s).length;
+    const outsourcedCount = items.filter(d=>d.is_outsourced).length;
+    return {
+      name:c.name,
+      접수:byStatus('접수'), 확인:byStatus('확인'), 조치중:byStatus('조치중'), 완료:byStatus('완료'),
+      total:items.length,
+      outsourcedPct: items.length? Math.round(outsourcedCount/items.length*100):0
+    };
+  });
+
+  // 표
+  document.getElementById('categorySummaryBody').innerHTML = summary.map(s=>`
+    <tr>
+      <td><b>${s.name}</b></td>
+      <td>${s.접수}</td><td>${s.확인}</td><td>${s.조치중}</td><td>${s.완료}</td>
+      <td>${s.outsourcedPct}%</td>
+      <td><b>${s.total}</b></td>
+    </tr>`).join('');
+
+  // 차트1: 공종별 미완료 건수
+  const openCounts = summary.map(s=>s.접수+s.확인+s.조치중);
+  if(chart1) chart1.destroy();
+  chart1 = new Chart(document.getElementById('chartByCategory'), {
+    type:'bar',
+    data:{ labels: summary.map(s=>s.name), datasets:[{label:'미완료 건수', data: openCounts, backgroundColor:'#2563eb'}]},
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
+  });
+
+  // 차트2: 상태별 분포 (전체)
+  const totalByStatus = ['접수','확인','조치중','완료'].map(s=>DEFECTS.filter(d=>d.status===s).length);
+  if(chart2) chart2.destroy();
+  chart2 = new Chart(document.getElementById('chartByStatus'), {
+    type:'doughnut',
+    data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:totalByStatus, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
+    options:{ responsive:true }
+  });
+}
+
+// ---------- 모달 ----------
+function openNewDefectModal(){
+  document.getElementById('modalTitle').textContent = '하자 등록';
+  document.getElementById('editDefectId').value = '';
+  document.getElementById('formRoom').value = '';
+  document.getElementById('formNewRoom').value = '';
+  document.getElementById('formCategory').selectedIndex = 0;
+  document.getElementById('formTitle').value = '';
+  document.getElementById('formDesc').value = '';
+  document.getElementById('formPriority').value = '보통';
+  document.getElementById('formStatus').value = '접수';
+  document.getElementById('formOutsourced').checked = false;
+  document.getElementById('formVendor').value = '';
+  document.getElementById('formAssigned').value = '';
+  document.getElementById('formReporter').value = '';
+  document.getElementById('vendorRow').style.display = 'none';
+  document.getElementById('defectModal').classList.add('active');
+}
+function openEditModal(id){
+  const d = DEFECTS.find(x=>x.id===id);
+  if(!d) return;
+  document.getElementById('modalTitle').textContent = '하자 수정';
+  document.getElementById('editDefectId').value = d.id;
+  document.getElementById('formRoom').value = d.room_id;
+  document.getElementById('formNewRoom').value = '';
+  document.getElementById('formCategory').value = d.category_id;
+  document.getElementById('formTitle').value = d.title||'';
+  document.getElementById('formDesc').value = d.description||'';
+  document.getElementById('formPriority').value = d.priority;
+  document.getElementById('formStatus').value = d.status;
+  document.getElementById('formOutsourced').checked = !!d.is_outsourced;
+  document.getElementById('formVendor').value = d.vendor_name||'';
+  document.getElementById('formAssigned').value = d.assigned_to||'';
+  document.getElementById('formReporter').value = d.reported_by||'';
+  document.getElementById('vendorRow').style.display = d.is_outsourced? 'block':'none';
+  document.getElementById('defectModal').classList.add('active');
+}
+function closeDefectModal(){
+  document.getElementById('defectModal').classList.remove('active');
+}
+document.getElementById('formOutsourced').addEventListener('change', e=>{
+  document.getElementById('vendorRow').style.display = e.target.checked? 'block':'none';
+});
+
+async function saveDefect(){
+  const id = document.getElementById('editDefectId').value;
+  let roomId = document.getElementById('formRoom').value;
+  const newRoomNumber = document.getElementById('formNewRoom').value.trim();
+  const categoryId = document.getElementById('formCategory').value;
+  const title = document.getElementById('formTitle').value.trim();
+
+  if(!title){ alert('하자 제목을 입력해주세요.'); return; }
+  if(!roomId && !newRoomNumber){ alert('객실을 선택하거나 새 객실번호를 입력해주세요.'); return; }
+
+  if(newRoomNumber){
+    const {data, error} = await sb.from('rooms').insert({room_number:newRoomNumber}).select().single();
+    if(error){ alert('새 객실 등록 실패: '+error.message); return; }
+    roomId = data.id;
+    ROOMS.push(data);
+    populateRoomFilter(); populateFormSelects();
+  }
+
+  const payload = {
+    room_id: Number(roomId),
+    category_id: Number(categoryId),
+    title,
+    description: document.getElementById('formDesc').value.trim(),
+    priority: document.getElementById('formPriority').value,
+    status: document.getElementById('formStatus').value,
+    is_outsourced: document.getElementById('formOutsourced').checked,
+    vendor_name: document.getElementById('formVendor').value.trim() || null,
+    assigned_to: document.getElementById('formAssigned').value.trim() || null,
+    reported_by: document.getElementById('formReporter').value.trim() || null
+  };
+
+  let error;
+  if(id){
+    ({error} = await sb.from('defects').update(payload).eq('id', id));
+  } else {
+    ({error} = await sb.from('defects').insert(payload));
+  }
+  if(error){ alert('저장 실패: '+error.message); return; }
+  closeDefectModal();
+  showToast('저장되었습니다.');
+  await loadDefects();
+}
+
+// ---------- 유틸 ----------
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(()=> t.style.display='none', 2500);
+}
+
+// 저장된 설정 채워두기 (재방문시 입력값 표시)
+try{
+  document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
+  document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
+  loadConfig();
+}catch(e){
+  console.error('초기화 중 오류:', e);
+}
+</script>
+
+</body>
+</html>
