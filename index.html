@@ -1611,8 +1611,12 @@ function updateRoomsSelectedCount(){
 
 async function deleteRoom(id){
   if(!confirm('이 객실을 삭제하시겠습니까? 연결된 하자 이력도 함께 삭제됩니다.')) return;
-  const {error} = await sb.from('rooms').delete().eq('id', id);
+  const {data, error} = await sb.from('rooms').delete().eq('id', id).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(!data || !data.length){
+    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    return;
+  }
   showToast('객실이 삭제되었습니다.');
   await refreshRoomsAndForms();
   await loadDefects();
@@ -1882,9 +1886,13 @@ async function deleteSelectedRooms(){
   if(!confirm(`선택한 ${checked.length}개 객실을 삭제하시겠습니까? 연결된 하자 이력도 함께 삭제됩니다.`)) return;
 
   const ids = checked.map(c=>Number(c.dataset.roomId));
-  const {error} = await sb.from('rooms').delete().in('id', ids);
+  const {data, error} = await sb.from('rooms').delete().in('id', ids).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
-  showToast(`객실 ${ids.length}건이 삭제되었습니다.`);
+  if(!data || !data.length){
+    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    return;
+  }
+  showToast(`객실 ${data.length}건이 삭제되었습니다.`);
   await refreshRoomsAndForms();
   await loadDefects();
 }
