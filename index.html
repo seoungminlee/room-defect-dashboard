@@ -1035,7 +1035,7 @@ async function renderMainDashboard(){
   });
   if(chartMonthly) chartMonthly.destroy();
   const monthlyCanvas = document.getElementById('chartMonthly');
-  if(monthlyCanvas){
+  if(monthlyCanvas && typeof Chart!=='undefined'){
     chartMonthly = new Chart(monthlyCanvas, {
       type:'bar',
       data:{ labels:Object.keys(monthMap), datasets:[{label:'발생 건수', data:Object.values(monthMap), backgroundColor:'#2563eb'}]},
@@ -1047,7 +1047,7 @@ async function renderMainDashboard(){
   const statusCounts = ['접수','확인','조치중','완료'].map(s=>DEFECTS.filter(d=>d.status===s).length);
   if(chartStatusMain) chartStatusMain.destroy();
   const statusCanvas = document.getElementById('chartStatusMain');
-  if(statusCanvas){
+  if(statusCanvas && typeof Chart!=='undefined'){
     chartStatusMain = new Chart(statusCanvas, {
       type:'doughnut',
       data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:statusCounts, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
@@ -1060,7 +1060,7 @@ async function renderMainDashboard(){
   const internalCost = DEFECTS.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
   if(chartCostCompare) chartCostCompare.destroy();
   const costCanvas = document.getElementById('chartCostCompare');
-  if(costCanvas){
+  if(costCanvas && typeof Chart!=='undefined'){
     chartCostCompare = new Chart(costCanvas, {
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
@@ -1073,7 +1073,7 @@ async function renderMainDashboard(){
   const normalCount = DEFECTS.length - repeatedCount;
   if(chartRepeatRatio) chartRepeatRatio.destroy();
   const repeatCanvas = document.getElementById('chartRepeatRatio');
-  if(repeatCanvas){
+  if(repeatCanvas && typeof Chart!=='undefined'){
     chartRepeatRatio = new Chart(repeatCanvas, {
       type:'pie',
       data:{ labels:['반복하자', '일반하자'], datasets:[{data:[repeatedCount, normalCount], backgroundColor:['#d97706','#94a3b8']}]},
@@ -1201,20 +1201,26 @@ function renderCategoryDashboard(){
   // 차트1: 공종별 미완료 건수
   const openCounts = summary.map(s=>s.접수+s.확인+s.조치중);
   if(chart1) chart1.destroy();
-  chart1 = new Chart(document.getElementById('chartByCategory'), {
-    type:'bar',
-    data:{ labels: summary.map(s=>s.name), datasets:[{label:'미완료 건수', data: openCounts, backgroundColor:'#2563eb'}]},
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
-  });
+  const catCanvas = document.getElementById('chartByCategory');
+  if(catCanvas && typeof Chart!=='undefined'){
+    chart1 = new Chart(catCanvas, {
+      type:'bar',
+      data:{ labels: summary.map(s=>s.name), datasets:[{label:'미완료 건수', data: openCounts, backgroundColor:'#2563eb'}]},
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
+    });
+  }
 
   // 차트2: 상태별 분포 (전체)
   const totalByStatus = ['접수','확인','조치중','완료'].map(s=>DEFECTS.filter(d=>d.status===s).length);
   if(chart2) chart2.destroy();
-  chart2 = new Chart(document.getElementById('chartByStatus'), {
-    type:'doughnut',
-    data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:totalByStatus, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
-    options:{ responsive:true }
-  });
+  const statusByCatCanvas = document.getElementById('chartByStatus');
+  if(statusByCatCanvas && typeof Chart!=='undefined'){
+    chart2 = new Chart(statusByCatCanvas, {
+      type:'doughnut',
+      data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:totalByStatus, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
+      options:{ responsive:true }
+    });
+  }
 }
 
 // ---------- 모달 ----------
