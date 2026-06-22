@@ -596,6 +596,11 @@
       <label>외주업체명</label>
       <input id="formVendor" placeholder="예: OO인테리어" />
     </div>
+    <div class="form-row" id="outsourcedCostRow" style="display:none;">
+      <label>외주 처리비(원)</label>
+      <input id="formOutsourcedCost" type="number" placeholder="예: 80000" />
+      <div style="font-size:12px;color:var(--sub);margin-top:4px;">외주는 부품 내역 대신 총 처리비를 한 번에 입력합니다.</div>
+    </div>
     <div class="form-row checkrow">
       <input type="checkbox" id="formVacant" />
       <label style="margin:0;">방막 처리 (이 하자로 객실 판매 불가)</label>
@@ -616,8 +621,8 @@
       <select id="formReporter" onchange="handleManualEmployeeInput(this)"></select>
     </div>
 
-    <div class="form-row">
-      <label>사용 부속 / 발생비용 <span style="color:#9ca3af;font-weight:400;">(저장 후 등록 가능)</span></label>
+    <div class="form-row" id="partsUsedSection">
+      <label>사용 부속 / 발생비용 <span style="color:#9ca3af;font-weight:400;">(자체처리 전용, 저장 후 등록 가능)</span></label>
       <div id="partsUsedList"></div>
       <div id="partsUsedAddRow" style="display:none;">
         <div class="masterform" style="margin-top:6px;">
@@ -1225,9 +1230,10 @@ function openNewDefectModal(){
   document.getElementById('formDueDate').value = '';
   document.getElementById('formProcessType').value = '자체';
   document.getElementById('formVendor').value = '';
+  document.getElementById('formOutsourcedCost').value = '';
   document.getElementById('formAssigned').value = '';
   document.getElementById('formReporter').value = '';
-  document.getElementById('vendorRow').style.display = 'none';
+  applyProcessTypeUI(false);
   document.getElementById('formVacant').checked = false;
   document.getElementById('formVacantDays').value = '';
   document.getElementById('vacantDaysRow').style.display = 'none';
@@ -1253,9 +1259,10 @@ async function openEditModal(id){
   document.getElementById('formDueDate').value = d.due_date||'';
   document.getElementById('formProcessType').value = d.is_outsourced? '외주':'자체';
   document.getElementById('formVendor').value = d.vendor_name||'';
+  document.getElementById('formOutsourcedCost').value = d.outsourced_cost||'';
   setSelectValueWithFallback('formAssigned', d.assigned_to);
   setSelectValueWithFallback('formReporter', d.reported_by);
-  document.getElementById('vendorRow').style.display = d.is_outsourced? 'block':'none';
+  applyProcessTypeUI(!!d.is_outsourced);
   document.getElementById('formVacant').checked = !!d.is_vacant;
   document.getElementById('formVacantDays').value = d.vacant_days||'';
   document.getElementById('vacantDaysRow').style.display = d.is_vacant? 'block':'none';
@@ -1400,8 +1407,13 @@ async function saveQuickDefect(){
   showToast('빠른 등록 완료되었습니다.');
   await loadDefects();
 }
+function applyProcessTypeUI(isOutsourced){
+  document.getElementById('vendorRow').style.display = isOutsourced? 'block':'none';
+  document.getElementById('outsourcedCostRow').style.display = isOutsourced? 'block':'none';
+  document.getElementById('partsUsedSection').style.display = isOutsourced? 'none':'block';
+}
 document.getElementById('formProcessType').addEventListener('change', e=>{
-  document.getElementById('vendorRow').style.display = e.target.value==='외주'? 'block':'none';
+  applyProcessTypeUI(e.target.value==='외주');
 });
 document.getElementById('formVacant').addEventListener('change', e=>{
   document.getElementById('vacantDaysRow').style.display = e.target.checked? 'block':'none';
@@ -1427,6 +1439,7 @@ async function saveDefect(){
     status: document.getElementById('formStatus').value,
     due_date: document.getElementById('formDueDate').value || null,
     is_outsourced: document.getElementById('formProcessType').value==='외주',
+    outsourced_cost: Number(document.getElementById('formOutsourcedCost').value || 0),
     vendor_name: document.getElementById('formVendor').value.trim() || null,
     assigned_to: document.getElementById('formAssigned').value.trim() || null,
     reported_by: document.getElementById('formReporter').value.trim() || null,
