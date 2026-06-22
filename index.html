@@ -699,6 +699,12 @@
 // 현재는 Storage 무료 용량(1GB) 관리를 위해 꺼둔 상태입니다.
 const ENABLE_PHOTO_UPLOAD = false;
 
+// room_number는 DB에 텍스트로 저장돼 있어, 그냥 정렬하면 "1001"이 "702"보다 앞에 오는
+// 문자열 순서가 됩니다. 객실번호를 숫자로 바꿔 비교해 진짜 오름차순(702, 703...1001)으로 정렬합니다.
+function sortRoomsNumerically(rooms){
+  return [...rooms].sort((a,b)=> (parseInt(a.room_number,10)||0) - (parseInt(b.room_number,10)||0));
+}
+
 let sb = null;
 let ROOMS = [];
 let CATEGORIES = [];
@@ -789,7 +795,7 @@ async function loadAll(){
   if(e5) console.error('defect_parts 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e5);
   if(e6) console.error('system_settings 로드 실패(마스터 SQL v4를 실행했는지 확인하세요):', e6);
   if(e7) console.error('employees 로드 실패(마스터 SQL v5를 실행했는지 확인하세요):', e7);
-  ROOMS = rooms||[];
+  ROOMS = sortRoomsNumerically(rooms||[]);
   CATEGORIES = cats||[];
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
@@ -1593,6 +1599,8 @@ function renderRoomsInfoTable(filterText){
       return hay.includes(q);
     });
   }
+  rows = sortRoomsNumerically(rows);
+
   document.getElementById('roomsCountLabel').textContent = `(총 ${ROOMS.length}개)`;
   document.getElementById('roomsInfoEmpty').style.display = rows.length? 'none':'block';
   body.innerHTML = rows.map(r=>{
@@ -1630,7 +1638,7 @@ async function deleteRoom(id){
 
 async function refreshRoomsAndForms(){
   const {data: refreshedRooms} = await sb.from('rooms').select('*').order('room_number');
-  ROOMS = refreshedRooms||[];
+  ROOMS = sortRoomsNumerically(refreshedRooms||[]);
   populateRoomFilter();
   populateFormSelects();
   renderRoomsInfoTable();
