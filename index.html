@@ -419,13 +419,12 @@
       <div class="card">
         <h3>객실 등록 (타입 선택 → 객실번호 입력)</h3>
         <p style="font-size:13px;color:var(--sub);margin-top:-4px;">
-          타입을 먼저 고르고, 그 타입에 속하는 객실번호를 한 줄에 하나씩 입력하세요. 층은 전체 동일하면 한 번만, 줄마다 다르면 "객실번호,층" 형식으로 적어도 됩니다.
+          타입을 먼저 고르고, 그 타입에 속하는 객실번호를 한 줄에 하나씩 입력하세요.
         </p>
         <div class="masterform">
           <select id="roomTypeSelectForRoom" style="min-width:220px;"></select>
-          <input id="roomFloorInput" placeholder="공통 층 (예: 7F, 선택)" style="width:140px;" />
         </div>
-        <textarea id="bulkRoomsInput" rows="6" style="width:100%;font-family:monospace;font-size:13px;margin-top:8px;" placeholder="701&#10;702&#10;709&#10;또는 줄마다 층이 다르면:&#10;701,7F&#10;805,8F"></textarea>
+        <textarea id="bulkRoomsInput" rows="6" style="width:100%;font-family:monospace;font-size:13px;margin-top:8px;" placeholder="701&#10;702&#10;709"></textarea>
         <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button class="btn" onclick="submitBulkRooms()">일괄 등록</button>
           <span style="color:var(--sub);font-size:13px;">또는</span>
@@ -434,17 +433,17 @@
           <span id="bulkRoomsResult" style="font-size:13px;color:var(--sub);"></span>
         </div>
         <div style="font-size:12px;color:var(--sub);margin-top:8px;">
-          엑셀 파일은 헤더 없이 1열=타입명, 2열=타입코드(선택), 3열=객실번호, 4열=층(선택) 순서로 정리해주세요.
+          엑셀 파일은 헤더 없이 1열=객실번호, 2열=영문 타입명 순서로 정리해주세요.
         </div>
       </div>
       <div class="card">
         <h3>등록된 객실 목록 <span style="color:#9ca3af;font-weight:400;font-size:12px;" id="roomsCountLabel"></span></h3>
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
           <input id="roomsSearchBox" placeholder="객실번호 또는 타입 검색" style="width:240px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
-          <button class="btn small secondary" onclick="deleteSelectedRooms()">선택 삭제</button>
+          <button class="btn small secondary" onclick="deleteSelectedRooms()">선택 삭제 (<span id="roomsSelectedCount">0</span>개 선택됨)</button>
         </div>
         <table>
-          <thead><tr><th><input type="checkbox" id="roomsSelectAll" onchange="toggleSelectAllRooms(this)" /></th><th>객실번호</th><th>타입</th><th>타입코드</th><th>층</th><th></th></tr></thead>
+          <thead><tr><th><input type="checkbox" id="roomsSelectAll" onchange="toggleSelectAllRooms(this)" /></th><th>객실번호</th><th>타입</th><th>타입코드</th><th></th></tr></thead>
           <tbody id="roomsInfoTableBody"></tbody>
         </table>
         <div class="empty" id="roomsInfoEmpty" style="display:none;">등록된 객실이 없습니다. 위에서 등록해주세요.</div>
@@ -1594,14 +1593,20 @@ function renderRoomsInfoTable(filterText){
     const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
     return `
     <tr>
-      <td><input type="checkbox" class="room-row-check" data-room-id="${r.id}" /></td>
+      <td><input type="checkbox" class="room-row-check" data-room-id="${r.id}" onchange="updateRoomsSelectedCount()" /></td>
       <td><b>${escapeHtml(r.room_number)}</b></td>
       <td>${escapeHtml(type?.name || r.room_type || '-')}</td>
       <td>${escapeHtml(type?.type_code||'-')}</td>
-      <td>${escapeHtml(r.floor||'-')}</td>
       <td><button class="btn small secondary" onclick="deleteRoom(${r.id})">삭제</button></td>
     </tr>`;
   }).join('');
+  updateRoomsSelectedCount();
+}
+
+function updateRoomsSelectedCount(){
+  const count = document.querySelectorAll('.room-row-check:checked').length;
+  const label = document.getElementById('roomsSelectedCount');
+  if(label) label.textContent = count;
 }
 
 async function deleteRoom(id){
@@ -1754,7 +1759,7 @@ async function addCategory(){
 
 // 객실 일괄등록: "호실,타입명,층" 형식의 줄바꿈 텍스트를 한 번에 rooms 테이블에 등록합니다.
 // 이미 존재하는 호실번호는 건너뛰고(중복 방지), 새 호실만 추가합니다.
-// 공통 등록 로직: [{room_number, room_type_id, room_type, floor}, ...] 형태의 후보 목록을 받아
+// 공통 등록 로직: [{room_number, room_type_id, room_type}, ...] 형태의 후보 목록을 받아
 // 기존 객실과 중복되는 번호는 건너뛰고 신규만 insert합니다. 결과 메시지를 반환합니다.
 async function insertRoomCandidates(candidates){
   const existingNumbers = new Set(ROOMS.map(r=>r.room_number));
@@ -1784,7 +1789,6 @@ async function insertRoomCandidates(candidates){
 
 async function submitBulkRooms(){
   const typeId = document.getElementById('roomTypeSelectForRoom').value;
-  const commonFloor = document.getElementById('roomFloorInput').value.trim();
   const raw = document.getElementById('bulkRoomsInput').value;
   const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l);
   if(!lines.length){ alert('등록할 객실번호를 입력해주세요.'); return; }
@@ -1792,12 +1796,11 @@ async function submitBulkRooms(){
 
   const type = ROOM_TYPES.find(t=>String(t.id)===String(typeId));
   const candidates = lines.map(line=>{
-    const parts = line.split(',').map(p=>p.trim());
+    const roomNumber = line.split(',')[0].trim();
     return {
-      room_number: parts[0],
+      room_number: roomNumber,
       room_type_id: type? type.id : null,
-      room_type: type? type.name : null,
-      floor: parts[1] || commonFloor || null
+      room_type: type? type.name : null
     };
   });
 
@@ -1820,41 +1823,39 @@ async function handleExcelRoomUpload(event){
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, {header:1});
 
+    // 1열=객실번호, 2열=영문 타입명(타입코드). 이미 등록된 타입코드와 일치하면 그 타입을 쓰고,
+    // 없으면 해당 영문명을 타입명+타입코드로 동시에 새로 등록합니다.
     const candidates = [];
     const newTypesNeeded = new Map();
     rows.forEach(row=>{
       if(!row || !row.length) return;
-      const typeName = String(row[0]||'').trim();
-      const typeCode = String(row[1]||'').trim();
-      const roomNumber = String(row[2]||'').trim();
-      const floor = String(row[3]||'').trim();
+      const roomNumber = String(row[0]||'').trim();
+      const typeLabel = String(row[1]||'').trim();
       if(!roomNumber) return;
-      let type = ROOM_TYPES.find(t=>t.name===typeName) || newTypesNeeded.get(typeName);
-      if(!type && typeName){
-        type = {name:typeName, type_code: typeCode||null, _pending:true};
-        newTypesNeeded.set(typeName, type);
+      let type = ROOM_TYPES.find(t=>t.type_code===typeLabel || t.name===typeLabel) || newTypesNeeded.get(typeLabel);
+      if(!type && typeLabel){
+        type = {name:typeLabel, type_code: typeLabel, _pending:true};
+        newTypesNeeded.set(typeLabel, type);
       }
-      candidates.push({room_number: roomNumber, _typeName: typeName, _floor: floor||null, _type: type});
+      candidates.push({room_number: roomNumber, _typeLabel: typeLabel});
     });
 
     if(!candidates.length){ alert('엑셀에서 읽을 수 있는 객실 데이터가 없습니다.'); event.target.value=''; return; }
 
     // 새로 필요한 타입을 먼저 등록
-    for(const [name, t] of newTypesNeeded){
-      const {data: inserted, error} = await sb.from('room_types').insert({name, type_code: t.type_code}).select().single();
+    for(const [label, t] of newTypesNeeded){
+      const {data: inserted, error} = await sb.from('room_types').insert({name: t.name, type_code: t.type_code}).select().single();
       if(!error && inserted){
         ROOM_TYPES.push(inserted);
-        t.id = inserted.id; t._pending = false;
       }
     }
 
     const finalCandidates = candidates.map(c=>{
-      const type = ROOM_TYPES.find(t=>t.name===c._typeName);
+      const type = ROOM_TYPES.find(t=>t.type_code===c._typeLabel || t.name===c._typeLabel);
       return {
         room_number: c.room_number,
         room_type_id: type? type.id : null,
-        room_type: type? type.name : null,
-        floor: c._floor
+        room_type: type? type.name : null
       };
     });
 
@@ -1872,6 +1873,7 @@ async function handleExcelRoomUpload(event){
 // ---------- 객실 선택삭제 ----------
 function toggleSelectAllRooms(checkbox){
   document.querySelectorAll('.room-row-check').forEach(c=> c.checked = checkbox.checked);
+  updateRoomsSelectedCount();
 }
 
 async function deleteSelectedRooms(){
