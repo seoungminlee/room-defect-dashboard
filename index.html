@@ -96,7 +96,18 @@
   .masterform{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
   .masterform input,.masterform select{padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;}
   .badge.inactive{background:#f1f5f9;color:#94a3b8;}
+  .badge.sla-ok{background:#dcfce7;color:#166534;}
+  .badge.sla-warn{background:#fef3c7;color:#92400e;}
+  .badge.sla-over{background:#fee2e2;color:#b91c1c;}
   .partUsedRow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px;}
+
+  @media (max-width:720px){
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .grid2{grid-template-columns:1fr;}
+    .container{padding:14px;}
+    table{font-size:12px;}
+    .tabs{overflow-x:auto;white-space:nowrap;}
+  }
 </style>
 </head>
 <body>
@@ -107,8 +118,10 @@
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
-  <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 대시보드</div>
+  <div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
+  <div class="tab" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
+  <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 통계</div>
+  <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
   <div class="tab" data-tab="settings" onclick="switchTab('settings')">연결 설정</div>
 </div>
@@ -137,8 +150,8 @@
     </div>
   </div>
 
-  <!-- ===================== 객실별 하자 리스트 패널 ===================== -->
-  <div class="panel active" id="panel-rooms">
+  <!-- ===================== 메인 대시보드 패널 ===================== -->
+  <div class="panel active" id="panel-dashboard">
 
     <div class="kpi-row">
       <div class="kpi danger"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중)</div></div>
@@ -153,6 +166,50 @@
       <div class="kpi"><div class="num" id="kpiRepeatedPct">–</div><div class="label">반복하자율(%)</div></div>
     </div>
 
+    <div class="card" id="todoCard">
+      <h3>⏰ 오늘 처리할 항목 / SLA 임박·초과</h3>
+      <table>
+        <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>SLA</th></tr></thead>
+        <tbody id="todoTableBody"></tbody>
+      </table>
+      <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>월별 하자 발생 추이</h3>
+        <canvas id="chartMonthly" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h3>처리 현황 (상태별)</h3>
+        <canvas id="chartStatusMain" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>외주 vs 자체 수리비용</h3>
+        <canvas id="chartCostCompare" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h3>반복하자 비율</h3>
+        <canvas id="chartRepeatRatio" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>수리부속 사용량·비용 TOP 10</h3>
+      <table>
+        <thead><tr><th>순위</th><th>부속명</th><th>공종</th><th>총 사용량</th><th>총 비용</th></tr></thead>
+        <tbody id="partsTopTableBody"></tbody>
+      </table>
+      <div class="empty" id="partsTopEmpty" style="display:none;">사용된 부속 데이터가 없습니다.</div>
+    </div>
+  </div>
+
+  <!-- ===================== 객실별 하자 리스트 패널 ===================== -->
+  <div class="panel" id="panel-rooms">
+
     <div class="filterbar">
       <select id="filterRoom"><option value="">전체 객실</option></select>
       <select id="filterCategory"><option value="">전체 공종</option></select>
@@ -165,6 +222,7 @@
       </select>
       <input id="searchBox" placeholder="객실번호/제목 검색" style="min-width:180px;"/>
       <div class="spacer"></div>
+      <button class="btn secondary" onclick="openQuickDefectModal()">📱 빠른 등록</button>
       <button class="btn" onclick="openNewDefectModal()">+ 하자 등록</button>
     </div>
 
@@ -172,7 +230,7 @@
       <table>
         <thead>
           <tr>
-            <th>객실</th><th>공종</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
+            <th>객실</th><th>공종</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>SLA</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
@@ -207,6 +265,103 @@
     </div>
   </div>
 
+  <!-- ===================== 부품 재고관리 패널 ===================== -->
+  <div class="panel" id="panel-inventory">
+    <div class="kpi-row">
+      <div class="kpi danger"><div class="num" id="kpiNeedOrder">–</div><div class="label">발주 필요 부품</div></div>
+      <div class="kpi"><div class="num" id="kpiTotalStockValue">–</div><div class="label">현재고 총 가치(원)</div></div>
+      <div class="kpi ok"><div class="num" id="kpiStockInMonth">–</div><div class="label">이번달 입고 건수</div></div>
+      <div class="kpi warn"><div class="num" id="kpiStockOutMonth">–</div><div class="label">이번달 사용+출고 건수</div></div>
+    </div>
+
+    <div class="subtabs">
+      <div class="subtab active" data-subtab="stockStatus" onclick="switchSubtab('stockStatus')">재고 현황</div>
+      <div class="subtab" data-subtab="stockInOut" onclick="switchSubtab('stockInOut')">입출고 등록</div>
+      <div class="subtab" data-subtab="stockAdjust" onclick="switchSubtab('stockAdjust')">재고 실사/조정</div>
+      <div class="subtab" data-subtab="stockSettings" onclick="switchSubtab('stockSettings')">발주 기준 설정</div>
+    </div>
+
+    <!-- 재고 현황 -->
+    <div class="subpanel active" id="subpanel-stockStatus">
+      <div class="card">
+        <h3>부품별 재고 현황</h3>
+        <table>
+          <thead>
+            <tr><th>부속명</th><th>공종</th><th>현재고</th><th>평균사용량(월)</th><th>기준</th><th>발주필요</th><th>단가</th><th>재고가치</th></tr>
+          </thead>
+          <tbody id="stockStatusTableBody"></tbody>
+        </table>
+        <div class="empty" id="stockStatusEmpty" style="display:none;">등록된 부속이 없습니다. 먼저 '기준정보 관리'에서 부속을 등록해주세요.</div>
+      </div>
+    </div>
+
+    <!-- 입출고 등록 -->
+    <div class="subpanel" id="subpanel-stockInOut">
+      <div class="grid2">
+        <div class="card">
+          <h3>📥 입고 등록</h3>
+          <div class="form-row"><label>부속</label><select id="stockInPart"></select></div>
+          <div class="form-row"><label>입고수량</label><input id="stockInQty" type="number" placeholder="예: 10" /></div>
+          <div class="form-row"><label>입고단가(원)</label><input id="stockInPrice" type="number" placeholder="비워두면 현재 마스터 단가 적용" /></div>
+          <div class="form-row"><label>입고자</label><input id="stockInBy" placeholder="예: 이성민" /></div>
+          <div class="form-row"><label>비고</label><input id="stockInNote" placeholder="선택" /></div>
+          <button class="btn" onclick="submitStockIn()">입고 등록</button>
+        </div>
+        <div class="card">
+          <h3>📤 일반 출고 등록 <span style="color:#9ca3af;font-weight:400;font-size:12px;">(하자수리 외 — 폐기, 분실 등)</span></h3>
+          <div class="form-row"><label>부속</label><select id="stockOutPart"></select></div>
+          <div class="form-row"><label>출고수량</label><input id="stockOutQty" type="number" placeholder="예: 1" /></div>
+          <div class="form-row"><label>출고 사유</label><input id="stockOutReason" placeholder="예: 파손 폐기" /></div>
+          <div class="form-row"><label>출고자</label><input id="stockOutBy" placeholder="예: 이성민" /></div>
+          <div class="form-row"><label>비고</label><input id="stockOutNote" placeholder="선택" /></div>
+          <button class="btn" onclick="submitStockOut()">출고 등록</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>최근 입출고 이력</h3>
+        <table>
+          <thead><tr><th>구분</th><th>일시</th><th>부속</th><th>수량</th><th>금액/사유</th><th>처리자</th></tr></thead>
+          <tbody id="stockHistoryTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 재고 실사/조정 -->
+    <div class="subpanel" id="subpanel-stockAdjust">
+      <div class="card">
+        <h3>재고 실사 / 조정</h3>
+        <p style="font-size:13px;color:var(--sub);margin-top:-4px;">시스템 재고와 실제 창고 재고가 다를 경우, 실사한 값을 입력하면 시스템 재고가 그 값으로 보정됩니다.</p>
+        <div class="masterform">
+          <select id="adjustPart"></select>
+          <input id="adjustActual" type="number" placeholder="실사 확인 수량" />
+          <input id="adjustReason" placeholder="조정 사유 (선택)" />
+          <input id="adjustBy" placeholder="실사자" />
+          <button class="btn small" onclick="submitStockAdjustment()">조정 반영</button>
+        </div>
+        <table>
+          <thead><tr><th>일시</th><th>부속</th><th>조정 전</th><th>실사값</th><th>차이</th><th>사유</th><th>실사자</th></tr></thead>
+          <tbody id="adjustHistoryTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 발주 기준 설정 -->
+    <div class="subpanel" id="subpanel-stockSettings">
+      <div class="card">
+        <h3>발주 필요 판단 기준</h3>
+        <p style="font-size:13px;color:var(--sub);margin-top:-4px;">
+          발주 필요 여부 = 현재고 &lt; 평균 사용량(월) × 안전계수<br/>
+          평균 사용량은 부속 등록일로부터 3개월간은 등록 시 입력한 예상값을 쓰고, 3개월 이후부터는 최근 3개월 실제 사용량 평균으로 자동 전환됩니다.
+        </p>
+        <div class="form-row" style="max-width:240px;">
+          <label>전체공통 안전계수</label>
+          <input id="safetyFactorInput" type="number" step="0.1" placeholder="예: 1.5" />
+        </div>
+        <button class="btn small" onclick="saveSafetyFactor()">저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== 기준정보 관리 패널 ===================== -->
   <div class="panel" id="panel-master">
     <div class="subtabs">
@@ -226,6 +381,7 @@
           <input id="partUnit" placeholder="단위 (예: 개, m, set)" value="개" />
           <input id="partPrice" type="number" placeholder="단가(원)" />
           <input id="partVendor" placeholder="주거래처 (선택)" />
+          <input id="partExpectedUsage" type="number" placeholder="예상 월평균 사용량" style="width:140px;" />
           <button class="btn small" onclick="addPart()">+ 추가</button>
         </div>
         <table>
@@ -381,9 +537,60 @@
   </div>
 </div>
 
+<!-- ===================== 빠른 등록 모달 (모바일 우선, 현장용) ===================== -->
+<div class="overlay" id="quickModal">
+  <div class="modal" style="width:380px;">
+    <h3>📱 빠른 하자 등록</h3>
+    <p style="font-size:12.5px;color:var(--sub);margin-top:-8px;">현장에서 빠르게 등록할 때 사용하세요. 나머지 상세정보는 나중에 PC에서 보완할 수 있습니다.</p>
+
+    <div class="form-row">
+      <label>객실번호</label>
+      <input id="quickRoomNumber" placeholder="예: 705 (없으면 자동 등록)" />
+    </div>
+    <div class="form-row">
+      <label>공종</label>
+      <select id="quickCategory"></select>
+    </div>
+    <div class="form-row">
+      <label>하자 내용</label>
+      <input id="quickTitle" placeholder="예: 화장실 타일 깨짐" />
+    </div>
+    <div class="form-row">
+      <label>우선순위</label>
+      <select id="quickPriority">
+        <option value="긴급">긴급</option>
+        <option value="높음">높음</option>
+        <option value="보통" selected>보통</option>
+        <option value="낮음">낮음</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>등록자</label>
+      <input id="quickReporter" placeholder="예: 이성민" />
+    </div>
+
+    <!-- 사진 첨부 기능: 현재 비활성화 (Supabase Storage 용량 관리 목적).
+         ENABLE_PHOTO_UPLOAD를 true로 바꾸면 즉시 활성화됩니다. -->
+    <div class="form-row" id="quickPhotoRow" style="display:none;">
+      <label>사진 첨부</label>
+      <input type="file" id="quickPhotoInput" accept="image/*" capture="environment" />
+    </div>
+
+    <div class="form-actions">
+      <button class="btn secondary" onclick="closeQuickModal()">취소</button>
+      <button class="btn" onclick="saveQuickDefect()">빠르게 등록</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+// 사진 첨부 기능 스위치. true로 바꾸면 빠른 등록 모달에 사진 첨부 입력란이 나타나고
+// saveQuickDefect()가 자동으로 사진을 압축해 Supabase Storage에 업로드합니다.
+// 현재는 Storage 무료 용량(1GB) 관리를 위해 꺼둔 상태입니다.
+const ENABLE_PHOTO_UPLOAD = false;
+
 let sb = null;
 let ROOMS = [];
 let CATEGORIES = [];
@@ -437,6 +644,12 @@ function switchTab(name){
   if(name==='master'){
     try{ renderAllMasterTables(); }catch(e){ console.error(e); }
   }
+  if(name==='dashboard'){
+    try{ renderMainDashboard(); }catch(e){ console.error(e); }
+  }
+  if(name==='inventory'){
+    try{ renderInventoryPanel(); }catch(e){ console.error(e); }
+  }
 }
 
 function switchSubtab(name){
@@ -447,25 +660,31 @@ function switchSubtab(name){
 }
 
 // ---------- 데이터 로드 ----------
+let SAFETY_FACTOR = 1.5;
+
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:cats, error:e2}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:cats, error:e2}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
     sb.from('defect_categories').select('*').order('sort_order'),
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*, defect_categories(name)').order('sort_order'),
-    sb.from('defect_parts').select('*, defect_categories(name)').order('name')
+    sb.from('defect_parts').select('*, defect_categories(name)').order('name'),
+    sb.from('system_settings').select('*')
   ]);
   if(e1) console.error(e1);
   if(e2) console.error(e2);
   if(e3) console.error('room_types 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e3);
   if(e4) console.error('defect_locations 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e4);
   if(e5) console.error('defect_parts 로드 실패(마스터 SQL v2를 실행했는지 확인하세요):', e5);
+  if(e6) console.error('system_settings 로드 실패(마스터 SQL v4를 실행했는지 확인하세요):', e6);
   ROOMS = rooms||[];
   CATEGORIES = cats||[];
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
   PARTS = parts||[];
+  const sf = (settings||[]).find(s=>s.key==='parts_safety_factor');
+  if(sf) SAFETY_FACTOR = Number(sf.value) || 1.5;
   populateRoomFilter();
   populateCategoryFilter();
   populateFormSelects();
@@ -483,6 +702,7 @@ async function loadDefects(){
   renderKpis();
   renderDefectsTable();
   renderCategoryDashboard();
+  try{ renderMainDashboard(); }catch(e){ console.error(e); }
 }
 
 // ---------- 필터 옵션 채우기 ----------
@@ -511,6 +731,11 @@ function populateFormSelects(){
   if(partSel){
     partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name} (${Number(p.unit_price).toLocaleString()}원/${p.unit})</option>`).join('');
   }
+  const partOptions = PARTS.map(p=>`<option value="${p.id}">${p.name} (현재고 ${p.current_stock||0})</option>`).join('');
+  ['stockInPart','stockOutPart','adjustPart'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = partOptions;
+  });
 }
 
 // ---------- KPI ----------
@@ -579,6 +804,7 @@ function renderDefectsTable(){
           ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
         </select>
       </td>
+      <td>${(()=>{ const sla=getSlaInfo(d); return sla? `<span class="badge ${sla.level}">${sla.days}일</span>` : '<span class="badge sla-ok">완료</span>'; })()}</td>
       <td>${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
       <td>${Number(d.total_cost||0).toLocaleString()}원</td>
       <td>${date}</td>
@@ -598,6 +824,133 @@ async function changeStatus(id, newStatus){
   if(error){ showToast('상태 변경 실패: '+error.message); return; }
   showToast('상태가 변경되었습니다.');
   await loadDefects();
+}
+
+// ---------- SLA 계산 ----------
+// 접수 후 경과일 기준: 3일 이내 정상, 3~7일 주의, 7일 이상 초과
+function getSlaInfo(defect){
+  if(defect.status==='완료') return null;
+  const days = Math.floor((new Date() - new Date(defect.created_at)) / (1000*60*60*24));
+  let level, label;
+  if(days >= 7){ level='sla-over'; label=`SLA 초과 (${days}일)`; }
+  else if(days >= 3){ level='sla-warn'; label=`SLA 주의 (${days}일)`; }
+  else { level='sla-ok'; label=`정상 (${days}일)`; }
+  return {days, level, label};
+}
+
+// ---------- 메인 대시보드 ----------
+let chartMonthly=null, chartStatusMain=null, chartCostCompare=null, chartRepeatRatio=null;
+
+function renderTodoList(){
+  const items = DEFECTS.filter(d=>d.status!=='완료').map(d=>({...d, sla:getSlaInfo(d)}))
+    .filter(d=> d.priority==='긴급' || (d.sla && d.sla.days>=3))
+    .sort((a,b)=> (b.sla?.days||0) - (a.sla?.days||0));
+  const body = document.getElementById('todoTableBody');
+  document.getElementById('todoEmpty').style.display = items.length? 'none':'block';
+  if(body){
+    body.innerHTML = items.map(d=>`
+      <tr>
+        <td><b>${d.rooms?.room_number||'-'}</b></td>
+        <td>${escapeHtml(d.title)}</td>
+        <td><span class="badge p-${d.priority}">${d.priority}</span></td>
+        <td>${d.status}</td>
+        <td>${d.sla? d.sla.days+'일' : '-'}</td>
+        <td>${d.sla? `<span class="badge ${d.sla.level}">${d.sla.label}</span>` : '-'}</td>
+      </tr>`).join('');
+  }
+}
+
+async function renderMainDashboard(){
+  if(!sb) return;
+  renderTodoList();
+
+  // 월별 발생추이 (최근 6개월)
+  const monthMap = {};
+  const now = new Date();
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    monthMap[key] = 0;
+  }
+  DEFECTS.forEach(d=>{
+    const dt = new Date(d.created_at);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+    if(key in monthMap) monthMap[key]++;
+  });
+  if(chartMonthly) chartMonthly.destroy();
+  const monthlyCanvas = document.getElementById('chartMonthly');
+  if(monthlyCanvas){
+    chartMonthly = new Chart(monthlyCanvas, {
+      type:'bar',
+      data:{ labels:Object.keys(monthMap), datasets:[{label:'발생 건수', data:Object.values(monthMap), backgroundColor:'#2563eb'}]},
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
+    });
+  }
+
+  // 처리현황 (상태별)
+  const statusCounts = ['접수','확인','조치중','완료'].map(s=>DEFECTS.filter(d=>d.status===s).length);
+  if(chartStatusMain) chartStatusMain.destroy();
+  const statusCanvas = document.getElementById('chartStatusMain');
+  if(statusCanvas){
+    chartStatusMain = new Chart(statusCanvas, {
+      type:'doughnut',
+      data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:statusCounts, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
+      options:{ responsive:true }
+    });
+  }
+
+  // 외주 vs 자체 비용비교
+  const outsourcedCost = DEFECTS.filter(d=>d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const internalCost = DEFECTS.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  if(chartCostCompare) chartCostCompare.destroy();
+  const costCanvas = document.getElementById('chartCostCompare');
+  if(costCanvas){
+    chartCostCompare = new Chart(costCanvas, {
+      type:'bar',
+      data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
+    });
+  }
+
+  // 반복하자 비율
+  const repeatedCount = DEFECTS.filter(d=>d.is_repeated).length;
+  const normalCount = DEFECTS.length - repeatedCount;
+  if(chartRepeatRatio) chartRepeatRatio.destroy();
+  const repeatCanvas = document.getElementById('chartRepeatRatio');
+  if(repeatCanvas){
+    chartRepeatRatio = new Chart(repeatCanvas, {
+      type:'pie',
+      data:{ labels:['반복하자', '일반하자'], datasets:[{data:[repeatedCount, normalCount], backgroundColor:['#d97706','#94a3b8']}]},
+      options:{ responsive:true }
+    });
+  }
+
+  // 수리부속 사용량/비용 TOP 10
+  const {data: partsUsed, error} = await sb
+    .from('defect_parts_used')
+    .select('quantity, unit_price, labor_cost, defect_parts(name, defect_categories(name))');
+  const body = document.getElementById('partsTopTableBody');
+  if(error){ console.error('부속 사용 집계 실패:', error); return; }
+  const agg = {};
+  (partsUsed||[]).forEach(r=>{
+    const name = r.defect_parts?.name || '(미지정 부속)';
+    const cat = r.defect_parts?.defect_categories?.name || '-';
+    if(!agg[name]) agg[name] = {name, cat, qty:0, cost:0};
+    agg[name].qty += Number(r.quantity||0);
+    agg[name].cost += Number(r.quantity||0)*Number(r.unit_price||0) + Number(r.labor_cost||0);
+  });
+  const top = Object.values(agg).sort((a,b)=>b.cost-a.cost).slice(0,10);
+  if(body){
+    document.getElementById('partsTopEmpty').style.display = top.length? 'none':'block';
+    body.innerHTML = top.map((p,idx)=>`
+      <tr>
+        <td>${idx+1}</td>
+        <td>${escapeHtml(p.name)}</td>
+        <td>${escapeHtml(p.cat)}</td>
+        <td>${p.qty}</td>
+        <td>${p.cost.toLocaleString()}원</td>
+      </tr>`).join('');
+  }
 }
 
 // ---------- 공종별 대시보드 ----------
@@ -712,6 +1065,89 @@ async function openEditModal(id){
 }
 function closeDefectModal(){
   document.getElementById('defectModal').classList.remove('active');
+}
+
+// ---------- 빠른 등록 모달 (모바일 우선) ----------
+function openQuickDefectModal(){
+  document.getElementById('quickRoomNumber').value = '';
+  document.getElementById('quickCategory').innerHTML = CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('quickTitle').value = '';
+  document.getElementById('quickPriority').value = '보통';
+  document.getElementById('quickReporter').value = '';
+  document.getElementById('quickPhotoRow').style.display = ENABLE_PHOTO_UPLOAD? 'block':'none';
+  if(document.getElementById('quickPhotoInput')) document.getElementById('quickPhotoInput').value = '';
+  document.getElementById('quickModal').classList.add('active');
+}
+function closeQuickModal(){
+  document.getElementById('quickModal').classList.remove('active');
+}
+
+// 사진을 가로 1200px 기준으로 리사이즈+압축하여 Blob으로 반환합니다.
+// ENABLE_PHOTO_UPLOAD가 true가 되면 saveQuickDefect()에서 이 함수로 압축한 뒤 업로드합니다.
+async function compressImage(file, maxWidth=1200, quality=0.7){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e=>{ img.src = e.target.result; };
+    reader.onerror = reject;
+    img.onload = ()=>{
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob=>resolve(blob), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveQuickDefect(){
+  const roomNumber = document.getElementById('quickRoomNumber').value.trim();
+  const categoryId = document.getElementById('quickCategory').value;
+  const title = document.getElementById('quickTitle').value.trim();
+  if(!roomNumber){ alert('객실번호를 입력해주세요.'); return; }
+  if(!title){ alert('하자 내용을 입력해주세요.'); return; }
+
+  let room = ROOMS.find(r=>r.room_number===roomNumber);
+  if(!room){
+    const {data, error} = await sb.from('rooms').insert({room_number:roomNumber}).select().single();
+    if(error){ alert('객실 등록 실패: '+error.message); return; }
+    room = data;
+    ROOMS.push(room);
+  }
+
+  const payload = {
+    room_id: room.id,
+    category_id: Number(categoryId),
+    title,
+    priority: document.getElementById('quickPriority').value,
+    status: '접수',
+    reported_by: document.getElementById('quickReporter').value.trim() || null
+  };
+  const {data: inserted, error} = await sb.from('defects').insert(payload).select().single();
+  if(error){ alert('등록 실패: '+error.message); return; }
+
+  if(ENABLE_PHOTO_UPLOAD){
+    const fileInput = document.getElementById('quickPhotoInput');
+    if(fileInput && fileInput.files[0]){
+      try{
+        const compressed = await compressImage(fileInput.files[0]);
+        const path = `defect-${inserted.id}-${Date.now()}.jpg`;
+        const {error: upErr} = await sb.storage.from('defect-photos').upload(path, compressed);
+        if(!upErr){
+          const { data: urlData } = sb.storage.from('defect-photos').getPublicUrl(path);
+          await sb.from('defect_photos').insert({defect_id: inserted.id, photo_url: urlData.publicUrl});
+        }
+      }catch(e){ console.error('사진 업로드 실패:', e); }
+    }
+  }
+
+  closeQuickModal();
+  showToast('빠른 등록 완료되었습니다.');
+  await loadDefects();
 }
 document.getElementById('formOutsourced').addEventListener('change', e=>{
   document.getElementById('vendorRow').style.display = e.target.checked? 'block':'none';
@@ -863,14 +1299,17 @@ async function addPart(){
   const unit = document.getElementById('partUnit').value.trim() || '개';
   const price = Number(document.getElementById('partPrice').value || 0);
   const vendor = document.getElementById('partVendor').value.trim();
+  const expectedUsage = Number(document.getElementById('partExpectedUsage')?.value || 0);
   if(!name){ alert('부속명을 입력해주세요.'); return; }
   const {error} = await sb.from('defect_parts').insert({
-    name, category_id: categoryId? Number(categoryId): null, unit, unit_price: price, vendor_name: vendor || null
+    name, category_id: categoryId? Number(categoryId): null, unit, unit_price: price, vendor_name: vendor || null,
+    expected_monthly_usage: expectedUsage, registered_at: new Date().toISOString()
   });
   if(error){ alert('등록 실패: '+error.message); return; }
   document.getElementById('partName').value='';
   document.getElementById('partPrice').value='';
   document.getElementById('partVendor').value='';
+  if(document.getElementById('partExpectedUsage')) document.getElementById('partExpectedUsage').value='';
   showToast('수리부속이 등록되었습니다.');
   await reloadMasterData();
 }
@@ -969,6 +1408,177 @@ async function reloadMasterData(){
   populateCategoryFilter();
   populateFormSelects();
   renderAllMasterTables();
+}
+
+// ---------- 부품 재고관리 ----------
+
+// 부품 1개의 "현재 적용 평균 월사용량"을 계산합니다.
+// 등록일로부터 3개월 미만이면 등록 시 입력한 예상값을 쓰고,
+// 3개월 이상 지났으면 최근 3개월간 실제 사용량(하자수리 사용 + 일반출고 미포함, 수리사용만 집계)의 평균을 씁니다.
+function getEffectiveMonthlyUsage(part, partsUsedAll){
+  const registeredAt = part.registered_at? new Date(part.registered_at) : new Date(part.created_at);
+  const now = new Date();
+  const monthsSinceRegistered = (now - registeredAt) / (1000*60*60*24*30);
+
+  if(monthsSinceRegistered < 3){
+    return Number(part.expected_monthly_usage||0);
+  }
+  // 최근 3개월 실제 사용량 합계 ÷ 3
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth()-3, now.getDate());
+  const recentUsage = (partsUsedAll||[]).filter(u=>u.part_id===part.id && new Date(u.created_at) >= threeMonthsAgo)
+    .reduce((s,u)=>s+Number(u.quantity||0),0);
+  return Math.round((recentUsage/3)*100)/100;
+}
+
+async function renderInventoryPanel(){
+  if(!sb) return;
+  const {data: partsUsedAll, error} = await sb.from('defect_parts_used').select('part_id, quantity, created_at');
+  if(error) console.error('부품 사용 이력 로드 실패:', error);
+
+  const rows = PARTS.map(p=>{
+    const avgUsage = getEffectiveMonthlyUsage(p, partsUsedAll||[]);
+    const factor = p.safety_factor!=null ? Number(p.safety_factor) : SAFETY_FACTOR;
+    const threshold = avgUsage * factor;
+    const needOrder = Number(p.current_stock||0) < threshold;
+    return {...p, avgUsage, threshold, needOrder};
+  });
+
+  // KPI
+  const needOrderCount = rows.filter(r=>r.needOrder).length;
+  const totalStockValue = rows.reduce((s,r)=> s + Number(r.current_stock||0)*Number(r.unit_price||0), 0);
+  document.getElementById('kpiNeedOrder').textContent = needOrderCount;
+  document.getElementById('kpiTotalStockValue').textContent = totalStockValue.toLocaleString();
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const {data: stockIns} = await sb.from('part_stock_in').select('received_at').gte('received_at', monthStart.toISOString());
+  const {data: stockOuts} = await sb.from('part_stock_out').select('released_at').gte('released_at', monthStart.toISOString());
+  const usedThisMonth = (partsUsedAll||[]).filter(u=>new Date(u.created_at) >= monthStart).length;
+  document.getElementById('kpiStockInMonth').textContent = (stockIns||[]).length;
+  document.getElementById('kpiStockOutMonth').textContent = usedThisMonth + (stockOuts||[]).length;
+
+  // 재고 현황 표
+  const body = document.getElementById('stockStatusTableBody');
+  document.getElementById('stockStatusEmpty').style.display = rows.length? 'none':'block';
+  body.innerHTML = rows.map(r=>`
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
+      <td>${r.defect_categories?.name||'-'}</td>
+      <td><b>${r.current_stock||0}</b> ${escapeHtml(r.unit)}</td>
+      <td>${r.avgUsage.toFixed(1)}</td>
+      <td>${r.threshold.toFixed(1)}</td>
+      <td>${r.needOrder? '<span class="badge" style="background:#fee2e2;color:#b91c1c;">⚠ 발주필요</span>' : '<span class="badge" style="background:#dcfce7;color:#166534;">정상</span>'}</td>
+      <td>${Number(r.unit_price).toLocaleString()}원</td>
+      <td>${(Number(r.current_stock||0)*Number(r.unit_price||0)).toLocaleString()}원</td>
+    </tr>`).join('');
+
+  // 최근 입출고 이력 (입고 + 출고 + 사용 통합, 최근 20건)
+  const {data: ins} = await sb.from('part_stock_in').select('*, defect_parts(name)').order('received_at',{ascending:false}).limit(10);
+  const {data: outs} = await sb.from('part_stock_out').select('*, defect_parts(name)').order('released_at',{ascending:false}).limit(10);
+  const merged = [
+    ...(ins||[]).map(r=>({type:'입고', at:r.received_at, name:r.defect_parts?.name, qty:r.quantity, info:r.total_cost.toLocaleString()+'원', by:r.received_by})),
+    ...(outs||[]).map(r=>({type:'출고', at:r.released_at, name:r.defect_parts?.name, qty:r.quantity, info:r.reason||'-', by:r.released_by}))
+  ].sort((a,b)=> new Date(b.at)-new Date(a.at)).slice(0,20);
+  const histBody = document.getElementById('stockHistoryTableBody');
+  if(histBody){
+    histBody.innerHTML = merged.map(m=>`
+      <tr>
+        <td><span class="badge ${m.type==='입고'?'ok-badge':''}" style="${m.type==='입고'?'background:#dcfce7;color:#166534;':'background:#fee2e2;color:#b91c1c;'}">${m.type}</span></td>
+        <td>${new Date(m.at).toLocaleString('ko-KR')}</td>
+        <td>${escapeHtml(m.name||'-')}</td>
+        <td>${m.qty}</td>
+        <td>${escapeHtml(m.info)}</td>
+        <td>${escapeHtml(m.by||'-')}</td>
+      </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:16px;">입출고 이력이 없습니다.</td></tr>';
+  }
+
+  // 재고조정 이력
+  const {data: adjustments} = await sb.from('part_stock_adjustments').select('*, defect_parts(name)').order('adjusted_at',{ascending:false}).limit(20);
+  const adjBody = document.getElementById('adjustHistoryTableBody');
+  if(adjBody){
+    adjBody.innerHTML = (adjustments||[]).map(a=>`
+      <tr>
+        <td>${new Date(a.adjusted_at).toLocaleString('ko-KR')}</td>
+        <td>${escapeHtml(a.defect_parts?.name||'-')}</td>
+        <td>${a.before_stock}</td>
+        <td>${a.actual_stock}</td>
+        <td style="color:${a.diff<0?'#dc2626':a.diff>0?'#16a34a':'inherit'};">${a.diff>0?'+':''}${a.diff}</td>
+        <td>${escapeHtml(a.reason||'-')}</td>
+        <td>${escapeHtml(a.adjusted_by||'-')}</td>
+      </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:16px;">조정 이력이 없습니다.</td></tr>';
+  }
+
+  document.getElementById('safetyFactorInput').value = SAFETY_FACTOR;
+}
+
+async function submitStockIn(){
+  const partId = document.getElementById('stockInPart').value;
+  const qty = Number(document.getElementById('stockInQty').value || 0);
+  if(!partId || qty<=0){ alert('부속과 입고수량을 확인해주세요.'); return; }
+  const part = PARTS.find(p=>String(p.id)===String(partId));
+  const priceInput = document.getElementById('stockInPrice').value;
+  const price = priceInput? Number(priceInput) : Number(part?.unit_price||0);
+  const {error} = await sb.from('part_stock_in').insert({
+    part_id: Number(partId), quantity: qty, unit_price: price,
+    received_by: document.getElementById('stockInBy').value.trim() || null,
+    note: document.getElementById('stockInNote').value.trim() || null
+  });
+  if(error){ alert('입고 등록 실패: '+error.message); return; }
+  document.getElementById('stockInQty').value='';
+  document.getElementById('stockInPrice').value='';
+  document.getElementById('stockInBy').value='';
+  document.getElementById('stockInNote').value='';
+  showToast('입고가 등록되었습니다.');
+  await reloadMasterData();
+  await renderInventoryPanel();
+}
+
+async function submitStockOut(){
+  const partId = document.getElementById('stockOutPart').value;
+  const qty = Number(document.getElementById('stockOutQty').value || 0);
+  if(!partId || qty<=0){ alert('부속과 출고수량을 확인해주세요.'); return; }
+  const {error} = await sb.from('part_stock_out').insert({
+    part_id: Number(partId), quantity: qty,
+    reason: document.getElementById('stockOutReason').value.trim() || null,
+    released_by: document.getElementById('stockOutBy').value.trim() || null,
+    note: document.getElementById('stockOutNote').value.trim() || null
+  });
+  if(error){ alert('출고 등록 실패: '+error.message); return; }
+  document.getElementById('stockOutQty').value='';
+  document.getElementById('stockOutReason').value='';
+  document.getElementById('stockOutBy').value='';
+  document.getElementById('stockOutNote').value='';
+  showToast('출고가 등록되었습니다.');
+  await reloadMasterData();
+  await renderInventoryPanel();
+}
+
+async function submitStockAdjustment(){
+  const partId = document.getElementById('adjustPart').value;
+  const actual = document.getElementById('adjustActual').value;
+  if(!partId || actual===''){ alert('부속과 실사 수량을 입력해주세요.'); return; }
+  const part = PARTS.find(p=>String(p.id)===String(partId));
+  const {error} = await sb.from('part_stock_adjustments').insert({
+    part_id: Number(partId), before_stock: Number(part?.current_stock||0), actual_stock: Number(actual),
+    reason: document.getElementById('adjustReason').value.trim() || null,
+    adjusted_by: document.getElementById('adjustBy').value.trim() || null
+  });
+  if(error){ alert('조정 반영 실패: '+error.message); return; }
+  document.getElementById('adjustActual').value='';
+  document.getElementById('adjustReason').value='';
+  document.getElementById('adjustBy').value='';
+  showToast('재고가 조정되었습니다.');
+  await reloadMasterData();
+  await renderInventoryPanel();
+}
+
+async function saveSafetyFactor(){
+  const val = Number(document.getElementById('safetyFactorInput').value || 1.5);
+  const {error} = await sb.from('system_settings').update({value: String(val)}).eq('key','parts_safety_factor');
+  if(error){ alert('저장 실패: '+error.message); return; }
+  SAFETY_FACTOR = val;
+  showToast('안전계수가 저장되었습니다.');
+  await renderInventoryPanel();
 }
 
 // ---------- 유틸 ----------
