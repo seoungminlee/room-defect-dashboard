@@ -876,16 +876,11 @@ let AUDIT_LOG = [];           // 수정이력 캐시
 // ============================================================
 // 설정 & Supabase 초기화
 // ============================================================
+const SUPABASE_URL = 'https://lwcutgofpdtzcbyjszhc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3Y3V0Z29mcGR0emNieWpzemhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzg0ODAsImV4cCI6MjA5NzcxNDQ4MH0.g2eGcEiO8Ix0Cul9wqnNghbn5snCeqjwD9LiD_-mK6I';
+
 function loadConfig(){
-  const url = localStorage.getItem('sb_url');
-  const key = localStorage.getItem('sb_key');
-  if(url && key){
-    initSupabase(url, key);
-  } else {
-    // 연결 정보 없으면 로그인 화면에서 연결 정보를 먼저 물어볼 수 없으므로
-    // 설정이 없는 경우는 별도 안내 (실제 운영 시 URL/key는 코드에 하드코딩 권장)
-    document.getElementById('loginErr').textContent = '⚠ Supabase 연결 정보가 없습니다. 관리자에게 문의하세요.';
-  }
+  initSupabase(SUPABASE_URL, SUPABASE_KEY);
 }
 
 function saveConfig(){
@@ -2539,11 +2534,7 @@ function showToast(msg){
   setTimeout(()=> t.style.display='none', 2500);
 }
 
-// 저장된 설정 채워두기 (재방문시 입력값 표시)
 try{
-  document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
-  document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
-  // Supabase 초기화 → 세션 확인 → 세션 있으면 자동 로그인, 없으면 로그인 화면 유지
   loadConfig();
 }catch(e){
   console.error('초기화 중 오류:', e);
