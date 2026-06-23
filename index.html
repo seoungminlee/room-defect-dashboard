@@ -168,6 +168,29 @@
   .audit-action-INSERT{color:var(--ok);font-weight:700;}
   .audit-action-UPDATE{color:var(--accent);font-weight:700;}
   .audit-action-DELETE{color:var(--danger);font-weight:700;}
+
+  /* ── 외주업체 카드 ── */
+  .vendor-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:12px;}
+  .vendor-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+  .vendor-card-name{font-size:16px;font-weight:700;}
+  .vendor-card-scope{display:inline-block;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;margin-left:8px;}
+  .vendor-card-body{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13.5px;}
+  .vendor-card-docs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+  .vendor-doc-link{display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:6px;background:#f1f5f9;color:var(--accent);font-size:12.5px;font-weight:600;text-decoration:none;border:1px solid var(--border);}
+  .vendor-doc-link:hover{background:#e0e7ff;}
+  .vendor-doc-uploading{font-size:12px;color:var(--sub);}
+  .vendor-inactive{opacity:.5;}
+
+  /* ── 반복하자 경고 카드 ── */
+  .repeat-alert-card{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px 18px;margin-bottom:12px;}
+  .repeat-alert-card .room-num{font-size:15px;font-weight:700;color:#92400e;}
+  .repeat-alert-card .symptom-tag{display:inline-block;background:#fef3c7;color:#92400e;font-size:12px;padding:2px 8px;border-radius:10px;margin-left:6px;}
+  .repeat-alert-card .repeat-meta{font-size:12.5px;color:var(--sub);margin-top:4px;}
+
+  /* ── 월별 비용 차트 ── */
+  .month-stat-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
+  .month-stat-row:last-child{border-bottom:none;}
+  .month-stat-bar{height:10px;background:var(--accent);border-radius:5px;min-width:2px;}
 </style>
 </head>
 <body>
@@ -209,6 +232,8 @@
   <div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
   <div class="tab" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
+  <div class="tab" data-tab="coststat" onclick="switchTab('coststat')">💰 비용·부품 통계</div>
+  <div class="tab" data-tab="vendors" onclick="switchTab('vendors')">🏢 외주업체</div>
   <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
   <div class="tab" data-tab="notice" onclick="switchTab('notice')">📢 공지사항</div>
@@ -219,6 +244,163 @@
 <div class="banner-area" id="bannerArea"></div>
 
 <div class="container">
+
+  <!-- ===================== 비용·부품 통계 패널 ===================== -->
+  <div class="panel" id="panel-coststat">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="margin:0;font-size:17px;font-weight:700;">💰 비용·부품 통계</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="font-size:13px;color:var(--sub);">기간</label>
+        <select id="costStatYear" onchange="renderCostStat()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;"></select>
+        <select id="costStatMonth" onchange="renderCostStat()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;">
+          <option value="">전체 (연간)</option>
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- KPI 요약 -->
+    <div class="kpi-row" id="costStatKpiRow">
+      <div class="kpi"><div class="num" id="kpiCostTotal">–</div><div class="label">기간 총 발생비용</div></div>
+      <div class="kpi"><div class="num" id="kpiCostOutsourced">–</div><div class="label">외주 비용</div></div>
+      <div class="kpi"><div class="num" id="kpiCostInternal">–</div><div class="label">자체 처리 비용</div></div>
+      <div class="kpi"><div class="num" id="kpiPartsUsedCount">–</div><div class="label">부품 사용 건수</div></div>
+    </div>
+
+    <div class="grid2">
+      <!-- 월별 비용 추이 -->
+      <div class="card">
+        <h3>월별 발생비용 추이 (최근 12개월)</h3>
+        <canvas id="chartMonthlyCost" height="220"></canvas>
+      </div>
+      <!-- 증상별 비용 -->
+      <div class="card">
+        <h3>증상별 발생비용</h3>
+        <canvas id="chartCostBySymptom" height="220"></canvas>
+      </div>
+    </div>
+
+    <!-- 월별 상세 테이블 -->
+    <div class="card">
+      <h3>월별 상세 집계</h3>
+      <table>
+        <thead>
+          <tr><th>월</th><th>하자 건수</th><th>외주 건수</th><th>외주 비용</th><th>자체 비용</th><th>총 발생비용</th></tr>
+        </thead>
+        <tbody id="monthlyCostTableBody"></tbody>
+      </table>
+      <div class="empty" id="monthlyCostEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
+    </div>
+
+    <!-- 부품 사용 상세 -->
+    <div class="card" style="margin-top:16px;">
+      <h3>부품 사용 상세 <span style="font-size:13px;font-weight:400;color:var(--sub);" id="costStatPeriodLabel"></span></h3>
+      <table>
+        <thead>
+          <tr><th>부품명</th><th>사용 수량</th><th>단가</th><th>부품 비용</th><th>인건비</th><th>합계</th></tr>
+        </thead>
+        <tbody id="partsUsedDetailBody"></tbody>
+      </table>
+      <div class="empty" id="partsUsedDetailEmpty" style="display:none;">해당 기간 부품 사용 내역이 없습니다.</div>
+    </div>
+  </div>
+
+  <!-- ===================== 외주업체 패널 ===================== -->
+  <div class="panel" id="panel-vendors">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="margin:0;font-size:17px;font-weight:700;">🏢 외주업체 관리</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn secondary" onclick="toggleInactiveVendors()"><span id="inactiveVendorToggleLabel">비활성 업체 숨김</span></button>
+        <button class="btn" onclick="openVendorModal()">+ 업체 등록</button>
+      </div>
+    </div>
+
+    <div id="vendorListArea"><div class="empty">등록된 외주업체가 없습니다.</div></div>
+  </div>
+
+  <!-- 외주업체 등록/수정 모달 -->
+  <div class="overlay" id="vendorModal">
+    <div class="modal" style="position:relative;width:520px;">
+      <button onclick="document.getElementById('vendorModal').classList.remove('active')"
+              style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+      <h3 id="vendorModalTitle">외주업체 등록</h3>
+      <input type="hidden" id="editVendorId" />
+
+      <div class="form-row">
+        <label>업체명 <span style="color:var(--danger)">*</span></label>
+        <input id="vendorName" placeholder="예: OO인테리어" />
+      </div>
+      <div class="form-row">
+        <label>담당 업무 / 어떤 하자 때 부르는 업체인지</label>
+        <input id="vendorScope" placeholder="예: 누수·배관 / 타일 보수 / 전기·조명" />
+      </div>
+      <div class="form-row">
+        <label>담당자명 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
+        <input id="vendorManager" placeholder="예: 홍길동 팀장" />
+      </div>
+      <div class="form-row">
+        <label>연락처</label>
+        <input id="vendorPhone" placeholder="예: 010-1234-5678" />
+      </div>
+      <div class="form-row">
+        <label>이메일 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
+        <input id="vendorEmail" type="email" placeholder="예: contact@example.com" />
+      </div>
+      <div class="form-row">
+        <label>메모</label>
+        <textarea id="vendorNote" placeholder="계약 조건, 특이사항 등" rows="2"></textarea>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📎 서류 첨부</div>
+        <div style="font-size:12.5px;color:var(--sub);margin-bottom:12px;">
+          파일을 직접 업로드하거나, 구글 드라이브·노션 등의 공유 링크를 입력할 수 있습니다.
+        </div>
+
+        <div class="form-row">
+          <label>사업자등록증</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="vendorDocBizReg" placeholder="파일 URL 또는 업로드 후 자동 입력" style="flex:1;" />
+            <label class="btn secondary small" style="cursor:pointer;white-space:nowrap;">
+              📂 업로드
+              <input type="file" id="vendorDocBizRegFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="uploadVendorDoc(this,'vendorDocBizReg')" />
+            </label>
+          </div>
+          <div id="vendorDocBizRegStatus" class="vendor-doc-uploading" style="display:none;"></div>
+        </div>
+        <div class="form-row">
+          <label>계좌사본</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="vendorDocAccount" placeholder="파일 URL 또는 업로드 후 자동 입력" style="flex:1;" />
+            <label class="btn secondary small" style="cursor:pointer;white-space:nowrap;">
+              📂 업로드
+              <input type="file" id="vendorDocAccountFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="uploadVendorDoc(this,'vendorDocAccount')" />
+            </label>
+          </div>
+          <div id="vendorDocAccountStatus" class="vendor-doc-uploading" style="display:none;"></div>
+        </div>
+        <div class="form-row">
+          <label>계약서</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="vendorDocContract" placeholder="파일 URL 또는 업로드 후 자동 입력" style="flex:1;" />
+            <label class="btn secondary small" style="cursor:pointer;white-space:nowrap;">
+              📂 업로드
+              <input type="file" id="vendorDocContractFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="uploadVendorDoc(this,'vendorDocContract')" />
+            </label>
+          </div>
+          <div id="vendorDocContractStatus" class="vendor-doc-uploading" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn secondary" onclick="document.getElementById('vendorModal').classList.remove('active')">취소</button>
+        <button class="btn" onclick="saveVendor()">저장</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===================== 설정 패널 ===================== -->
   <!-- ===================== 공지사항 패널 ===================== -->
@@ -392,6 +574,19 @@
         </table>
         <div class="empty" id="stockAlertEmpty" style="display:none;">발주가 필요한 부속이 없습니다.</div>
       </div>
+    </div>
+
+    <div class="section-label">⚠️ 반복하자 — 구조적 문제가 의심되는 객실</div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <p style="margin:0;font-size:13px;color:var(--sub);">같은 객실·같은 증상이 2회 이상 발생한 경우입니다. 단순 수리가 아닌 근본 원인 점검이 필요할 수 있습니다.</p>
+        <button class="btn secondary small" onclick="switchTab('rooms')">전체 목록 →</button>
+      </div>
+      <table>
+        <thead><tr><th>객실</th><th>증상</th><th>누적 발생</th><th>최근 발생일</th><th>누적 비용</th><th>최종 처리 후 경과</th></tr></thead>
+        <tbody id="repeatAlertTableBody"></tbody>
+      </table>
+      <div class="empty" id="repeatAlertEmpty" style="display:none;">반복 발생 중인 하자가 없습니다.</div>
     </div>
 
     <div class="section-label">추이 · 비교</div>
@@ -949,10 +1144,12 @@ let ROOM_TYPES = [];
 let LOCATIONS = [];
 let PARTS = [];
 let EMPLOYEES = [];
+let VENDORS = [];             // 외주업체 목록
 let CURRENT_PARTS_USED = [];  // 모달에서 임시로 들고 있는 사용부품 목록 (저장 전)
 let CURRENT_USER = null;      // 로그인한 사용자 객체
 let CURRENT_ROLE = 'staff';   // 'admin' | 'staff'
 let AUDIT_LOG = [];           // 수정이력 캐시
+let SHOW_INACTIVE_VENDORS = false;
 
 // ============================================================
 // 설정 & Supabase 초기화
@@ -1108,7 +1305,8 @@ function onLogout(){
   CURRENT_USER = null;
   CURRENT_ROLE = 'staff';
   ROOMS = []; CATEGORIES = []; DEFECTS = []; ROOM_TYPES = [];
-  LOCATIONS = []; PARTS = []; EMPLOYEES = []; AUDIT_LOG = [];
+  LOCATIONS = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
+  PARTS_USED_ALL = [];
 
   // UI 초기화
   document.getElementById('loginScreen').style.display = 'flex';
@@ -1133,6 +1331,8 @@ function switchTab(name){
   if(name==='master')     try{ renderAllMasterTables(); }catch(e){ console.error(e); }
   if(name==='dashboard')  try{ renderMainDashboard(); }catch(e){ console.error(e); }
   if(name==='inventory')  try{ renderInventoryPanel(); }catch(e){ console.error(e); }
+  if(name==='vendors')    try{ renderVendors(); }catch(e){ console.error(e); }
+  if(name==='coststat')   try{ initCostStatPanel(); renderCostStat(); }catch(e){ console.error(e); }
   if(name==='notice')     loadNotices();
   if(name==='admin')      loadAdminUsers();
 }
@@ -1424,13 +1624,14 @@ let SAFETY_FACTOR = 1.5;
 
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}, {data:vendors, error:e8}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*').order('sort_order'),
     sb.from('defect_parts').select('*').order('name'),
     sb.from('system_settings').select('*'),
-    sb.from('employees').select('*').order('name')
+    sb.from('employees').select('*').order('name'),
+    sb.from('vendors').select('*').order('name')
   ]);
   if(e1) console.error(e1);
   if(e3) console.error('room_types 로드 실패:', e3);
@@ -1438,12 +1639,14 @@ async function loadAll(){
   if(e5) console.error('defect_parts 로드 실패:', e5);
   if(e6) console.error('system_settings 로드 실패:', e6);
   if(e7) console.error('employees 로드 실패:', e7);
+  if(e8) console.error('vendors 로드 실패:', e8);
   ROOMS = sortRoomsNumerically(rooms||[]);
   CATEGORIES = [];
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
   PARTS = parts||[];
   EMPLOYEES = emps||[];
+  VENDORS = vendors||[];
   const sf = (settings||[]).find(s=>s.key==='parts_safety_factor');
   if(sf) SAFETY_FACTOR = Number(sf.value) || 1.5;
   populateRoomFilter();
@@ -1800,6 +2003,59 @@ async function renderMainDashboard(){
         <td>${p.cost.toLocaleString()}원</td>
       </tr>`).join('');
   }
+
+  // 반복하자 경고 테이블 (대시보드)
+  renderRepeatAlertTable();
+}
+
+// ── 반복하자 감지: 동일 객실·증상 2회 이상 발생 집계 ──
+function buildRepeatMap(){
+  const map = {};
+  DEFECTS.forEach(d=>{
+    if(!d.room_id || !d.symptom) return;
+    const key = `${d.room_id}__${d.symptom}`;
+    if(!map[key]){
+      map[key] = {
+        room_id: d.room_id,
+        room_number: d.rooms?.room_number || '-',
+        symptom: d.symptom,
+        items: [],
+        total_cost: 0
+      };
+    }
+    map[key].items.push(d);
+    map[key].total_cost += Number(d.total_cost||0);
+  });
+  // 2회 이상만, 최근 발생일 기준 내림차순
+  return Object.values(map)
+    .filter(r=>r.items.length>=2)
+    .sort((a,b)=>{
+      const aLast = Math.max(...a.items.map(i=>new Date(i.created_at)));
+      const bLast = Math.max(...b.items.map(i=>new Date(i.created_at)));
+      return bLast - aLast;
+    });
+}
+
+function renderRepeatAlertTable(){
+  const rows = buildRepeatMap();
+  const tbody = document.getElementById('repeatAlertTableBody');
+  const empty = document.getElementById('repeatAlertEmpty');
+  if(!tbody) return;
+  if(!rows.length){ if(empty) empty.style.display=''; tbody.innerHTML=''; return; }
+  if(empty) empty.style.display='none';
+  tbody.innerHTML = rows.slice(0,15).map(r=>{
+    const lastDate = new Date(Math.max(...r.items.map(i=>new Date(i.created_at))));
+    const daysSinceLast = Math.floor((new Date()-lastDate)/(1000*60*60*24));
+    const lastOccurred = lastDate.toLocaleDateString('ko-KR');
+    return `<tr>
+      <td><b>${escapeHtml(r.room_number)}</b></td>
+      <td><span style="background:#fef3c7;color:#92400e;font-size:12px;padding:2px 8px;border-radius:10px;font-weight:700;">${escapeHtml(r.symptom)}</span></td>
+      <td><b style="color:#dc2626;">${r.items.length}회</b></td>
+      <td>${lastOccurred}</td>
+      <td>${r.total_cost.toLocaleString()}원</td>
+      <td>${daysSinceLast}일 전</td>
+    </tr>`;
+  }).join('');
 }
 
 // ---------- 증상별 통계 ----------
@@ -2807,6 +3063,334 @@ async function saveSafetyFactor(){
   SAFETY_FACTOR = val;
   showToast('안전계수가 저장되었습니다.');
   await renderInventoryPanel();
+}
+
+// ============================================================
+// 외주업체 관리
+// ============================================================
+function renderVendors(){
+  const area = document.getElementById('vendorListArea');
+  if(!area) return;
+  const list = SHOW_INACTIVE_VENDORS ? VENDORS : VENDORS.filter(v=>v.is_active!==false);
+  document.getElementById('inactiveVendorToggleLabel').textContent =
+    SHOW_INACTIVE_VENDORS ? '비활성 업체 표시중' : '비활성 업체 숨김';
+  if(!list.length){
+    area.innerHTML = '<div class="empty">등록된 외주업체가 없습니다.<br><span style="font-size:13px;color:var(--sub);">상단 "+ 업체 등록" 버튼으로 추가하세요.</span></div>';
+    return;
+  }
+  area.innerHTML = list.map(v=>{
+    const docLinks = [];
+    if(v.doc_biz_reg)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_biz_reg)}" target="_blank">📄 사업자등록증</a>`);
+    if(v.doc_account)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_account)}" target="_blank">🏦 계좌사본</a>`);
+    if(v.doc_contract) docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_contract)}" target="_blank">📋 계약서</a>`);
+
+    // 이 업체로 처리된 하자 집계
+    const vendorDefects = DEFECTS.filter(d=>d.is_outsourced && d.vendor_name && d.vendor_name===v.name);
+    const vendorCost = vendorDefects.reduce((s,d)=>s+Number(d.total_cost||0),0);
+
+    return `<div class="vendor-card ${v.is_active===false?'vendor-inactive':''}">
+      <div class="vendor-card-header">
+        <div>
+          <span class="vendor-card-name">${escapeHtml(v.name)}</span>
+          ${v.scope? `<span class="vendor-card-scope">${escapeHtml(v.scope)}</span>` : ''}
+          ${v.is_active===false? '<span style="font-size:12px;color:#9ca3af;margin-left:8px;">(비활성)</span>' : ''}
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn secondary small" onclick="openEditVendorModal(${v.id})">수정</button>
+          <button class="btn secondary small" style="color:${v.is_active===false?'var(--ok)':'var(--sub)'};"
+            onclick="toggleVendorActive(${v.id}, ${v.is_active===false})">${v.is_active===false?'활성화':'비활성화'}</button>
+          <button class="btn secondary small" style="color:var(--danger);border-color:var(--danger);"
+            onclick="deleteVendor(${v.id})">삭제</button>
+        </div>
+      </div>
+      <div class="vendor-card-body">
+        <div>${v.manager_name? '👤 '+escapeHtml(v.manager_name) : '<span style="color:#9ca3af;">담당자 미등록</span>'}</div>
+        <div>${v.phone? '📞 '+escapeHtml(v.phone) : '<span style="color:#9ca3af;">연락처 미등록</span>'}</div>
+        ${v.email? `<div>✉️ ${escapeHtml(v.email)}</div>` : '<div></div>'}
+        <div style="color:var(--sub);">처리 ${vendorDefects.length}건 · ${vendorCost.toLocaleString()}원</div>
+        ${v.note? `<div style="grid-column:1/-1;color:var(--sub);font-size:12.5px;">📝 ${escapeHtml(v.note)}</div>` : ''}
+      </div>
+      ${docLinks.length? `<div class="vendor-card-docs">${docLinks.join('')}</div>` : '<div style="font-size:12px;color:#9ca3af;margin-top:8px;">서류 없음</div>'}
+    </div>`;
+  }).join('');
+}
+
+function toggleInactiveVendors(){
+  SHOW_INACTIVE_VENDORS = !SHOW_INACTIVE_VENDORS;
+  renderVendors();
+}
+
+function openVendorModal(){
+  document.getElementById('vendorModalTitle').textContent = '외주업체 등록';
+  document.getElementById('editVendorId').value = '';
+  ['vendorName','vendorScope','vendorManager','vendorPhone','vendorEmail','vendorNote',
+   'vendorDocBizReg','vendorDocAccount','vendorDocContract'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('vendorModal').classList.add('active');
+}
+
+function openEditVendorModal(id){
+  const v = VENDORS.find(x=>x.id===id);
+  if(!v) return;
+  document.getElementById('vendorModalTitle').textContent = '외주업체 수정';
+  document.getElementById('editVendorId').value = id;
+  document.getElementById('vendorName').value = v.name||'';
+  document.getElementById('vendorScope').value = v.scope||'';
+  document.getElementById('vendorManager').value = v.manager_name||'';
+  document.getElementById('vendorPhone').value = v.phone||'';
+  document.getElementById('vendorEmail').value = v.email||'';
+  document.getElementById('vendorNote').value = v.note||'';
+  document.getElementById('vendorDocBizReg').value = v.doc_biz_reg||'';
+  document.getElementById('vendorDocAccount').value = v.doc_account||'';
+  document.getElementById('vendorDocContract').value = v.doc_contract||'';
+  document.getElementById('vendorModal').classList.add('active');
+}
+
+async function saveVendor(){
+  const id   = document.getElementById('editVendorId').value;
+  const name = document.getElementById('vendorName').value.trim();
+  if(!name){ alert('업체명을 입력해주세요.'); return; }
+
+  const payload = {
+    name,
+    scope:        document.getElementById('vendorScope').value.trim() || null,
+    manager_name: document.getElementById('vendorManager').value.trim() || null,
+    phone:        document.getElementById('vendorPhone').value.trim() || null,
+    email:        document.getElementById('vendorEmail').value.trim() || null,
+    note:         document.getElementById('vendorNote').value.trim() || null,
+    doc_biz_reg:  document.getElementById('vendorDocBizReg').value.trim() || null,
+    doc_account:  document.getElementById('vendorDocAccount').value.trim() || null,
+    doc_contract: document.getElementById('vendorDocContract').value.trim() || null
+  };
+
+  let error;
+  if(id){
+    ({error} = await sb.from('vendors').update(payload).eq('id', id));
+  } else {
+    ({error} = await sb.from('vendors').insert(payload));
+  }
+  if(error){ alert('저장 실패: '+error.message); return; }
+  document.getElementById('vendorModal').classList.remove('active');
+  showToast('✅ 업체 정보가 저장되었습니다.');
+  await reloadVendors();
+}
+
+async function toggleVendorActive(id, newVal){
+  const {error} = await sb.from('vendors').update({is_active: newVal}).eq('id', id);
+  if(error){ alert('변경 실패: '+error.message); return; }
+  showToast(newVal? '업체가 활성화되었습니다.' : '업체가 비활성화되었습니다.');
+  await reloadVendors();
+}
+
+async function deleteVendor(id){
+  const v = VENDORS.find(x=>x.id===id);
+  if(!confirm(`"${v?.name}" 업체를 삭제하시겠습니까?\n처리된 하자 이력의 업체명은 유지됩니다.`)) return;
+  const {error} = await sb.from('vendors').delete().eq('id', id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  showToast('삭제되었습니다.');
+  await reloadVendors();
+}
+
+async function reloadVendors(){
+  const {data, error} = await sb.from('vendors').select('*').order('name');
+  if(error){ console.error('vendors 재로드 실패:', error); return; }
+  VENDORS = data||[];
+  renderVendors();
+}
+
+// 업체 서류 파일 업로드 (Supabase Storage: vendor-docs 버킷)
+async function uploadVendorDoc(inputEl, targetFieldId){
+  const file = inputEl.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById(targetFieldId+'Status');
+  if(statusEl){ statusEl.style.display=''; statusEl.textContent='업로드 중…'; }
+
+  // 파일명: timestamp_originalname (한글 파일명 방지용 slug)
+  const ext = file.name.split('.').pop().toLowerCase();
+  const slug = targetFieldId.replace('vendorDoc','').toLowerCase();
+  const path = `vendor_${Date.now()}_${slug}.${ext}`;
+
+  const {data, error} = await sb.storage.from('vendor-docs').upload(path, file, {upsert:false});
+  if(error){
+    if(statusEl){ statusEl.style.display=''; statusEl.textContent='업로드 실패: '+error.message; }
+    alert('업로드 실패: '+error.message+'\n\nStorage 버킷 "vendor-docs"가 생성되어 있는지 확인해주세요.');
+    inputEl.value = '';
+    return;
+  }
+  const { data: urlData } = sb.storage.from('vendor-docs').getPublicUrl(data.path);
+  document.getElementById(targetFieldId).value = urlData.publicUrl;
+  if(statusEl){ statusEl.style.display=''; statusEl.textContent='✅ 업로드 완료'; }
+  inputEl.value = '';
+}
+
+// ============================================================
+// 비용·부품 통계
+// ============================================================
+let chartMonthlyCost=null, chartCostBySymptom=null;
+let PARTS_USED_ALL = [];  // 전체 부품 사용 이력 캐시
+
+async function initCostStatPanel(){
+  // 연도 셀렉터 초기화 (현재 연도 기준 최근 3년)
+  const yearSel = document.getElementById('costStatYear');
+  const now = new Date();
+  const curYear = now.getFullYear();
+  if(yearSel && !yearSel.options.length){
+    for(let y=curYear; y>=curYear-2; y--){
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y+'년';
+      if(y===curYear) opt.selected = true;
+      yearSel.appendChild(opt);
+    }
+    // 기본 월을 현재 월로
+    document.getElementById('costStatMonth').value = String(now.getMonth()+1);
+  }
+  // 부품 사용 이력 로드 (캐시)
+  if(!PARTS_USED_ALL.length){
+    const {data} = await sb.from('defect_parts_used')
+      .select('part_id, quantity, unit_price, labor_cost, created_at, defect_parts(name)');
+    PARTS_USED_ALL = data||[];
+  }
+}
+
+async function renderCostStat(){
+  if(!sb) return;
+  const yearSel  = document.getElementById('costStatYear');
+  const monthSel = document.getElementById('costStatMonth');
+  if(!yearSel || !yearSel.value) return;
+
+  const selYear  = Number(yearSel.value);
+  const selMonth = monthSel.value ? Number(monthSel.value) : null;
+
+  // 필터 함수
+  const inPeriod = (dateStr) => {
+    const d = new Date(dateStr);
+    if(d.getFullYear()!==selYear) return false;
+    if(selMonth && (d.getMonth()+1)!==selMonth) return false;
+    return true;
+  };
+
+  // 기간 내 하자 필터
+  const defectsInPeriod = DEFECTS.filter(d=>inPeriod(d.created_at));
+  const totalCost     = defectsInPeriod.reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const outsourcedCst = defectsInPeriod.filter(d=>d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const internalCst   = totalCost - outsourcedCst;
+
+  // 기간 내 부품 사용 이력
+  const partsInPeriod = PARTS_USED_ALL.filter(p=>inPeriod(p.created_at));
+
+  // KPI 업데이트
+  document.getElementById('kpiCostTotal').textContent       = totalCost.toLocaleString()+'원';
+  document.getElementById('kpiCostOutsourced').textContent  = outsourcedCst.toLocaleString()+'원';
+  document.getElementById('kpiCostInternal').textContent    = internalCst.toLocaleString()+'원';
+  document.getElementById('kpiPartsUsedCount').textContent  = partsInPeriod.length+'건';
+
+  const periodLabel = selMonth ? `(${selYear}년 ${selMonth}월)` : `(${selYear}년 전체)`;
+  const labelEl = document.getElementById('costStatPeriodLabel');
+  if(labelEl) labelEl.textContent = periodLabel;
+
+  // ── 월별 발생비용 추이 (최근 12개월) ──
+  const monthlyMap = {};
+  for(let i=11; i>=0; i--){
+    const d = new Date(new Date().getFullYear(), new Date().getMonth()-i, 1);
+    const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    monthlyMap[k] = {total:0, outsourced:0, internal:0, count:0};
+  }
+  DEFECTS.forEach(d=>{
+    const dt = new Date(d.created_at);
+    const k = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+    if(!(k in monthlyMap)) return;
+    monthlyMap[k].total += Number(d.total_cost||0);
+    monthlyMap[k].count++;
+    if(d.is_outsourced) monthlyMap[k].outsourced += Number(d.total_cost||0);
+    else monthlyMap[k].internal += Number(d.total_cost||0);
+  });
+
+  if(chartMonthlyCost) chartMonthlyCost.destroy();
+  const mcCanvas = document.getElementById('chartMonthlyCost');
+  if(mcCanvas && typeof Chart!=='undefined'){
+    chartMonthlyCost = new Chart(mcCanvas, {
+      type:'bar',
+      data:{
+        labels: Object.keys(monthlyMap),
+        datasets:[
+          {label:'외주 비용', data:Object.values(monthlyMap).map(m=>m.outsourced), backgroundColor:'#7c3aed', stack:'s'},
+          {label:'자체 비용', data:Object.values(monthlyMap).map(m=>m.internal),   backgroundColor:'#2563eb', stack:'s'}
+        ]
+      },
+      options:{ responsive:true, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
+    });
+  }
+
+  // ── 증상별 비용 ──
+  const symCosts = SYMPTOMS.map(sym=>{
+    return defectsInPeriod.filter(d=>d.symptom===sym).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  });
+  if(chartCostBySymptom) chartCostBySymptom.destroy();
+  const symCanvas = document.getElementById('chartCostBySymptom');
+  if(symCanvas && typeof Chart!=='undefined'){
+    chartCostBySymptom = new Chart(symCanvas, {
+      type:'bar',
+      data:{ labels:SYMPTOMS, datasets:[{label:'발생비용(원)', data:symCosts, backgroundColor:['#2563eb','#dc2626','#d97706','#16a34a','#7c3aed','#9ca3af']}]},
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
+    });
+  }
+
+  // ── 월별 상세 테이블 (선택 연도 전체, 선택 월이면 해당 월만) ──
+  const monthRows = selMonth
+    ? [{ month:`${selYear}-${String(selMonth).padStart(2,'0')}`, ...monthlyMap[`${selYear}-${String(selMonth).padStart(2,'0')}`]||{total:0,outsourced:0,internal:0,count:0} }]
+    : Object.entries(monthlyMap).map(([month,v])=>({month,...v}));
+
+  const mtBody = document.getElementById('monthlyCostTableBody');
+  const mtEmpty = document.getElementById('monthlyCostEmpty');
+  if(mtBody){
+    const hasData = monthRows.some(r=>r.count>0);
+    if(!hasData){ mtBody.innerHTML=''; if(mtEmpty) mtEmpty.style.display=''; }
+    else {
+      if(mtEmpty) mtEmpty.style.display='none';
+      mtBody.innerHTML = monthRows.filter(r=>r.count>0).map(r=>`
+        <tr>
+          <td>${r.month}</td>
+          <td>${r.count}건</td>
+          <td>${DEFECTS.filter(d=>{const k=d.created_at.slice(0,7); return k===r.month && d.is_outsourced;}).length}건</td>
+          <td>${(r.outsourced||0).toLocaleString()}원</td>
+          <td>${(r.internal||0).toLocaleString()}원</td>
+          <td><b>${(r.total||0).toLocaleString()}원</b></td>
+        </tr>`).join('');
+    }
+  }
+
+  // ── 부품 사용 상세 ──
+  const partAgg = {};
+  partsInPeriod.forEach(p=>{
+    const name = p.defect_parts?.name || '(미지정)';
+    if(!partAgg[name]) partAgg[name] = {name, qty:0, unitPrice:Number(p.unit_price||0), partCost:0, laborCost:0, total:0};
+    partAgg[name].qty       += Number(p.quantity||0);
+    partAgg[name].partCost  += Number(p.quantity||0)*Number(p.unit_price||0);
+    partAgg[name].laborCost += Number(p.labor_cost||0);
+    partAgg[name].total     += Number(p.quantity||0)*Number(p.unit_price||0) + Number(p.labor_cost||0);
+    partAgg[name].unitPrice  = Number(p.unit_price||0); // 최신 단가
+  });
+  const partRows = Object.values(partAgg).sort((a,b)=>b.total-a.total);
+  const pdBody = document.getElementById('partsUsedDetailBody');
+  const pdEmpty = document.getElementById('partsUsedDetailEmpty');
+  if(pdBody){
+    if(!partRows.length){ pdBody.innerHTML=''; if(pdEmpty) pdEmpty.style.display=''; }
+    else {
+      if(pdEmpty) pdEmpty.style.display='none';
+      pdBody.innerHTML = partRows.map(p=>`
+        <tr>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${p.qty}</td>
+          <td>${p.unitPrice.toLocaleString()}원</td>
+          <td>${p.partCost.toLocaleString()}원</td>
+          <td>${p.laborCost.toLocaleString()}원</td>
+          <td><b>${p.total.toLocaleString()}원</b></td>
+        </tr>`).join('');
+    }
+  }
 }
 
 // ---------- 유틸 ----------
