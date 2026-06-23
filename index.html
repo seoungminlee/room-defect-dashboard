@@ -116,15 +116,70 @@
     table{font-size:12px;}
     .tabs{overflow-x:auto;white-space:nowrap;}
   }
+
+  /* ── 로그인 화면 ── */
+  #loginScreen{
+    position:fixed;inset:0;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;z-index:999;
+  }
+  .login-card{
+    background:#fff;border:1px solid var(--border);border-radius:16px;
+    padding:40px 36px;width:360px;max-width:92vw;
+    box-shadow:0 8px 32px rgba(0,0,0,.08);
+  }
+  .login-card h2{margin:0 0 6px;font-size:20px;}
+  .login-card .sub{font-size:13px;color:var(--sub);margin-bottom:28px;}
+  .login-card .form-row{margin-bottom:14px;}
+  .login-card .form-row label{font-size:13px;font-weight:600;display:block;margin-bottom:5px;}
+  .login-card .form-row input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;}
+  .login-card .btn-login{width:100%;padding:11px;font-size:15px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;margin-top:4px;}
+  .login-card .btn-login:disabled{opacity:.6;cursor:not-allowed;}
+  .login-card .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:18px;}
+
+  /* ── topbar 사용자 표시 ── */
+  .user-chip{display:flex;align-items:center;gap:8px;font-size:13px;}
+  .user-chip .role-badge{background:#ede9fe;color:#6d28d9;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
+  .user-chip .role-badge.admin{background:#fef3c7;color:#92400e;}
+  .btn-logout{font-size:12px;padding:5px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--sub);}
+  .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
+
+  /* ── 수정이력 테이블 ── */
+  .audit-action-INSERT{color:var(--ok);font-weight:700;}
+  .audit-action-UPDATE{color:var(--accent);font-weight:700;}
+  .audit-action-DELETE{color:var(--danger);font-weight:700;}
 </style>
 </head>
 <body>
+
+<!-- ===================== 로그인 화면 ===================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h2>🏨 시흥 웨이브파크</h2>
+    <p class="sub">하자관리 시스템 — 로그인</p>
+    <div class="form-row">
+      <label>이메일</label>
+      <input type="email" id="loginEmail" placeholder="example@email.com" autocomplete="username" />
+    </div>
+    <div class="form-row">
+      <label>비밀번호</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
 
 <div class="topbar">
   <h1>🏨 시흥 웨이브파크 하자관리</h1>
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="status" id="connStatus">Supabase 연결 대기중…</div>
-    <button class="btn secondary small" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;">⚙️</button>
+    <div class="user-chip" id="userChip" style="display:none;">
+      <span id="userEmail" style="color:var(--sub);"></span>
+      <span class="role-badge" id="userRoleBadge"></span>
+      <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+    </div>
+    <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
   </div>
 </div>
 
@@ -134,6 +189,9 @@
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 통계</div>
   <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
+  <!-- 마스터 전용 탭 (admin 로그인 시에만 표시) -->
+  <div class="tab admin-only" data-tab="auditlog" onclick="switchTab('auditlog')" style="display:none;">🔐 수정이력</div>
+  <div class="tab admin-only" data-tab="settings" onclick="switchTab('settings')" style="display:none;">⚙️ 연결설정</div>
 </div>
 
 <div class="container">
@@ -157,6 +215,37 @@
         </div>
         <button onclick="saveConfig()">연결하기</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===================== 수정이력 패널 (admin 전용) ===================== -->
+  <div class="panel" id="panel-auditlog">
+    <div class="card">
+      <h3>🔐 하자 수정이력 — 관리자 전용</h3>
+      <div class="filterbar" style="margin-bottom:14px;">
+        <select id="auditActionFilter" onchange="renderAuditLog()">
+          <option value="">전체 액션</option>
+          <option value="INSERT">등록(INSERT)</option>
+          <option value="UPDATE">수정(UPDATE)</option>
+          <option value="DELETE">삭제(DELETE)</option>
+        </select>
+        <input type="text" id="auditEmailFilter" placeholder="이메일 검색" oninput="renderAuditLog()" style="width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
+        <div class="spacer"></div>
+        <button class="btn secondary" onclick="loadAuditLog()">새로고침</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>일시</th>
+            <th>액션</th>
+            <th>하자 ID</th>
+            <th>처리자</th>
+            <th>변경 내용 요약</th>
+          </tr>
+        </thead>
+        <tbody id="auditLogTableBody"></tbody>
+      </table>
+      <div class="empty" id="auditLogEmpty" style="display:none;">이력이 없습니다.</div>
     </div>
   </div>
 
@@ -715,16 +804,22 @@ let LOCATIONS = [];
 let PARTS = [];
 let EMPLOYEES = [];
 let CURRENT_PARTS_USED = [];  // 모달에서 임시로 들고 있는 사용부품 목록 (저장 전)
+let CURRENT_USER = null;      // 로그인한 사용자 객체
+let CURRENT_ROLE = 'staff';   // 'admin' | 'staff'
+let AUDIT_LOG = [];           // 수정이력 캐시
 
-// ---------- 설정 로드 ----------
+// ============================================================
+// 설정 & Supabase 초기화
+// ============================================================
 function loadConfig(){
   const url = localStorage.getItem('sb_url');
   const key = localStorage.getItem('sb_key');
   if(url && key){
     initSupabase(url, key);
   } else {
-    document.getElementById('connStatus').textContent = '⚠ 연결 안됨 — "연결 설정" 탭에서 설정하세요';
-    switchTab('settings');
+    // 연결 정보 없으면 로그인 화면에서 연결 정보를 먼저 물어볼 수 없으므로
+    // 설정이 없는 경우는 별도 안내 (실제 운영 시 URL/key는 코드에 하드코딩 권장)
+    document.getElementById('loginErr').textContent = '⚠ Supabase 연결 정보가 없습니다. 관리자에게 문의하세요.';
   }
 }
 
@@ -735,21 +830,104 @@ function saveConfig(){
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
   initSupabase(url, key);
-  switchTab('rooms');
+  switchTab('dashboard');
 }
 
 function initSupabase(url, key){
   try{
     sb = window.supabase.createClient(url, key);
     document.getElementById('connStatus').textContent = '✅ Supabase 연결됨';
-    loadAll();
+    // 연결 후 기존 세션 확인 → 있으면 바로 로그인 처리
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if(session){
+        onLoginSuccess(session.user);
+      }
+      // 세션 없으면 로그인 화면 유지 (기본 상태)
+    });
+    // 세션 변경 감지 (탭 전환, 토큰 만료 등)
+    sb.auth.onAuthStateChange((event, session) => {
+      if(event === 'SIGNED_OUT' || !session){
+        onLogout();
+      } else if(event === 'SIGNED_IN' && session){
+        onLoginSuccess(session.user);
+      }
+    });
   }catch(e){
     document.getElementById('connStatus').textContent = '⚠ 연결 실패: ' + e.message;
   }
 }
 
+// ============================================================
+// 로그인 / 로그아웃
+// ============================================================
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw    = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  const btn   = document.getElementById('loginBtn');
+  if(!email || !pw){ errEl.textContent = '이메일과 비밀번호를 입력해주세요.'; return; }
+  btn.disabled = true;
+  btn.textContent = '로그인 중…';
+  errEl.textContent = '';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  btn.disabled = false;
+  btn.textContent = '로그인';
+  if(error){
+    errEl.textContent = '로그인 실패: ' + (error.message === 'Invalid login credentials' ? '이메일 또는 비밀번호가 올바르지 않습니다.' : error.message);
+    return;
+  }
+  onLoginSuccess(data.user);
+}
+
+function onLoginSuccess(user){
+  CURRENT_USER = user;
+  CURRENT_ROLE = user?.user_metadata?.role === 'admin' ? 'admin' : 'staff';
+
+  // 로그인 화면 숨기기
+  document.getElementById('loginScreen').style.display = 'none';
+
+  // topbar 사용자 정보 표시
+  document.getElementById('userChip').style.display = 'flex';
+  document.getElementById('userEmail').textContent = user.email;
+  const roleBadge = document.getElementById('userRoleBadge');
+  roleBadge.textContent = CURRENT_ROLE === 'admin' ? '관리자' : '일반';
+  roleBadge.className = 'role-badge' + (CURRENT_ROLE === 'admin' ? ' admin' : '');
+
+  // admin 전용 탭/버튼 표시
+  if(CURRENT_ROLE === 'admin'){
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+
+  loadAll();
+  switchTab('dashboard');
+}
+
+async function doLogout(){
+  await sb.auth.signOut();
+}
+
+function onLogout(){
+  CURRENT_USER = null;
+  CURRENT_ROLE = 'staff';
+  ROOMS = []; CATEGORIES = []; DEFECTS = []; ROOM_TYPES = [];
+  LOCATIONS = []; PARTS = []; EMPLOYEES = []; AUDIT_LOG = [];
+
+  // UI 초기화
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginErr').textContent = '';
+  document.getElementById('userChip').style.display = 'none';
+  document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+  switchTab('dashboard');
+}
+
 // ---------- 탭 전환 ----------
 function switchTab(name){
+  // admin 전용 탭 접근 차단
+  if((name === 'auditlog' || name === 'settings') && CURRENT_ROLE !== 'admin'){
+    showToast('관리자만 접근할 수 있습니다.');
+    return;
+  }
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
@@ -766,6 +944,72 @@ function switchTab(name){
   if(name==='inventory'){
     try{ renderInventoryPanel(); }catch(e){ console.error(e); }
   }
+  if(name==='auditlog'){
+    loadAuditLog();
+  }
+}
+
+// ============================================================
+// 수정이력 (admin 전용)
+// ============================================================
+async function loadAuditLog(){
+  if(!sb || CURRENT_ROLE !== 'admin') return;
+  const { data, error } = await sb
+    .from('defect_audit_log')
+    .select('*')
+    .order('changed_at', { ascending: false })
+    .limit(500);
+  if(error){ showToast('이력 로드 실패: ' + error.message); return; }
+  AUDIT_LOG = data || [];
+  renderAuditLog();
+}
+
+function renderAuditLog(){
+  const actionFilter = document.getElementById('auditActionFilter')?.value || '';
+  const emailFilter  = (document.getElementById('auditEmailFilter')?.value || '').toLowerCase();
+  const tbody = document.getElementById('auditLogTableBody');
+  const empty = document.getElementById('auditLogEmpty');
+  if(!tbody) return;
+
+  let rows = AUDIT_LOG;
+  if(actionFilter) rows = rows.filter(r => r.action === actionFilter);
+  if(emailFilter)  rows = rows.filter(r => (r.changed_by_email||'').toLowerCase().includes(emailFilter));
+
+  if(!rows.length){
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map(r => {
+    const dt = new Date(r.changed_at).toLocaleString('ko-KR');
+    const actionClass = 'audit-action-' + r.action;
+    const actionLabel = r.action === 'INSERT' ? '등록' : r.action === 'UPDATE' ? '수정' : '삭제';
+    let summary = '';
+    if(r.action === 'UPDATE' && r.before_data && r.after_data){
+      const changed = [];
+      const ignore = ['updated_at','total_cost'];
+      for(const k of Object.keys(r.after_data)){
+        if(ignore.includes(k)) continue;
+        const bv = JSON.stringify(r.before_data[k]);
+        const av = JSON.stringify(r.after_data[k]);
+        if(bv !== av) changed.push(`<b>${k}</b>: ${bv} → ${av}`);
+      }
+      summary = changed.slice(0,4).join(' / ') || '변경 없음';
+    } else if(r.action === 'INSERT' && r.after_data){
+      summary = `상태: ${r.after_data.status||''}, 우선순위: ${r.after_data.priority||''}`;
+    } else if(r.action === 'DELETE' && r.before_data){
+      summary = `삭제된 하자 — 상태: ${r.before_data.status||''}`;
+    }
+    return `<tr>
+      <td style="white-space:nowrap;font-size:12.5px;">${dt}</td>
+      <td><span class="${actionClass}">${actionLabel}</span></td>
+      <td style="color:var(--sub);">#${r.defect_id||'–'}</td>
+      <td style="font-size:12.5px;">${r.changed_by_email||'–'}</td>
+      <td style="font-size:12px;color:var(--sub);max-width:380px;overflow:hidden;text-overflow:ellipsis;">${summary}</td>
+    </tr>`;
+  }).join('');
 }
 
 function switchSubtab(name){
@@ -2121,6 +2365,7 @@ function showToast(msg){
 try{
   document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
   document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
+  // Supabase 초기화 → 세션 확인 → 세션 있으면 자동 로그인, 없으면 로그인 화면 유지
   loadConfig();
 }catch(e){
   console.error('초기화 중 오류:', e);
