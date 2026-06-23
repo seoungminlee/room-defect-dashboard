@@ -540,7 +540,8 @@
 
 <!-- ===================== 하자 등록/수정 모달 ===================== -->
 <div class="overlay" id="defectModal">
-  <div class="modal">
+  <div class="modal" style="position:relative;">
+    <button onclick="closeDefectModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='#374151';this.style.background='#f3f4f6'" onmouseout="this.style.color='#9ca3af';this.style.background='none'" title="닫기">✕</button>
     <h3 id="modalTitle">하자 등록</h3>
     <input type="hidden" id="editDefectId" />
     <div class="form-row" style="position:relative;">
