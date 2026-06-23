@@ -177,6 +177,7 @@
     <div class="user-chip" id="userChip" style="display:none;">
       <span id="userEmail" style="color:var(--sub);"></span>
       <span class="role-badge" id="userRoleBadge"></span>
+      <button class="btn-logout" onclick="openChangePwModal()" style="border-color:var(--border);">🔑 비밀번호 변경</button>
       <button class="btn-logout" onclick="doLogout()">로그아웃</button>
     </div>
     <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
@@ -198,6 +199,25 @@
 
   <!-- ===================== 설정 패널 ===================== -->
   <div class="panel" id="panel-settings">
+    <!-- 사용자 관리 (admin 전용) -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>👥 사용자 비밀번호 초기화 — 관리자 전용</h3>
+      <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">사용자가 비밀번호를 잊었을 때 임시 비밀번호로 초기화합니다. 초기화 후 본인이 직접 변경하도록 안내하세요.</p>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+          <label>대상 이메일</label>
+          <input id="resetTargetEmail" type="email" placeholder="staff@example.com" />
+        </div>
+        <div class="form-row" style="margin:0;width:160px;">
+          <label>임시 비밀번호</label>
+          <input id="resetTempPw" type="text" value="Wavepk0000!" placeholder="임시 비밀번호" />
+        </div>
+        <button class="btn" style="margin-bottom:0;" onclick="adminResetPassword()">초기화</button>
+      </div>
+      <div id="resetMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+    </div>
+
+    <!-- Supabase 연결 설정 -->
     <div class="card">
       <h3>Supabase 연결 설정</h3>
       <div class="setup-box">
@@ -627,6 +647,27 @@
 
 </div>
 
+<!-- ===================== 비밀번호 변경 모달 ===================== -->
+<div class="overlay" id="changePwModal">
+  <div class="modal" style="position:relative;width:360px;">
+    <button onclick="document.getElementById('changePwModal').classList.remove('active')" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+    <h3>🔑 비밀번호 변경</h3>
+    <div class="form-row">
+      <label>새 비밀번호</label>
+      <input type="password" id="newPw1" placeholder="새 비밀번호 (6자 이상)" />
+    </div>
+    <div class="form-row">
+      <label>새 비밀번호 확인</label>
+      <input type="password" id="newPw2" placeholder="동일하게 입력" />
+    </div>
+    <div id="changePwMsg" style="font-size:13px;min-height:18px;margin-bottom:8px;"></div>
+    <div class="form-actions">
+      <button class="btn secondary" onclick="document.getElementById('changePwModal').classList.remove('active')">취소</button>
+      <button class="btn" onclick="doChangePw()">변경</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== 하자 등록/수정 모달 ===================== -->
 <div class="overlay" id="defectModal">
   <div class="modal" style="position:relative;">
@@ -904,6 +945,64 @@ function onLoginSuccess(user){
 
 async function doLogout(){
   await sb.auth.signOut();
+}
+
+// ============================================================
+// 비밀번호 변경 (본인)
+// ============================================================
+function openChangePwModal(){
+  document.getElementById('newPw1').value = '';
+  document.getElementById('newPw2').value = '';
+  document.getElementById('changePwMsg').textContent = '';
+  document.getElementById('changePwModal').classList.add('active');
+}
+
+async function doChangePw(){
+  const pw1 = document.getElementById('newPw1').value;
+  const pw2 = document.getElementById('newPw2').value;
+  const msg = document.getElementById('changePwMsg');
+  if(pw1.length < 6){ msg.style.color='var(--danger)'; msg.textContent='비밀번호는 6자 이상이어야 합니다.'; return; }
+  if(pw1 !== pw2){ msg.style.color='var(--danger)'; msg.textContent='비밀번호가 일치하지 않습니다.'; return; }
+  msg.style.color='var(--sub)'; msg.textContent='변경 중…';
+  const { error } = await sb.auth.updateUser({ password: pw1 });
+  if(error){
+    msg.style.color='var(--danger)';
+    msg.textContent='변경 실패: ' + error.message;
+  } else {
+    msg.style.color='var(--ok)';
+    msg.textContent='✅ 비밀번호가 변경되었습니다.';
+    setTimeout(() => document.getElementById('changePwModal').classList.remove('active'), 1500);
+  }
+}
+
+// ============================================================
+// 비밀번호 초기화 (admin → 다른 사용자)
+// Supabase admin API는 anon key로 직접 호출 불가 → SQL로 우회
+// ============================================================
+async function adminResetPassword(){
+  if(CURRENT_ROLE !== 'admin'){ showToast('관리자만 사용 가능합니다.'); return; }
+  const email = document.getElementById('resetTargetEmail').value.trim();
+  const tempPw = document.getElementById('resetTempPw').value.trim();
+  const msg = document.getElementById('resetMsg');
+  if(!email){ msg.style.color='var(--danger)'; msg.textContent='이메일을 입력해주세요.'; return; }
+  if(!tempPw){ msg.style.color='var(--danger)'; msg.textContent='임시 비밀번호를 입력해주세요.'; return; }
+
+  msg.style.color='var(--sub)'; msg.textContent='처리 중…';
+
+  // Supabase Admin API: service_role key 없이는 직접 호출 불가
+  // → DB 함수(security definer)를 통해 우회
+  const { error } = await sb.rpc('admin_reset_user_password', {
+    target_email: email,
+    new_password: tempPw
+  });
+  if(error){
+    msg.style.color='var(--danger)';
+    msg.textContent='실패: ' + error.message;
+  } else {
+    msg.style.color='var(--ok)';
+    msg.textContent=`✅ ${email} 비밀번호가 초기화되었습니다. 상대방에게 임시 비밀번호를 전달하세요.`;
+    document.getElementById('resetTargetEmail').value = '';
+  }
 }
 
 function onLogout(){
