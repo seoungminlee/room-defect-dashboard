@@ -190,82 +190,106 @@
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">공종별 통계</div>
   <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
-  <!-- 마스터 전용 탭 (admin 로그인 시에만 표시) -->
-  <div class="tab admin-only" data-tab="auditlog" onclick="switchTab('auditlog')" style="display:none;">🔐 수정이력</div>
-  <div class="tab admin-only" data-tab="settings" onclick="switchTab('settings')" style="display:none;">⚙️ 연결설정</div>
+  <div class="tab admin-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">🛡️ 관리자</div>
 </div>
 
 <div class="container">
 
   <!-- ===================== 설정 패널 ===================== -->
-  <div class="panel" id="panel-settings">
-    <!-- 사용자 관리 (admin 전용) -->
-    <div class="card" style="margin-bottom:16px;">
-      <h3>👥 사용자 비밀번호 초기화 — 관리자 전용</h3>
-      <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">사용자가 비밀번호를 잊었을 때 임시 비밀번호로 초기화합니다. 초기화 후 본인이 직접 변경하도록 안내하세요.</p>
-      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
-        <div class="form-row" style="margin:0;flex:1;min-width:200px;">
-          <label>대상 이메일</label>
-          <input id="resetTargetEmail" type="email" placeholder="staff@example.com" />
-        </div>
-        <div class="form-row" style="margin:0;width:160px;">
-          <label>임시 비밀번호</label>
-          <input id="resetTempPw" type="text" value="Wavepk0000!" placeholder="임시 비밀번호" />
-        </div>
-        <button class="btn" style="margin-bottom:0;" onclick="adminResetPassword()">초기화</button>
-      </div>
-      <div id="resetMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+  <!-- ===================== 관리자 패널 (admin 전용) ===================== -->
+  <div class="panel" id="panel-admin">
+    <div class="subtabs" style="margin-bottom:20px;">
+      <div class="subtab active" data-subtab="admin-users" onclick="switchAdminSubtab('admin-users')">👥 사용자 관리</div>
+      <div class="subtab" data-subtab="admin-audit" onclick="switchAdminSubtab('admin-audit')">🔐 수정이력</div>
+      <div class="subtab" data-subtab="admin-settings" onclick="switchAdminSubtab('admin-settings')">⚙️ 연결설정</div>
     </div>
 
-    <!-- Supabase 연결 설정 -->
-    <div class="card">
-      <h3>Supabase 연결 설정</h3>
-      <div class="setup-box">
-        1. supabase.com에서 프로젝트를 만드신 뒤, <code>Project Settings → API</code> 메뉴에서<br/>
-        <b>Project URL</b>과 <b>anon public key</b> 두 가지를 복사해 아래에 붙여넣으세요.<br/>
-        2. <code>SQL Editor</code>에서 제공된 supabase_schema.sql 파일 내용을 실행해 표를 먼저 만들어주세요.<br/>
-        3. 아래에 입력 후 "연결하기"를 누르면 이 브라우저에 저장되어 다음에 다시 입력할 필요가 없습니다.
-        <div class="form-row" style="margin-top:12px;">
-          <label>Project URL</label>
-          <input id="cfgUrl" placeholder="https://xxxxxxxx.supabase.co" />
+    <!-- 사용자 관리 -->
+    <div class="subpanel active" id="subpanel-admin-users">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="margin:0;">가입 계정 목록</h3>
+          <button class="btn secondary" onclick="loadAdminUsers()">새로고침</button>
         </div>
-        <div class="form-row">
-          <label>anon public key</label>
-          <input id="cfgKey" placeholder="eyJhbGciOiJI..." />
+        <table id="adminUsersTable">
+          <thead>
+            <tr>
+              <th>이메일</th>
+              <th>권한</th>
+              <th>마지막 로그인</th>
+              <th>가입일</th>
+              <th>권한 변경</th>
+              <th>비밀번호 초기화</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersTableBody"></tbody>
+        </table>
+        <div class="empty" id="adminUsersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h3>비밀번호 직접 초기화</h3>
+        <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">위 목록에서 초기화 버튼을 누르면 아래 임시 비밀번호로 초기화됩니다.</p>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+            <label>대상 이메일</label>
+            <input id="resetTargetEmail" type="email" placeholder="staff@example.com" />
+          </div>
+          <div class="form-row" style="margin:0;width:180px;">
+            <label>임시 비밀번호</label>
+            <input id="resetTempPw" type="text" value="Wavepk0000!" />
+          </div>
+          <button class="btn" onclick="adminResetPassword()">초기화</button>
         </div>
-        <button onclick="saveConfig()">연결하기</button>
+        <div id="resetMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
       </div>
     </div>
-  </div>
 
-  <!-- ===================== 수정이력 패널 (admin 전용) ===================== -->
-  <div class="panel" id="panel-auditlog">
-    <div class="card">
-      <h3>🔐 하자 수정이력 — 관리자 전용</h3>
-      <div class="filterbar" style="margin-bottom:14px;">
-        <select id="auditActionFilter" onchange="renderAuditLog()">
-          <option value="">전체 액션</option>
-          <option value="INSERT">등록(INSERT)</option>
-          <option value="UPDATE">수정(UPDATE)</option>
-          <option value="DELETE">삭제(DELETE)</option>
-        </select>
-        <input type="text" id="auditEmailFilter" placeholder="이메일 검색" oninput="renderAuditLog()" style="width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
-        <div class="spacer"></div>
-        <button class="btn secondary" onclick="loadAuditLog()">새로고침</button>
+    <!-- 수정이력 -->
+    <div class="subpanel" id="subpanel-admin-audit">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <h3 style="margin:0;">하자 수정이력</h3>
+          <button class="btn secondary" onclick="loadAuditLog()">새로고침</button>
+        </div>
+        <div class="filterbar" style="margin-bottom:14px;">
+          <select id="auditActionFilter" onchange="renderAuditLog()">
+            <option value="">전체 액션</option>
+            <option value="INSERT">등록(INSERT)</option>
+            <option value="UPDATE">수정(UPDATE)</option>
+            <option value="DELETE">삭제(DELETE)</option>
+          </select>
+          <input type="text" id="auditEmailFilter" placeholder="이메일 검색" oninput="renderAuditLog()"
+                 style="width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
+        </div>
+        <table>
+          <thead>
+            <tr><th>일시</th><th>액션</th><th>하자 ID</th><th>처리자</th><th>변경 내용 요약</th></tr>
+          </thead>
+          <tbody id="auditLogTableBody"></tbody>
+        </table>
+        <div class="empty" id="auditLogEmpty" style="display:none;">이력이 없습니다.</div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>일시</th>
-            <th>액션</th>
-            <th>하자 ID</th>
-            <th>처리자</th>
-            <th>변경 내용 요약</th>
-          </tr>
-        </thead>
-        <tbody id="auditLogTableBody"></tbody>
-      </table>
-      <div class="empty" id="auditLogEmpty" style="display:none;">이력이 없습니다.</div>
+    </div>
+
+    <!-- 연결설정 -->
+    <div class="subpanel" id="subpanel-admin-settings">
+      <div class="card">
+        <h3>Supabase 연결 설정</h3>
+        <div class="setup-box">
+          1. supabase.com 프로젝트 → <code>Project Settings → API</code>에서<br/>
+          <b>Project URL</b>과 <b>anon public key</b>를 복사해 아래에 붙여넣으세요.<br/>
+          2. 입력 후 "연결하기"를 누르면 이 브라우저에 저장됩니다.
+          <div class="form-row" style="margin-top:12px;">
+            <label>Project URL</label>
+            <input id="cfgUrl" placeholder="https://xxxxxxxx.supabase.co" />
+          </div>
+          <div class="form-row">
+            <label>anon public key</label>
+            <input id="cfgKey" placeholder="eyJhbGciOiJI..." />
+          </div>
+          <button onclick="saveConfig()">연결하기</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -871,7 +895,6 @@ function saveConfig(){
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
   initSupabase(url, key);
-  switchTab('dashboard');
 }
 
 function initSupabase(url, key){
@@ -1022,8 +1045,7 @@ function onLogout(){
 
 // ---------- 탭 전환 ----------
 function switchTab(name){
-  // admin 전용 탭 접근 차단
-  if((name === 'auditlog' || name === 'settings') && CURRENT_ROLE !== 'admin'){
+  if(name === 'admin' && CURRENT_ROLE !== 'admin'){
     showToast('관리자만 접근할 수 있습니다.');
     return;
   }
@@ -1031,21 +1053,78 @@ function switchTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
   if(panel) panel.classList.add('active');
-  if(name==='categories'){
-    try{ renderCategoryDashboard(); }catch(e){ console.error(e); }
+  if(name==='categories') try{ renderCategoryDashboard(); }catch(e){ console.error(e); }
+  if(name==='master')     try{ renderAllMasterTables(); }catch(e){ console.error(e); }
+  if(name==='dashboard')  try{ renderMainDashboard(); }catch(e){ console.error(e); }
+  if(name==='inventory')  try{ renderInventoryPanel(); }catch(e){ console.error(e); }
+  if(name==='admin'){
+    loadAdminUsers();
   }
-  if(name==='master'){
-    try{ renderAllMasterTables(); }catch(e){ console.error(e); }
+}
+
+function switchAdminSubtab(name){
+  document.querySelectorAll('#panel-admin .subtab').forEach(t=>t.classList.toggle('active', t.dataset.subtab===name));
+  document.querySelectorAll('#panel-admin .subpanel').forEach(p=>p.classList.remove('active'));
+  const panel = document.getElementById('subpanel-'+name);
+  if(panel) panel.classList.add('active');
+  if(name==='admin-audit') loadAuditLog();
+  if(name==='admin-users') loadAdminUsers();
+  if(name==='admin-settings'){
+    document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
+    document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
   }
-  if(name==='dashboard'){
-    try{ renderMainDashboard(); }catch(e){ console.error(e); }
-  }
-  if(name==='inventory'){
-    try{ renderInventoryPanel(); }catch(e){ console.error(e); }
-  }
-  if(name==='auditlog'){
-    loadAuditLog();
-  }
+}
+
+// ============================================================
+// 사용자 관리 (admin 전용)
+// ============================================================
+let ADMIN_USERS = [];
+
+async function loadAdminUsers(){
+  if(!sb || CURRENT_ROLE !== 'admin') return;
+  const { data, error } = await sb.rpc('admin_list_users');
+  if(error){ showToast('사용자 목록 로드 실패: ' + error.message); return; }
+  ADMIN_USERS = data || [];
+  renderAdminUsers();
+}
+
+function renderAdminUsers(){
+  const tbody = document.getElementById('adminUsersTableBody');
+  const empty = document.getElementById('adminUsersEmpty');
+  if(!tbody) return;
+  if(!ADMIN_USERS.length){ tbody.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = ADMIN_USERS.map(u => {
+    const isMe = u.email === CURRENT_USER?.email;
+    const roleLabel = u.role === 'admin' ? '<span class="badge" style="background:#fef3c7;color:#92400e;">관리자</span>' : '<span class="badge" style="background:#e0f2fe;color:#0369a1;">일반</span>';
+    const lastLogin = u.last_sign_in ? new Date(u.last_sign_in).toLocaleString('ko-KR') : '미로그인';
+    const createdAt = new Date(u.created_at).toLocaleDateString('ko-KR');
+    const otherRole = u.role === 'admin' ? 'staff' : 'admin';
+    const otherRoleLabel = u.role === 'admin' ? '일반으로 변경' : '관리자로 변경';
+    return `<tr>
+      <td>${u.email}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
+      <td>${roleLabel}</td>
+      <td style="font-size:12.5px;color:var(--sub);">${lastLogin}</td>
+      <td style="font-size:12.5px;color:var(--sub);">${createdAt}</td>
+      <td>${isMe ? '–' : `<button class="btn secondary small" onclick="adminChangeRole('${u.email}','${otherRole}')">${otherRoleLabel}</button>`}</td>
+      <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" onclick="adminResetPasswordQuick('${u.email}')">초기화</button>`}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function adminChangeRole(email, newRole){
+  if(!confirm(`${email} 의 권한을 "${newRole === 'admin' ? '관리자' : '일반'}"으로 변경하시겠습니까?`)) return;
+  const { error } = await sb.rpc('admin_set_user_role', { target_email: email, new_role: newRole });
+  if(error){ showToast('권한 변경 실패: ' + error.message); return; }
+  showToast('✅ 권한이 변경되었습니다.');
+  loadAdminUsers();
+}
+
+function adminResetPasswordQuick(email){
+  document.getElementById('resetTargetEmail').value = email;
+  // 사용자 관리 서브탭이 이미 활성화된 상태이므로 하단 카드로 스크롤
+  document.getElementById('resetTargetEmail').scrollIntoView({ behavior:'smooth', block:'center' });
+  document.getElementById('resetTargetEmail').focus();
 }
 
 // ============================================================
