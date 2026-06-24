@@ -191,6 +191,11 @@
   .month-stat-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--border);font-size:13.5px;}
   .month-stat-row:last-child{border-bottom:none;}
   .month-stat-bar{height:10px;background:var(--accent);border-radius:5px;min-width:2px;}
+
+  /* ── 기준정보 일괄삭제 툴바 ── */
+  .bulk-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+  .bulk-toolbar .selected-count{font-size:13px;color:var(--sub);}
+  tr.row-selected td{background:#eff6ff !important;}
 </style>
 </head>
 <body>
@@ -352,6 +357,13 @@
       <div class="form-row">
         <label>메모</label>
         <textarea id="vendorNote" placeholder="계약 조건, 특이사항 등" rows="2"></textarea>
+      </div>
+      <div class="form-row" style="align-items:center;gap:10px;">
+        <label style="margin-bottom:0;">거래처 등록 여부</label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400;margin-bottom:0;">
+          <input type="checkbox" id="vendorIsRegistered" style="width:16px;height:16px;" />
+          <span style="font-size:13px;color:var(--sub);">공식 등록 거래처 (사업자등록증·계좌 서류 확인 완료)</span>
+        </label>
       </div>
 
       <div style="border-top:1px solid var(--border);margin:14px 0 12px;padding-top:14px;">
@@ -872,8 +884,13 @@
           <input id="partExpectedUsage" type="number" placeholder="예상 월평균 사용량" style="width:140px;" />
           <button class="btn small" onclick="addPart()">+ 추가</button>
         </div>
+        <div class="bulk-toolbar">
+          <input type="checkbox" id="partsSelectAll" onchange="toggleSelectAll('parts-row-check','partsSelectAll','partsSelectedCount')" />
+          <label for="partsSelectAll" style="font-size:13px;">전체 선택</label>
+          <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedParts()">선택 삭제 (<span id="partsSelectedCount">0</span>개)</button>
+        </div>
         <table>
-          <thead><tr><th>부속명</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th></tr></thead>
+          <thead><tr><th style="width:32px;"></th><th>부속명</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th><th></th></tr></thead>
           <tbody id="partsTableBody"></tbody>
         </table>
       </div>
@@ -887,8 +904,13 @@
           <input id="locName" placeholder="부위명 (예: 화장실 벽면)" />
           <button class="btn small" onclick="addLocation()">+ 추가</button>
         </div>
+        <div class="bulk-toolbar">
+          <input type="checkbox" id="locsSelectAll" onchange="toggleSelectAll('locs-row-check','locsSelectAll','locsSelectedCount')" />
+          <label for="locsSelectAll" style="font-size:13px;">전체 선택</label>
+          <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedLocations()">선택 삭제 (<span id="locsSelectedCount">0</span>개)</button>
+        </div>
         <table>
-          <thead><tr><th>부위명</th><th></th></tr></thead>
+          <thead><tr><th style="width:32px;"></th><th>부위명</th><th></th><th></th></tr></thead>
           <tbody id="locationsTableBody"></tbody>
         </table>
       </div>
@@ -904,8 +926,13 @@
           <input id="roomTypeDesc" placeholder="설명 (선택)" />
           <button class="btn small" onclick="addRoomType()">+ 추가</button>
         </div>
+        <div class="bulk-toolbar">
+          <input type="checkbox" id="rtSelectAll" onchange="toggleSelectAll('rt-row-check','rtSelectAll','rtSelectedCount')" />
+          <label for="rtSelectAll" style="font-size:13px;">전체 선택</label>
+          <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedRoomTypes()">선택 삭제 (<span id="rtSelectedCount">0</span>개)</button>
+        </div>
         <table>
-          <thead><tr><th>타입명</th><th>코드</th><th>설명</th><th></th><th></th></tr></thead>
+          <thead><tr><th style="width:32px;"></th><th>타입명</th><th>코드</th><th>설명</th><th></th><th></th></tr></thead>
           <tbody id="roomTypesTableBody"></tbody>
         </table>
       </div>
@@ -1119,6 +1146,44 @@
       <button class="btn secondary" onclick="closeQuickModal()">취소</button>
       <button class="btn" onclick="saveQuickDefect()">빠르게 등록</button>
     </div>
+  </div>
+</div>
+
+<!-- ===================== 하자부위 수정 모달 ===================== -->
+<div class="overlay" id="editLocationModal">
+  <div class="modal" style="position:relative;width:380px;">
+    <button onclick="document.getElementById('editLocationModal').classList.remove('active')"
+            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+    <h3>하자부위 수정</h3>
+    <input type="hidden" id="editLocationId" />
+    <div class="form-row">
+      <label>부위명 <span style="color:var(--danger)">*</span></label>
+      <input id="editLocationNameInput" placeholder="예: 화장실 벽면" />
+    </div>
+    <button class="btn" onclick="saveEditLocation()" style="margin-top:12px;">저장</button>
+  </div>
+</div>
+
+<!-- ===================== 객실타입 수정 모달 ===================== -->
+<div class="overlay" id="editRoomTypeModal">
+  <div class="modal" style="position:relative;width:420px;">
+    <button onclick="document.getElementById('editRoomTypeModal').classList.remove('active')"
+            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+    <h3>객실타입 수정</h3>
+    <input type="hidden" id="editRoomTypeId" />
+    <div class="form-row">
+      <label>타입명 <span style="color:var(--danger)">*</span></label>
+      <input id="editRoomTypeNameInput" placeholder="예: 스튜디오 로프트" />
+    </div>
+    <div class="form-row">
+      <label>타입코드</label>
+      <input id="editRoomTypeCodeInput" placeholder="예: SL" style="text-transform:uppercase;" />
+    </div>
+    <div class="form-row">
+      <label>설명</label>
+      <input id="editRoomTypeDescInput" placeholder="예: 스튜디오 로프트형" />
+    </div>
+    <button class="btn" onclick="saveEditRoomType()" style="margin-top:12px;">저장</button>
   </div>
 </div>
 
@@ -2624,6 +2689,7 @@ function renderPartsTable(){
   if(!body) return;
   body.innerHTML = PARTS.map(p=>`
     <tr>
+      <td><input type="checkbox" class="parts-row-check" value="${p.id}" onchange="updateSelectedCount('parts-row-check','partsSelectedCount','partsSelectAll')" /></td>
       <td>${escapeHtml(p.name)}</td>
       <td>${escapeHtml(p.unit)}</td>
       <td>${Number(p.unit_price).toLocaleString()}원</td>
@@ -2631,7 +2697,7 @@ function renderPartsTable(){
       <td><span class="badge ${p.is_active?'ok-badge':'inactive'}" style="${p.is_active?'background:#dcfce7;color:#166534;':''}">${p.is_active?'활성':'비활성'}</span></td>
       <td><button class="btn small secondary" onclick="openEditPartModal(${p.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deletePart(${p.id})">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
 }
 async function addPart(){
   const name = document.getElementById('partName').value.trim();
@@ -2701,12 +2767,15 @@ function renderLocationsTable(){
   if(!body) return;
   body.innerHTML = LOCATIONS.map(l=>`
     <tr>
+      <td><input type="checkbox" class="locs-row-check" value="${l.id}" onchange="updateSelectedCount('locs-row-check','locsSelectedCount','locsSelectAll')" /></td>
       <td>${escapeHtml(l.name)}</td>
       <td>
-        <button class="btn small secondary" onclick="editLocation(${l.id})">수정</button>
-        <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);margin-left:4px;" onclick="deleteLocation(${l.id})">삭제</button>
+        <button class="btn small secondary" onclick="openEditLocationModal(${l.id})">수정</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--sub);padding:20px;">등록된 하자부위가 없습니다.</td></tr>';
+      <td>
+        <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteLocation(${l.id})">삭제</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">등록된 하자부위가 없습니다.</td></tr>';
 }
 async function addLocation(){
   const name = document.getElementById('locName').value.trim();
@@ -2717,15 +2786,37 @@ async function addLocation(){
   showToast('하자부위가 등록되었습니다.');
   await reloadMasterData();
 }
-async function editLocation(id){
+function openEditLocationModal(id){
   const loc = LOCATIONS.find(l=>l.id===id);
   if(!loc) return;
-  const name = prompt('부위명 수정', loc.name);
-  if(name===null || !name.trim()) return;
-  const {error} = await sb.from('defect_locations').update({name: name.trim()}).eq('id', id);
+  document.getElementById('editLocationId').value = id;
+  document.getElementById('editLocationNameInput').value = loc.name||'';
+  document.getElementById('editLocationModal').classList.add('active');
+}
+async function saveEditLocation(){
+  const id   = document.getElementById('editLocationId').value;
+  const name = document.getElementById('editLocationNameInput').value.trim();
+  if(!name){ alert('부위명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_locations').update({name}).eq('id', id);
   if(error){ alert('수정 실패: '+error.message); return; }
+  document.getElementById('editLocationModal').classList.remove('active');
   showToast('수정되었습니다.');
   await reloadMasterData();
+}
+async function deleteSelectedLocations(){
+  const checked = [...document.querySelectorAll('.locs-row-check:checked')].map(c=>Number(c.value));
+  if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
+  if(!confirm(`선택한 하자부위 ${checked.length}개를 삭제하시겠습니까?`)) return;
+  const {error} = await sb.from('defect_locations').delete().in('id', checked);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  showToast(`${checked.length}개 삭제되었습니다.`);
+  document.getElementById('locsSelectAll').checked = false;
+  document.getElementById('locsSelectedCount').textContent = '0';
+  await reloadMasterData();
+}
+// legacy editLocation kept for backward compat (now unused in render)
+async function editLocation(id){
+  openEditLocationModal(id);
 }
 async function deleteLocation(id){
   if(!confirm('이 하자부위를 삭제하시겠습니까?')) return;
@@ -2740,12 +2831,13 @@ function renderRoomTypesTable(){
   if(!body) return;
   body.innerHTML = ROOM_TYPES.map(r=>`
     <tr>
+      <td><input type="checkbox" class="rt-row-check" value="${r.id}" onchange="updateSelectedCount('rt-row-check','rtSelectedCount','rtSelectAll')" /></td>
       <td>${escapeHtml(r.name)}</td>
       <td>${escapeHtml(r.type_code||'-')}</td>
       <td>${escapeHtml(r.description||'-')}</td>
-      <td><button class="btn small secondary" onclick="editRoomType(${r.id})">수정</button></td>
+      <td><button class="btn small secondary" onclick="openEditRoomTypeModal(${r.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteRoomType(${r.id})">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
 }
 async function addRoomType(){
   const name = document.getElementById('roomTypeName').value.trim();
@@ -2760,22 +2852,42 @@ async function addRoomType(){
   showToast('객실타입이 등록되었습니다.');
   await reloadMasterData();
 }
-async function editRoomType(id){
+function openEditRoomTypeModal(id){
   const rt = ROOM_TYPES.find(r=>r.id===id);
   if(!rt) return;
-  const name = prompt('타입명 수정', rt.name);
-  if(name===null || !name.trim()) return;
-  const code = prompt('타입코드 수정', rt.type_code||'');
-  if(code===null) return;
-  const desc = prompt('설명 수정', rt.description||'');
-  if(desc===null) return;
+  document.getElementById('editRoomTypeId').value = id;
+  document.getElementById('editRoomTypeNameInput').value = rt.name||'';
+  document.getElementById('editRoomTypeCodeInput').value = rt.type_code||'';
+  document.getElementById('editRoomTypeDescInput').value = rt.description||'';
+  document.getElementById('editRoomTypeModal').classList.add('active');
+}
+async function saveEditRoomType(){
+  const id   = document.getElementById('editRoomTypeId').value;
+  const name = document.getElementById('editRoomTypeNameInput').value.trim();
+  if(!name){ alert('타입명을 입력해주세요.'); return; }
+  const code = document.getElementById('editRoomTypeCodeInput').value.trim().toUpperCase();
+  const desc = document.getElementById('editRoomTypeDescInput').value.trim();
   const {error} = await sb.from('room_types').update({
-    name: name.trim(), type_code: code.trim().toUpperCase()||null, description: desc.trim()||null
+    name, type_code: code||null, description: desc||null
   }).eq('id', id);
   if(error){ alert('수정 실패: '+error.message); return; }
+  document.getElementById('editRoomTypeModal').classList.remove('active');
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
+async function deleteSelectedRoomTypes(){
+  const checked = [...document.querySelectorAll('.rt-row-check:checked')].map(c=>Number(c.value));
+  if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
+  if(!confirm(`선택한 객실타입 ${checked.length}개를 삭제하시겠습니까?`)) return;
+  const {error} = await sb.from('room_types').delete().in('id', checked);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  showToast(`${checked.length}개 삭제되었습니다.`);
+  document.getElementById('rtSelectAll').checked = false;
+  document.getElementById('rtSelectedCount').textContent = '0';
+  await reloadMasterData();
+}
+// legacy
+async function editRoomType(id){ openEditRoomTypeModal(id); }
 async function deleteRoomType(id){
   if(!confirm('이 객실타입을 삭제하시겠습니까?')) return;
   const {error} = await sb.from('room_types').delete().eq('id', id);
@@ -2900,6 +3012,32 @@ async function handleExcelRoomUpload(event){
     alert('엑셀 파일을 읽는 중 오류가 발생했습니다: '+e.message);
   }
   event.target.value = '';
+}
+
+// ---------- 공통 체크박스 헬퍼 ----------
+function toggleSelectAll(rowClass, allCheckId, countId){
+  const allCb = document.getElementById(allCheckId);
+  document.querySelectorAll('.'+rowClass).forEach(c=> c.checked = allCb.checked);
+  updateSelectedCount(rowClass, countId, allCheckId);
+}
+function updateSelectedCount(rowClass, countId, allCheckId){
+  const total   = document.querySelectorAll('.'+rowClass).length;
+  const checked = document.querySelectorAll('.'+rowClass+':checked').length;
+  const countEl = document.getElementById(countId);
+  if(countEl) countEl.textContent = checked;
+  const allCb = document.getElementById(allCheckId);
+  if(allCb) allCb.checked = total > 0 && checked === total;
+}
+async function deleteSelectedParts(){
+  const checked = [...document.querySelectorAll('.parts-row-check:checked')].map(c=>Number(c.value));
+  if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
+  if(!confirm(`선택한 수리부속 ${checked.length}개를 삭제하시겠습니까?`)) return;
+  const {error} = await sb.from('defect_parts').delete().in('id', checked);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  showToast(`${checked.length}개 삭제되었습니다.`);
+  document.getElementById('partsSelectAll').checked = false;
+  document.getElementById('partsSelectedCount').textContent = '0';
+  await reloadMasterData();
 }
 
 // ---------- 객실 선택삭제 ----------
@@ -3136,6 +3274,7 @@ function renderVendors(){
         <div>
           <span class="vendor-card-name">${escapeHtml(v.name)}</span>
           ${v.scope? `<span class="vendor-card-scope">${escapeHtml(v.scope)}</span>` : ''}
+          ${v.is_registered? '<span style="font-size:11.5px;font-weight:600;color:#166534;background:#dcfce7;border-radius:4px;padding:1px 6px;margin-left:6px;">✅ 거래처 등록</span>' : ''}
           ${v.is_active===false? '<span style="font-size:12px;color:#9ca3af;margin-left:8px;">(비활성)</span>' : ''}
         </div>
         <div style="display:flex;gap:6px;">
@@ -3171,6 +3310,8 @@ function openVendorModal(){
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
+  const cb = document.getElementById('vendorIsRegistered');
+  if(cb) cb.checked = false;
   document.getElementById('vendorModal').classList.add('active');
 }
 
@@ -3188,6 +3329,8 @@ function openEditVendorModal(id){
   document.getElementById('vendorDocBizReg').value = v.doc_biz_reg||'';
   document.getElementById('vendorDocAccount').value = v.doc_account||'';
   document.getElementById('vendorDocContract').value = v.doc_contract||'';
+  const cb = document.getElementById('vendorIsRegistered');
+  if(cb) cb.checked = !!v.is_registered;
   document.getElementById('vendorModal').classList.add('active');
 }
 
@@ -3198,14 +3341,15 @@ async function saveVendor(){
 
   const payload = {
     name,
-    scope:        document.getElementById('vendorScope').value.trim() || null,
-    manager_name: document.getElementById('vendorManager').value.trim() || null,
-    phone:        document.getElementById('vendorPhone').value.trim() || null,
-    email:        document.getElementById('vendorEmail').value.trim() || null,
-    note:         document.getElementById('vendorNote').value.trim() || null,
-    doc_biz_reg:  document.getElementById('vendorDocBizReg').value.trim() || null,
-    doc_account:  document.getElementById('vendorDocAccount').value.trim() || null,
-    doc_contract: document.getElementById('vendorDocContract').value.trim() || null
+    scope:          document.getElementById('vendorScope').value.trim() || null,
+    manager_name:   document.getElementById('vendorManager').value.trim() || null,
+    phone:          document.getElementById('vendorPhone').value.trim() || null,
+    email:          document.getElementById('vendorEmail').value.trim() || null,
+    note:           document.getElementById('vendorNote').value.trim() || null,
+    doc_biz_reg:    document.getElementById('vendorDocBizReg').value.trim() || null,
+    doc_account:    document.getElementById('vendorDocAccount').value.trim() || null,
+    doc_contract:   document.getElementById('vendorDocContract').value.trim() || null,
+    is_registered:  document.getElementById('vendorIsRegistered')?.checked || false
   };
 
   let error;
