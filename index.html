@@ -14,9 +14,12 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:var(--bg);color:var(--text);}
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
-  .topbar h1{font-size:18px;margin:0;font-weight:700;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;min-height:52px;}
+  .topbar h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap;flex-shrink:0;}
   .topbar .status{font-size:13px;color:var(--sub);}
+  .topbar-right{display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;}
+  .topbar-username{font-weight:600;font-size:13.5px;white-space:nowrap;}
+  .topbar-email{color:var(--sub);font-size:12.5px;white-space:nowrap;}
   .tabs{display:flex;gap:4px;padding:0 24px;background:var(--card);border-bottom:1px solid var(--border);}
   .tab{padding:12px 16px;font-size:14px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;}
   .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
@@ -76,7 +79,11 @@
   /* 모달 */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:100;}
   .overlay.active{display:flex;}
-  .modal{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;}
+  .modal{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;transition:transform .25s ease;}
+  @media (max-width:768px){
+    .modal{transform:translateY(0);}
+    .overlay:not(.active) .modal{transform:translateY(100%);}
+  }
   .modal h3{margin:0 0 16px;font-size:17px;}
   .form-row{margin-bottom:14px;}
   .form-row label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;}
@@ -109,12 +116,114 @@
   .room-search-item:hover{background:#f3f4f6;}
   .room-search-empty{padding:10px 12px;font-size:13px;color:var(--sub);}
 
-  @media (max-width:720px){
-    .kpi-row{grid-template-columns:repeat(2,1fr);}
-    .grid2{grid-template-columns:1fr;}
-    .container{padding:14px;}
-    table{font-size:12px;}
-    .tabs{overflow-x:auto;white-space:nowrap;}
+  /* ══ 모바일 최적화 ══ */
+  @media (max-width:768px){
+
+    /* ── 탑바 ── */
+    .topbar{padding:8px 12px;flex-wrap:nowrap;gap:0;min-height:44px;}
+    .topbar h1{font-size:13px;white-space:nowrap;}
+    .topbar-full{display:none;}
+    .topbar-right{gap:6px;flex-shrink:1;min-width:0;overflow:hidden;}
+    .topbar .status{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;}
+    .user-chip{gap:4px;flex-wrap:nowrap;min-width:0;overflow:hidden;}
+    .user-chip .role-badge{font-size:10px;padding:2px 5px;flex-shrink:0;}
+    .topbar-username{display:none;}
+    .topbar-email{display:none;}
+    .btn-logout{font-size:11px;padding:4px 7px;white-space:nowrap;flex-shrink:0;}
+    #settingsBtn{font-size:13px;padding:4px 7px;flex-shrink:0;}
+
+    /* ── 공지/배너 ── */
+    .banner-area{padding:0 12px;margin-top:6px;}
+    .banner{font-size:13px;padding:9px 11px;}
+
+    /* ── 탭 ── */
+    .tabs{display:flex;overflow-x:auto;white-space:nowrap;padding:0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .tabs::-webkit-scrollbar{display:none;}
+    .tab{padding:10px 12px;font-size:13px;flex-shrink:0;}
+
+    /* ── 컨테이너 ── */
+    .container{padding:12px 12px 80px;}
+
+    /* ── KPI ── */
+    .kpi-row{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;}
+    .kpi{padding:12px;}
+    .kpi .num{font-size:22px;}
+    .kpi .label{font-size:12px;}
+
+    /* ── 2컬럼 그리드 ── */
+    .grid2{grid-template-columns:1fr;gap:12px;margin-bottom:14px;}
+
+    /* ── 카드 ── */
+    .card{padding:14px;}
+    .card h3{font-size:14px;margin-bottom:10px;}
+
+    /* ── 필터바 ── */
+    .filterbar{gap:6px;}
+    .filterbar select,.filterbar input{font-size:12.5px;padding:7px 8px;}
+    .filterbar .spacer{display:none;}
+    .btn{font-size:13px;padding:7px 12px;}
+    .btn.small{font-size:12px;padding:5px 9px;}
+
+    /* ── 테이블 공통: 가로 스크롤 컨테이너 ── */
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    table{font-size:12px;min-width:520px;}
+    th,td{padding:8px 6px;}
+
+    /* ── 하자 목록 테이블: 컬럼 일부 숨김 ── */
+    .col-hide-mobile{display:none;}
+
+    /* ── 모달 ── */
+    .overlay{align-items:flex-end;}
+    .modal{
+      width:100%;max-width:100%;border-radius:16px 16px 0 0;
+      padding:20px 16px 32px;max-height:88vh;
+    }
+    .modal h3{font-size:15px;}
+    .form-row{margin-bottom:12px;}
+    .form-row label{font-size:12.5px;}
+    .form-row input,.form-row select,.form-row textarea{font-size:13.5px;padding:9px 10px;}
+    .form-actions{gap:6px;}
+    .form-actions .btn{flex:1;text-align:center;}
+
+    /* ── 서브탭 ── */
+    .subtabs{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
+    .subtabs::-webkit-scrollbar{display:none;}
+    .subtab{font-size:12px;padding:6px 11px;flex-shrink:0;}
+
+    /* ── masterform (기준정보 등록폼) ── */
+    .masterform{flex-direction:column;align-items:stretch;}
+    .masterform input,.masterform select{font-size:13px;padding:8px 10px;}
+
+    /* ── 벌크 툴바 ── */
+    .bulk-toolbar{flex-wrap:wrap;gap:6px;}
+    .bulk-toolbar .btn{font-size:12px;padding:6px 10px;}
+
+    /* ── 외주업체 카드 ── */
+    .vendor-card-body{grid-template-columns:1fr;}
+    .vendor-card-name{font-size:15px;}
+
+    /* ── 로그인 카드 ── */
+    .login-card{padding:30px 20px;}
+    .login-card h2{font-size:18px;}
+
+    /* ── 설정 박스 ── */
+    .setup-box{font-size:13px;padding:14px;}
+
+    /* ── 토스트 ── */
+    .toast{bottom:16px;right:12px;left:12px;text-align:center;font-size:13px;}
+
+    /* ── 인라인 편집 ── */
+    tr.inline-editing input[type="text"],
+    tr.inline-editing input[type="number"]{font-size:13px;padding:4px 6px;}
+    .inline-save-btn,.inline-cancel-btn{font-size:12px;padding:5px 10px;}
+  }
+
+  /* ── 아주 작은 화면 (iPhone SE 등) ── */
+  @media (max-width:390px){
+    .kpi-row{grid-template-columns:1fr 1fr;}
+    .kpi .num{font-size:20px;}
+    .tab{font-size:12px;padding:9px 10px;}
+    table{min-width:400px;}
   }
 
   /* ── 공지/재고경고 배너 ── */
@@ -234,14 +343,14 @@
 </div>
 
 <div class="topbar">
-  <h1>🏨 시흥 웨이브파크 하자관리</h1>
-  <div style="display:flex;align-items:center;gap:12px;">
+  <h1>🏨 <span class="topbar-full">시흥 웨이브파크 </span>하자관리</h1>
+  <div class="topbar-right">
     <div class="status" id="connStatus">Supabase 연결 대기중…</div>
     <div class="user-chip" id="userChip" style="display:none;">
-      <span id="topUserName" style="font-weight:600;font-size:13.5px;"></span>
-      <span id="userEmail" style="color:var(--sub);font-size:12.5px;"></span>
+      <span id="topUserName" class="topbar-username"></span>
+      <span id="userEmail" class="topbar-email"></span>
       <span class="role-badge" id="userRoleBadge"></span>
-      <button class="btn-logout" onclick="openChangePwModal()" style="border-color:var(--border);">👤 내 정보</button>
+      <button class="btn-logout" onclick="openChangePwModal()">👤 내 정보</button>
       <button class="btn-logout" onclick="doLogout()">로그아웃</button>
     </div>
     <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
@@ -306,24 +415,24 @@
     <!-- 월별 상세 테이블 -->
     <div class="card">
       <h3>월별 상세 집계</h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr><th>월</th><th>하자 건수</th><th>외주 건수</th><th>외주 비용</th><th>자체 비용</th><th>총 발생비용</th></tr>
         </thead>
         <tbody id="monthlyCostTableBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="monthlyCostEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
     </div>
 
     <!-- 부품 사용 상세 -->
     <div class="card" style="margin-top:16px;">
       <h3>부품 사용 상세 <span style="font-size:13px;font-weight:400;color:var(--sub);" id="costStatPeriodLabel"></span></h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr><th>부품명</th><th>사용 수량</th><th>단가</th><th>부품 비용</th><th>인건비</th><th>합계</th></tr>
         </thead>
         <tbody id="partsUsedDetailBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="partsUsedDetailEmpty" style="display:none;">해당 기간 부품 사용 내역이 없습니다.</div>
     </div>
   </div>
@@ -485,7 +594,7 @@
           <h3 style="margin:0;">가입 계정 목록</h3>
           <button class="btn secondary" onclick="loadAdminUsers()">새로고침</button>
         </div>
-        <table id="adminUsersTable">
+        <div class="table-scroll"><table id="adminUsersTable">
           <thead>
             <tr>
               <th>이메일</th>
@@ -497,7 +606,7 @@
             </tr>
           </thead>
           <tbody id="adminUsersTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="adminUsersEmpty" style="display:none;">등록된 사용자가 없습니다.</div>
       </div>
       <div class="card" style="margin-top:16px;">
@@ -535,12 +644,12 @@
           <input type="text" id="auditEmailFilter" placeholder="이메일 검색" oninput="renderAuditLog()"
                  style="width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead>
             <tr><th>일시</th><th>액션</th><th>하자 ID</th><th>처리자</th><th>변경 내용 요약</th></tr>
           </thead>
           <tbody id="auditLogTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="auditLogEmpty" style="display:none;">이력이 없습니다.</div>
       </div>
     </div>
@@ -617,18 +726,18 @@
     <div class="grid2">
       <div class="card" id="todoCard">
         <h3>⏰ 오늘 처리할 항목 / 처리기한 임박·초과</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>처리기한</th></tr></thead>
           <tbody id="todoTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
       </div>
       <div class="card">
         <h3>🔧 부품 재고 경고</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>부속명</th><th>현재고/기준</th><th>상태</th></tr></thead>
           <tbody id="stockAlertTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="stockAlertEmpty" style="display:none;">발주가 필요한 부속이 없습니다.</div>
       </div>
     </div>
@@ -639,10 +748,10 @@
         <p style="margin:0;font-size:13px;color:var(--sub);">같은 객실·같은 증상이 2회 이상 발생한 경우입니다. 단순 수리가 아닌 근본 원인 점검이 필요할 수 있습니다.</p>
         <button class="btn secondary small" onclick="switchTab('rooms')">전체 목록 →</button>
       </div>
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>객실</th><th>증상</th><th>누적 발생</th><th>최근 발생일</th><th>누적 비용</th><th>최종 처리 후 경과</th></tr></thead>
         <tbody id="repeatAlertTableBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="repeatAlertEmpty" style="display:none;">반복 발생 중인 하자가 없습니다.</div>
     </div>
 
@@ -672,28 +781,28 @@
     <div class="grid2">
       <div class="card">
         <h3>객실타입별 집계</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>타입</th><th>발생건수</th><th>반복건수</th><th>방막건수</th></tr></thead>
           <tbody id="roomTypeSummaryBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="roomTypeSummaryEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
       </div>
       <div class="card">
         <h3>외주업체별 처리현황</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>업체명</th><th>처리건수</th><th>총비용</th></tr></thead>
           <tbody id="vendorSummaryBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="vendorSummaryEmpty" style="display:none;">외주 처리 이력이 없습니다.</div>
       </div>
     </div>
 
     <div class="card">
       <h3>수리부속 사용량·비용 TOP 10</h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead><tr><th>순위</th><th>부속명</th><th>총 사용량</th><th>총 비용</th></tr></thead>
         <tbody id="partsTopTableBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="partsTopEmpty" style="display:none;">사용된 부속 데이터가 없습니다.</div>
     </div>
   </div>
@@ -726,14 +835,14 @@
     </div>
 
     <div class="card">
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr>
-            <th>객실</th><th>증상</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>처리기한</th><th>예정일</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
+            <th>객실</th><th>증상</th><th class="col-hide-mobile">부위</th><th>하자 내용</th><th>우선순위</th><th class="col-hide-mobile">처리방식</th><th>상태</th><th>처리기한</th><th class="col-hide-mobile">예정일</th><th class="col-hide-mobile">방막</th><th class="col-hide-mobile">발생비용</th><th class="col-hide-mobile">등록일</th><th class="col-hide-mobile">담당자</th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="defectsEmpty" style="display:none;">표시할 하자가 없습니다. 우측 상단의 "+ 하자 등록"으로 추가해보세요.</div>
     </div>
   </div>
@@ -752,7 +861,7 @@
     </div>
     <div class="card">
       <h3>하자증상별 상세 집계</h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr><th>증상</th><th>접수</th><th>확인</th><th>조치중</th><th>완료</th><th>외주 비중</th><th>총 건수</th><th>총 발생비용</th></tr>
         </thead>
@@ -760,16 +869,16 @@
         <tfoot>
           <tr style="font-weight:700;"><td colspan="6" style="text-align:right;">전체 합계</td><td id="grandTotalCount">-</td><td id="grandTotalCost">-</td></tr>
         </tfoot>
-      </table>
+      </table></div>
     </div>
     <div class="card" style="margin-top:16px;">
       <h3>하자부위별 집계</h3>
-      <table>
+      <div class="table-scroll"><table>
         <thead>
           <tr><th>부위</th><th>접수</th><th>확인</th><th>조치중</th><th>완료</th><th>총 건수</th><th>총 발생비용</th></tr>
         </thead>
         <tbody id="locationSummaryBody"></tbody>
-      </table>
+      </table></div>
       <div class="empty" id="locationSummaryEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
     </div>
   </div>
@@ -794,12 +903,12 @@
     <div class="subpanel active" id="subpanel-stockStatus">
       <div class="card">
         <h3>부품별 재고 현황</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead>
             <tr><th>부속명</th><th>현재고</th><th>평균사용량(월)</th><th>기준</th><th>발주필요</th><th>단가</th><th>재고가치</th></tr>
           </thead>
           <tbody id="stockStatusTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="stockStatusEmpty" style="display:none;">등록된 부속이 없습니다. 먼저 '기준정보 관리'에서 부속을 등록해주세요.</div>
       </div>
     </div>
@@ -828,10 +937,10 @@
       </div>
       <div class="card">
         <h3>최근 입출고 이력</h3>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>구분</th><th>일시</th><th>부속</th><th>수량</th><th>금액/사유</th><th>처리자</th></tr></thead>
           <tbody id="stockHistoryTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -847,10 +956,10 @@
           <input id="adjustBy" placeholder="실사자" />
           <button class="btn small" onclick="submitStockAdjustment()">조정 반영</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>일시</th><th>부속</th><th>조정 전</th><th>실사값</th><th>차이</th><th>사유</th><th>실사자</th></tr></thead>
           <tbody id="adjustHistoryTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -909,10 +1018,10 @@
           <input id="roomsSearchBox" placeholder="객실번호 또는 타입 검색" style="width:240px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
           <button class="btn small secondary" onclick="deleteSelectedRooms()">선택 삭제 (<span id="roomsSelectedCount">0</span>개 선택됨)</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th><input type="checkbox" id="roomsSelectAll" onchange="toggleSelectAllRooms(this)" /></th><th>객실번호</th><th>타입</th><th>타입코드</th><th></th><th></th></tr></thead>
           <tbody id="roomsInfoTableBody"></tbody>
-        </table>
+        </table></div>
         <div class="empty" id="roomsInfoEmpty" style="display:none;">등록된 객실이 없습니다. 위에서 등록해주세요.</div>
       </div>
     </div>
@@ -934,10 +1043,10 @@
           <label for="partsSelectAll" style="font-size:13px;">전체 선택</label>
           <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedParts()">선택 삭제 (<span id="partsSelectedCount">0</span>개)</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th style="width:32px;"></th><th>부속명</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th><th></th></tr></thead>
           <tbody id="partsTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -954,10 +1063,10 @@
           <label for="locsSelectAll" style="font-size:13px;">전체 선택</label>
           <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedLocations()">선택 삭제 (<span id="locsSelectedCount">0</span>개)</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th style="width:32px;"></th><th>부위명</th><th></th><th></th></tr></thead>
           <tbody id="locationsTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -976,10 +1085,10 @@
           <label for="rtSelectAll" style="font-size:13px;">전체 선택</label>
           <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedRoomTypes()">선택 삭제 (<span id="rtSelectedCount">0</span>개)</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th style="width:32px;"></th><th>타입명</th><th>코드</th><th>설명</th><th></th><th></th></tr></thead>
           <tbody id="roomTypesTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -992,10 +1101,10 @@
           <input id="empRole" placeholder="직책/역할 (선택, 예: 시설팀)" />
           <button class="btn small" onclick="addEmployee()">+ 추가</button>
         </div>
-        <table>
+        <div class="table-scroll"><table>
           <thead><tr><th>이름</th><th>역할</th><th>상태</th><th></th></tr></thead>
           <tbody id="employeesTableBody"></tbody>
-        </table>
+        </table></div>
       </div>
     </div>
 
@@ -1958,21 +2067,21 @@ function renderDefectsTable(){
         ${d.is_repeated? '<div><span class="badge" style="background:#fef9c3;color:#854d0e;">🔁 반복하자</span></div>':''}
       </td>
       <td>${d.symptom||'-'}</td>
-      <td>${d.defect_locations?.name||'-'}</td>
+      <td class="col-hide-mobile">${d.defect_locations?.name||'-'}</td>
       <td>${escapeHtml(d.title)}</td>
       <td><span class="badge p-${d.priority}">${d.priority}</span></td>
-      <td><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
+      <td class="col-hide-mobile"><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
       <td>
         <select class="status-select s-${d.status}" onchange="changeStatus(${d.id}, this.value)">
           ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
         </select>
       </td>
       <td>${(()=>{ const sla=getSlaInfo(d); return sla? `<span class="badge ${sla.level}">${sla.days}일</span>` : '<span class="badge sla-ok">완료</span>'; })()}</td>
-      <td>${d.due_date? `${d.due_date}${isOverdue(d)? ' <span class=\"badge sla-over\">초과</span>':''}` : '-'}</td>
-      <td>${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
-      <td>${Number(d.total_cost||0).toLocaleString()}원</td>
-      <td>${date}</td>
-      <td>${d.assigned_to||'-'}</td>
+      <td class="col-hide-mobile">${d.due_date? `${d.due_date}${isOverdue(d)? ' <span class=\"badge sla-over\">초과</span>':''}` : '-'}</td>
+      <td class="col-hide-mobile">${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
+      <td class="col-hide-mobile">${Number(d.total_cost||0).toLocaleString()}원</td>
+      <td class="col-hide-mobile">${date}</td>
+      <td class="col-hide-mobile">${d.assigned_to||'-'}</td>
       <td><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
     </tr>`;
   }).join('');
