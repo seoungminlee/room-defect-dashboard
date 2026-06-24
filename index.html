@@ -238,9 +238,10 @@
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="status" id="connStatus">Supabase 연결 대기중…</div>
     <div class="user-chip" id="userChip" style="display:none;">
-      <span id="userEmail" style="color:var(--sub);"></span>
+      <span id="topUserName" style="font-weight:600;font-size:13.5px;"></span>
+      <span id="userEmail" style="color:var(--sub);font-size:12.5px;"></span>
       <span class="role-badge" id="userRoleBadge"></span>
-      <button class="btn-logout" onclick="openChangePwModal()" style="border-color:var(--border);">🔑 비밀번호 변경</button>
+      <button class="btn-logout" onclick="openChangePwModal()" style="border-color:var(--border);">👤 내 정보</button>
       <button class="btn-logout" onclick="doLogout()">로그아웃</button>
     </div>
     <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
@@ -249,6 +250,7 @@
 
 <div class="tabs">
   <div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
+  <div class="tab" data-tab="request" onclick="switchTab('request')">📋 하자/보수 접수</div>
   <div class="tab" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
   <div class="tab" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
   <div class="tab" data-tab="coststat" onclick="switchTab('coststat')">💰 비용·부품 통계</div>
@@ -562,6 +564,157 @@
           </div>
           <button onclick="saveConfig()">연결하기</button>
         </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3>💬 슬랙 Webhook 설정</h3>
+        <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">
+          하자/보수 접수 폼 제출 시 슬랙 채널로 자동 발송됩니다.<br/>
+          Webhook URL은 슬랙 앱 설정 또는 기존 Apps Script에서 확인할 수 있습니다.
+        </p>
+        <div class="form-row">
+          <label>Incoming Webhook URL</label>
+          <input id="cfgSlackWebhook" type="text" placeholder="https://hooks.slack.com/services/..." style="font-size:12.5px;" />
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <button class="btn small" onclick="saveSlackWebhook()">저장</button>
+          <button class="btn secondary small" onclick="testSlackWebhook()">테스트 발송</button>
+          <span id="slackWebhookMsg" style="font-size:12.5px;color:var(--sub);"></span>
+        </div>
+        <div style="margin-top:12px;padding:10px;background:#fef3c7;border-radius:6px;font-size:12.5px;color:#92400e;">
+          ⚠️ URL을 입력하지 않으면 하자접수는 정상 등록되지만 슬랙 발송은 생략됩니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 하자/보수 접수 패널 ===================== -->
+  <div class="panel" id="panel-request">
+    <div class="card" style="max-width:680px;margin:0 auto;">
+      <h3 style="margin-bottom:4px;">📋 하자/보수 비용 승인 Request</h3>
+      <p style="font-size:13px;color:var(--sub);margin:0 0 20px;">접수 후 담당자 확인 및 슬랙 채널로 자동 발송됩니다.</p>
+
+      <!-- 접수자 정보 (자동입력) -->
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+        <div style="font-size:13px;"><span style="color:var(--sub);">접수자</span> <strong id="reqDisplayName">—</strong></div>
+        <div style="font-size:13px;"><span style="color:var(--sub);">이메일</span> <strong id="reqEmail">—</strong></div>
+        <div style="font-size:12px;color:var(--sub);">로그인 계정에서 자동 입력됩니다.
+          <a href="#" onclick="openChangePwModal();return false;" style="color:var(--accent);margin-left:4px;">이름 설정 →</a>
+        </div>
+      </div>
+
+      <!-- 시설명 -->
+      <div class="form-row">
+        <label>시설명 <span style="color:var(--danger)">*</span></label>
+        <select id="reqSite">
+          <option value="시흥 웨이브파크">시흥 웨이브파크</option>
+        </select>
+      </div>
+
+      <!-- 호실 -->
+      <div class="form-row" style="position:relative;">
+        <label>호실 <span style="color:var(--danger)">*</span></label>
+        <input id="reqRoomSearch" placeholder="객실번호 또는 타입 검색 (예: 702, SL)" autocomplete="off" oninput="searchReqRoom(this.value)" />
+        <input type="hidden" id="reqRoomId" />
+        <div id="reqRoomResults" class="room-search-results" style="display:none;"></div>
+        <div style="font-size:12px;color:var(--sub);margin-top:3px;">목록에 없으면 기준정보 관리 → 객실정보에서 먼저 등록해주세요.</div>
+      </div>
+
+      <!-- 하자유형 대분류 -->
+      <div class="form-row">
+        <label>하자유형(대분류) <span style="color:var(--danger)">*</span></label>
+        <div id="reqCategoryGroup" style="display:flex;flex-direction:column;gap:6px;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="객실 내 시설" onchange="updateReqSubCategory()" /> 객실 내 시설</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="욕실·수전" onchange="updateReqSubCategory()" /> 욕실·수전</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="전기·조명" onchange="updateReqSubCategory()" /> 전기·조명</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="냉난방·냉기" onchange="updateReqSubCategory()" /> 냉난방·냉기</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="세탁·건조기" onchange="updateReqSubCategory()" /> 세탁·건조기</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="가구·침구" onchange="updateReqSubCategory()" /> 가구·침구</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="주방·가전" onchange="updateReqSubCategory()" /> 주방·가전</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="엘리베이터·계단" onchange="updateReqSubCategory()" /> 엘리베이터·계단</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="외부·공용부" onchange="updateReqSubCategory()" /> 외부·공용부</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="기타" onchange="updateReqSubCategory()" /> 기타</label>
+        </div>
+      </div>
+
+      <!-- 하자부위 소분류 -->
+      <div class="form-row">
+        <label>하자부위(소분류) <span style="color:var(--danger)">*</span></label>
+        <div id="reqSubCategoryGroup" style="display:flex;flex-direction:column;gap:6px;color:var(--sub);font-size:13px;">
+          대분류를 먼저 선택해주세요.
+        </div>
+      </div>
+
+      <!-- 하자/보수 내용 -->
+      <div class="form-row">
+        <label>하자/보수 내용 <span style="color:var(--danger)">*</span></label>
+        <textarea id="reqDescription" rows="4" placeholder="증상, 위치, 상황 등 상세하게 작성해주세요."></textarea>
+      </div>
+
+      <!-- 업체명 -->
+      <div class="form-row">
+        <label>업체명</label>
+        <input id="reqVendorName" placeholder="견적 또는 시공 업체명" />
+      </div>
+
+      <!-- VAT 포함 견적 -->
+      <div class="form-row">
+        <label>업체견 <span style="color:var(--sub);font-weight:400;font-size:12px;">(VAT 포함)</span></label>
+        <input id="reqEstimateAmount" type="number" placeholder="0" />
+      </div>
+
+      <!-- VAT 별도 견적 -->
+      <div class="form-row">
+        <label>VAT 별도 견적</label>
+        <input id="reqEstimateVatExcl" type="number" placeholder="0" />
+      </div>
+
+      <!-- 견적서 업로드 -->
+      <div class="form-row">
+        <label>견적서 업로드</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="reqEstimateFileUrl" placeholder="파일 URL 또는 업로드 후 자동 입력" style="flex:1;" />
+          <label class="btn secondary small" style="cursor:pointer;white-space:nowrap;">
+            📂 업로드
+            <input type="file" id="reqEstimateFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="uploadReqFile(this,'reqEstimateFileUrl','reqEstimateFileStatus')" />
+          </label>
+        </div>
+        <div id="reqEstimateFileStatus" style="font-size:12px;color:var(--sub);min-height:14px;margin-top:3px;"></div>
+      </div>
+
+      <!-- 비고업체 -->
+      <div class="form-row">
+        <label>비고업체</label>
+        <input id="reqVendorNote" placeholder="특이사항, 메모 등" />
+      </div>
+
+      <!-- 비교업체 -->
+      <div class="form-row">
+        <label>비교업체</label>
+        <input id="reqVendorCompare" placeholder="비교견적 업체명" />
+      </div>
+
+      <!-- 비고 -->
+      <div class="form-row">
+        <label>비고</label>
+        <select id="reqPriority">
+          <option value="일반">일반</option>
+          <option value="긴급">긴급</option>
+        </select>
+      </div>
+
+      <!-- 슬랙 발송 안내 -->
+      <div id="reqSlackNotice" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:10px 14px;font-size:13px;color:#166534;margin-bottom:14px;">
+        💬 슬랙 Webhook이 설정되어 있어 제출 시 자동 발송됩니다.
+      </div>
+      <div id="reqNoSlackNotice" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:10px 14px;font-size:13px;color:#9a3412;margin-bottom:14px;">
+        ⚠️ 슬랙 Webhook URL 미설정 — 접수는 등록되지만 슬랙 발송은 생략됩니다.
+        <a href="#" onclick="switchTab('admin');switchAdminTab('admin-settings');return false;" style="color:var(--accent);margin-left:6px;">설정하러 가기 →</a>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn secondary" onclick="resetRequestForm()">초기화</button>
+        <button class="btn" onclick="submitRequestForm()" style="min-width:120px;">📤 제출하기</button>
       </div>
     </div>
   </div>
@@ -972,11 +1125,26 @@
 
 </div>
 
-<!-- ===================== 비밀번호 변경 모달 ===================== -->
+<!-- ===================== 내 정보 / 비밀번호 변경 모달 ===================== -->
 <div class="overlay" id="changePwModal">
-  <div class="modal" style="position:relative;width:360px;">
+  <div class="modal" style="position:relative;width:380px;">
     <button onclick="document.getElementById('changePwModal').classList.remove('active')" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
-    <h3>🔑 비밀번호 변경</h3>
+    <h3>👤 내 정보 설정</h3>
+
+    <!-- 이름 설정 -->
+    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:14px;margin-bottom:18px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#0369a1;">이름 설정</div>
+      <div style="font-size:12.5px;color:var(--sub);margin-bottom:10px;">하자/보수 접수 폼에 자동으로 입력됩니다.</div>
+      <div class="form-row" style="margin-bottom:8px;">
+        <label>이름</label>
+        <input id="myDisplayName" placeholder="예: 홍길동" />
+      </div>
+      <div id="displayNameMsg" style="font-size:12.5px;min-height:16px;margin-bottom:6px;"></div>
+      <button class="btn small" onclick="saveDisplayName()">이름 저장</button>
+    </div>
+
+    <!-- 비밀번호 변경 -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🔑 비밀번호 변경</div>
     <div class="form-row">
       <label>새 비밀번호</label>
       <input type="password" id="newPw1" placeholder="새 비밀번호 (6자 이상)" />
@@ -987,8 +1155,8 @@
     </div>
     <div id="changePwMsg" style="font-size:13px;min-height:18px;margin-bottom:8px;"></div>
     <div class="form-actions">
-      <button class="btn secondary" onclick="document.getElementById('changePwModal').classList.remove('active')">취소</button>
-      <button class="btn" onclick="doChangePw()">변경</button>
+      <button class="btn secondary" onclick="document.getElementById('changePwModal').classList.remove('active')">닫기</button>
+      <button class="btn" onclick="doChangePw()">비밀번호 변경</button>
     </div>
   </div>
 </div>
@@ -1268,6 +1436,9 @@ function onLoginSuccess(user){
 
   // topbar 사용자 정보 표시
   document.getElementById('userChip').style.display = 'flex';
+  const fullName = user?.user_metadata?.full_name || '';
+  const nameEl = document.getElementById('topUserName');
+  if(nameEl) nameEl.textContent = fullName ? fullName : '';
   document.getElementById('userEmail').textContent = user.email;
   const roleBadge = document.getElementById('userRoleBadge');
   roleBadge.textContent = CURRENT_ROLE === 'admin' ? '관리자' : '일반';
@@ -1289,11 +1460,33 @@ async function doLogout(){
 // ============================================================
 // 비밀번호 변경 (본인)
 // ============================================================
-function openChangePwModal(){
+async function openChangePwModal(){
   document.getElementById('newPw1').value = '';
   document.getElementById('newPw2').value = '';
   document.getElementById('changePwMsg').textContent = '';
+  document.getElementById('displayNameMsg').textContent = '';
+  // 현재 저장된 이름 자동 로드
+  const currentName = CURRENT_USER?.user_metadata?.full_name || '';
+  document.getElementById('myDisplayName').value = currentName;
   document.getElementById('changePwModal').classList.add('active');
+}
+
+async function saveDisplayName(){
+  const name = document.getElementById('myDisplayName').value.trim();
+  const msg  = document.getElementById('displayNameMsg');
+  if(!name){ msg.style.color='var(--danger)'; msg.textContent='이름을 입력해주세요.'; return; }
+  msg.style.color='var(--sub)'; msg.textContent='저장 중…';
+  const { error } = await sb.auth.updateUser({ data: { full_name: name } });
+  if(error){
+    msg.style.color='var(--danger)'; msg.textContent='저장 실패: '+error.message;
+  } else {
+    // 로컬 CURRENT_USER 캐시 업데이트
+    if(CURRENT_USER) CURRENT_USER.user_metadata = { ...CURRENT_USER.user_metadata, full_name: name };
+    msg.style.color='var(--ok)'; msg.textContent='✅ 이름이 저장되었습니다.';
+    // 상단 로그인 정보 갱신
+    const nameEl = document.getElementById('topUserName');
+    if(nameEl) nameEl.textContent = name;
+  }
 }
 
 async function doChangePw(){
@@ -1376,6 +1569,7 @@ function switchTab(name){
   if(name==='inventory')  try{ renderInventoryPanel(); }catch(e){ console.error(e); }
   if(name==='vendors')    try{ renderVendors(); }catch(e){ console.error(e); }
   if(name==='coststat')   try{ initCostStatPanel(); renderCostStat(); }catch(e){ console.error(e); }
+  if(name==='request')    try{ initRequestPanel(); }catch(e){ console.error(e); }
   if(name==='notice')     loadNotices();
   if(name==='admin')      loadAdminUsers();
 }
@@ -2984,6 +3178,235 @@ async function handleExcelRoomUpload(event){
     alert('엑셀 파일을 읽는 중 오류가 발생했습니다: '+e.message);
   }
   event.target.value = '';
+}
+
+// ============================================================
+// 하자/보수 접수 폼
+// ============================================================
+
+const REQ_SUBCATEGORY_MAP = {
+  '객실 내 시설': ['바닥·도배','벽·천장','욕조·문','창문','달력·드라이기','기타'],
+  '욕실·수전':    ['세면대','샤워기','수전','거울','변기','욕조','기타'],
+  '전기·조명':    ['전기·스위치','콘센트','조명','에어컨 전기','기타'],
+  '냉난방·냉기':  ['에어컨','에어컨 리모컨·조절기','난방','기타'],
+  '세탁·건조기':  ['세탁기','건조기','기타'],
+  '가구·침구':    ['침대 프레임','매트리스','소파','책상·의자','기타'],
+  '주방·가전':    ['냉장고','인덕션·가스레인지','전자레인지','기타'],
+  '엘리베이터·계단': ['엘리베이터','계단·복도 문','전기실·발전','기타'],
+  '외부·공용부':  ['복도','로비·현관','외벽·외관','CCTV','기타'],
+  '기타':         ['기타']
+};
+
+let SLACK_WEBHOOK_URL = localStorage.getItem('slackWebhookUrl') || '';
+
+function initRequestPanel(){
+  // 접수자 정보 자동입력
+  const name  = CURRENT_USER?.user_metadata?.full_name || '';
+  const email = CURRENT_USER?.email || '';
+  const nameEl  = document.getElementById('reqDisplayName');
+  const emailEl = document.getElementById('reqEmail');
+  if(nameEl)  nameEl.textContent  = name  || '(이름 미설정 — 내 정보에서 설정해주세요)';
+  if(emailEl) emailEl.textContent = email || '';
+
+  // 슬랙 Webhook 상태 표시
+  updateSlackNoticeUI();
+
+  // Webhook 설정 UI에 저장된 값 표시
+  const cfgEl = document.getElementById('cfgSlackWebhook');
+  if(cfgEl && SLACK_WEBHOOK_URL) cfgEl.value = SLACK_WEBHOOK_URL;
+}
+
+function updateSlackNoticeUI(){
+  const hasWebhook = !!SLACK_WEBHOOK_URL;
+  const yes = document.getElementById('reqSlackNotice');
+  const no  = document.getElementById('reqNoSlackNotice');
+  if(yes) yes.style.display = hasWebhook ? '' : 'none';
+  if(no)  no.style.display  = hasWebhook ? 'none' : '';
+}
+
+function updateReqSubCategory(){
+  const cat = document.querySelector('input[name="reqCategory"]:checked')?.value;
+  const group = document.getElementById('reqSubCategoryGroup');
+  if(!group) return;
+  const subs = REQ_SUBCATEGORY_MAP[cat] || [];
+  group.innerHTML = subs.map(s=>`
+    <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
+      <input type="radio" name="reqSubCategory" value="${s}" /> ${s}
+    </label>`).join('');
+}
+
+function searchReqRoom(q){
+  const box = document.getElementById('reqRoomResults');
+  if(!box) return;
+  if(!q.trim()){ box.style.display='none'; return; }
+  const lq = q.toLowerCase();
+  const matches = ROOMS.filter(r=>
+    r.room_number.toLowerCase().includes(lq) ||
+    (r.room_type||'').toLowerCase().includes(lq)
+  ).slice(0,10);
+  if(!matches.length){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = matches.map(r=>`
+    <div class="room-search-item" onclick="selectReqRoom(${r.id},'${escapeHtml(r.room_number)}','${escapeHtml(r.room_type||'')}')">
+      <strong>${escapeHtml(r.room_number)}</strong>
+      ${r.room_type? `<span style="color:var(--sub);margin-left:6px;">${escapeHtml(r.room_type)}</span>`:''}</div>`
+  ).join('');
+}
+
+function selectReqRoom(id, number, type){
+  document.getElementById('reqRoomId').value = id;
+  document.getElementById('reqRoomSearch').value = number + (type ? ` (${type})` : '');
+  document.getElementById('reqRoomResults').style.display='none';
+}
+
+async function uploadReqFile(inputEl, targetFieldId, statusId){
+  const file = inputEl.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById(statusId);
+  if(statusEl) statusEl.textContent = '업로드 중…';
+  const ext  = file.name.split('.').pop();
+  const path = `request-${Date.now()}.${ext}`;
+  const { error, data } = await sb.storage.from('vendor-docs').upload(path, file, { upsert:true });
+  if(error){
+    if(statusEl) statusEl.textContent = '업로드 실패: '+error.message;
+    return;
+  }
+  const { data: urlData } = sb.storage.from('vendor-docs').getPublicUrl(path);
+  document.getElementById(targetFieldId).value = urlData.publicUrl;
+  if(statusEl) statusEl.textContent = '✅ 업로드 완료';
+}
+
+async function submitRequestForm(){
+  const roomId   = document.getElementById('reqRoomId').value;
+  const category = document.querySelector('input[name="reqCategory"]:checked')?.value;
+  const subCat   = document.querySelector('input[name="reqSubCategory"]:checked')?.value;
+  const desc     = document.getElementById('reqDescription').value.trim();
+
+  if(!roomId)   { alert('호실을 선택해주세요.'); return; }
+  if(!category) { alert('하자유형(대분류)을 선택해주세요.'); return; }
+  if(!subCat)   { alert('하자부위(소분류)를 선택해주세요.'); return; }
+  if(!desc)     { alert('하자/보수 내용을 입력해주세요.'); return; }
+
+  const room = ROOMS.find(r=>String(r.id)===String(roomId));
+  const title = `[${category}] ${subCat} — ${room?.room_number||''}호`;
+
+  const payload = {
+    room_id:              Number(roomId),
+    title,
+    description:          desc,
+    symptom:              '기타',               // 기본값 (내부 분류)
+    status:               '접수',
+    priority:             document.getElementById('reqPriority').value || '일반',
+    site_name:            document.getElementById('reqSite').value,
+    requester_email:      CURRENT_USER?.email || null,
+    requester_name:       CURRENT_USER?.user_metadata?.full_name || null,
+    form_category:        category,
+    form_location_detail: subCat,
+    vendor_name:          document.getElementById('reqVendorName').value.trim() || null,
+    estimate_amount:      Number(document.getElementById('reqEstimateAmount').value||0),
+    estimate_vat_excl:    Number(document.getElementById('reqEstimateVatExcl').value||0),
+    estimate_file_url:    document.getElementById('reqEstimateFileUrl').value.trim() || null,
+    vendor_note:          document.getElementById('reqVendorNote').value.trim() || null,
+    vendor_compare:       document.getElementById('reqVendorCompare').value.trim() || null,
+  };
+
+  const { data: inserted, error } = await sb.from('defects').insert(payload).select().single();
+  if(error){ alert('등록 실패: '+error.message); return; }
+
+  // 슬랙 발송
+  let slackSent = false;
+  if(SLACK_WEBHOOK_URL){
+    try{
+      const slackMsg = buildSlackMessage(payload, room, inserted.id);
+      const res = await fetch(SLACK_WEBHOOK_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(slackMsg)
+      });
+      slackSent = res.ok;
+      if(slackSent){
+        await sb.from('defects').update({ slack_sent:true, slack_sent_at: new Date().toISOString() }).eq('id', inserted.id);
+      }
+    }catch(e){ console.error('슬랙 발송 실패:', e); }
+  }
+
+  showToast(slackSent ? '✅ 접수 완료 & 슬랙 발송됨' : '✅ 접수가 등록되었습니다. (슬랙 미발송)');
+  resetRequestForm();
+  await loadDefects();
+}
+
+function buildSlackMessage(payload, room, defectId){
+  const amt    = payload.estimate_amount ? Number(payload.estimate_amount).toLocaleString()+'원' : '미입력';
+  const vendor = payload.vendor_name || '미입력';
+  return {
+    text: `🔧 *하자/보수 비용 승인 Request*`,
+    blocks:[
+      { type:'header', text:{ type:'plain_text', text:'🔧 하자/보수 비용 승인 Request', emoji:true }},
+      { type:'section', fields:[
+        { type:'mrkdwn', text:`*시설명*\n${payload.site_name||'시흥 웨이브파크'}` },
+        { type:'mrkdwn', text:`*호실*\n${room?.room_number||'-'}` },
+        { type:'mrkdwn', text:`*대분류*\n${payload.form_category||'-'}` },
+        { type:'mrkdwn', text:`*소분류*\n${payload.form_location_detail||'-'}` },
+        { type:'mrkdwn', text:`*접수자*\n${payload.requester_name||''} (${payload.requester_email||''})` },
+        { type:'mrkdwn', text:`*우선순위*\n${payload.priority||'일반'}` },
+      ]},
+      { type:'section', text:{ type:'mrkdwn', text:`*내용*\n${payload.description}` }},
+      { type:'section', fields:[
+        { type:'mrkdwn', text:`*업체명*\n${vendor}` },
+        { type:'mrkdwn', text:`*견적(VAT포함)*\n${amt}` },
+      ]},
+      payload.vendor_compare ? { type:'section', text:{ type:'mrkdwn', text:`*비교업체*: ${payload.vendor_compare}` }} : null,
+      payload.estimate_file_url ? { type:'section', text:{ type:'mrkdwn', text:`*견적서*: <${payload.estimate_file_url}|파일 보기>` }} : null,
+      { type:'context', elements:[{ type:'mrkdwn', text:`접수 ID: #${defectId} | ${new Date().toLocaleString('ko-KR')}` }]}
+    ].filter(Boolean)
+  };
+}
+
+function resetRequestForm(){
+  document.querySelectorAll('input[name="reqCategory"]').forEach(r=>r.checked=false);
+  document.querySelectorAll('input[name="reqSubCategory"]').forEach(r=>r.checked=false);
+  document.getElementById('reqSubCategoryGroup').innerHTML = '대분류를 먼저 선택해주세요.';
+  document.getElementById('reqRoomId').value='';
+  document.getElementById('reqRoomSearch').value='';
+  document.getElementById('reqDescription').value='';
+  document.getElementById('reqVendorName').value='';
+  document.getElementById('reqEstimateAmount').value='';
+  document.getElementById('reqEstimateVatExcl').value='';
+  document.getElementById('reqEstimateFileUrl').value='';
+  document.getElementById('reqVendorNote').value='';
+  document.getElementById('reqVendorCompare').value='';
+  document.getElementById('reqPriority').value='일반';
+}
+
+// 슬랙 Webhook 저장/테스트
+function saveSlackWebhook(){
+  const url = document.getElementById('cfgSlackWebhook').value.trim();
+  const msg = document.getElementById('slackWebhookMsg');
+  if(url && !url.startsWith('https://hooks.slack.com/')){
+    msg.style.color='var(--danger)'; msg.textContent='올바른 Webhook URL 형식이 아닙니다.'; return;
+  }
+  SLACK_WEBHOOK_URL = url;
+  localStorage.setItem('slackWebhookUrl', url);
+  msg.style.color='var(--ok)'; msg.textContent = url ? '✅ 저장되었습니다.' : '삭제되었습니다.';
+  updateSlackNoticeUI();
+}
+
+async function testSlackWebhook(){
+  const url = document.getElementById('cfgSlackWebhook').value.trim();
+  const msg = document.getElementById('slackWebhookMsg');
+  if(!url){ msg.style.color='var(--danger)'; msg.textContent='URL을 먼저 입력해주세요.'; return; }
+  msg.style.color='var(--sub)'; msg.textContent='발송 중…';
+  try{
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text:'✅ 하자관리 시스템 슬랙 연동 테스트 메시지입니다.' })
+    });
+    if(res.ok){ msg.style.color='var(--ok)'; msg.textContent='✅ 테스트 발송 성공'; }
+    else       { msg.style.color='var(--danger)'; msg.textContent='발송 실패 ('+res.status+')'; }
+  }catch(e){
+    msg.style.color='var(--danger)'; msg.textContent='발송 실패: '+e.message;
+  }
 }
 
 // ---------- 공통 체크박스 헬퍼 ----------
