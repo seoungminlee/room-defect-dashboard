@@ -559,9 +559,9 @@
     <div class="section-label">우선 확인 — 즉시 조치 필요</div>
     <div class="grid2">
       <div class="card" id="todoCard">
-        <h3>⏰ 오늘 처리할 항목 / SLA 임박·초과</h3>
+        <h3>⏰ 오늘 처리할 항목 / 처리기한 임박·초과</h3>
         <table>
-          <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>SLA</th></tr></thead>
+          <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>처리기한</th></tr></thead>
           <tbody id="todoTableBody"></tbody>
         </table>
         <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
@@ -672,7 +672,7 @@
       <table>
         <thead>
           <tr>
-            <th>객실</th><th>증상</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>SLA</th><th>예정일</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
+            <th>객실</th><th>증상</th><th>부위</th><th>하자 내용</th><th>우선순위</th><th>처리방식</th><th>상태</th><th>처리기한</th><th>예정일</th><th>방막</th><th>발생비용</th><th>등록일</th><th>담당자</th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
@@ -1118,6 +1118,40 @@
     <div class="form-actions">
       <button class="btn secondary" onclick="closeQuickModal()">취소</button>
       <button class="btn" onclick="saveQuickDefect()">빠르게 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 수리부속 수정 모달 ===================== -->
+<div class="overlay" id="editPartModal">
+  <div class="modal" style="position:relative;width:420px;">
+    <button onclick="document.getElementById('editPartModal').classList.remove('active')"
+            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+    <h3>수리부속 수정</h3>
+    <input type="hidden" id="editPartId" />
+    <div class="form-row">
+      <label>부속명 <span style="color:var(--danger)">*</span></label>
+      <input id="editPartName" placeholder="예: 변기 시트" />
+    </div>
+    <div class="form-row">
+      <label>단위</label>
+      <input id="editPartUnit" placeholder="예: 개, m, set" />
+    </div>
+    <div class="form-row">
+      <label>단가(원)</label>
+      <input id="editPartPrice" type="number" placeholder="예: 15000" />
+    </div>
+    <div class="form-row">
+      <label>주거래처 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
+      <input id="editPartVendor" placeholder="예: OO자재" />
+    </div>
+    <div class="form-row">
+      <label>예상 월평균 사용량</label>
+      <input id="editPartExpectedUsage" type="number" placeholder="예: 2" />
+    </div>
+    <div class="form-actions">
+      <button class="btn secondary" onclick="document.getElementById('editPartModal').classList.remove('active')">취소</button>
+      <button class="btn" onclick="saveEditPart()">저장</button>
     </div>
   </div>
 </div>
@@ -1817,14 +1851,14 @@ async function changeStatus(id, newStatus){
   await loadDefects();
 }
 
-// ---------- SLA 계산 ----------
-// 접수 후 경과일 기준: 3일 이내 정상, 3~7일 주의, 7일 이상 초과
+// ---------- 처리기한 계산 ----------
+// 접수 후 경과일 기준: 3일 이내 정상, 3~7일 임박, 7일 이상 초과
 function getSlaInfo(defect){
   if(defect.status==='완료') return null;
   const days = Math.floor((new Date() - new Date(defect.created_at)) / (1000*60*60*24));
   let level, label;
-  if(days >= 7){ level='sla-over'; label=`SLA 초과 (${days}일)`; }
-  else if(days >= 3){ level='sla-warn'; label=`SLA 주의 (${days}일)`; }
+  if(days >= 7){ level='sla-over'; label=`처리기한 초과 (${days}일)`; }
+  else if(days >= 3){ level='sla-warn'; label=`처리기한 임박 (${days}일)`; }
   else { level='sla-ok'; label=`정상 (${days}일)`; }
   return {days, level, label};
 }
@@ -2619,22 +2653,31 @@ async function addPart(){
   await reloadMasterData();
 }
 
-async function openEditPartModal(id){
+function openEditPartModal(id){
   const p = PARTS.find(x=>x.id===id);
   if(!p) return;
-  const name = prompt('부속명', p.name);
-  if(name===null) return;
-  const unit = prompt('단위', p.unit||'개');
-  if(unit===null) return;
-  const price = prompt('단가(원)', p.unit_price||0);
-  if(price===null) return;
-  const vendor = prompt('주거래처', p.vendor_name||'');
-  if(vendor===null) return;
+  document.getElementById('editPartId').value = id;
+  document.getElementById('editPartName').value = p.name||'';
+  document.getElementById('editPartUnit').value = p.unit||'개';
+  document.getElementById('editPartPrice').value = p.unit_price||'';
+  document.getElementById('editPartVendor').value = p.vendor_name||'';
+  document.getElementById('editPartExpectedUsage').value = p.expected_monthly_usage||'';
+  document.getElementById('editPartModal').classList.add('active');
+}
+
+async function saveEditPart(){
+  const id   = document.getElementById('editPartId').value;
+  const name = document.getElementById('editPartName').value.trim();
+  if(!name){ alert('부속명을 입력해주세요.'); return; }
   const {error} = await sb.from('defect_parts').update({
-    name: name.trim()||p.name, unit: unit.trim()||'개',
-    unit_price: Number(price)||0, vendor_name: vendor.trim()||null
+    name,
+    unit:                   document.getElementById('editPartUnit').value.trim()||'개',
+    unit_price:             Number(document.getElementById('editPartPrice').value||0),
+    vendor_name:            document.getElementById('editPartVendor').value.trim()||null,
+    expected_monthly_usage: Number(document.getElementById('editPartExpectedUsage').value||0)
   }).eq('id', id);
   if(error){ alert('수정 실패: '+error.message); return; }
+  document.getElementById('editPartModal').classList.remove('active');
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
