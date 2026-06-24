@@ -2607,12 +2607,12 @@ function renderRoomsInfoTable(filterText){
   body.innerHTML = rows.map(r=>{
     const type = ROOM_TYPES.find(t=>t.id===r.room_type_id);
     return `
-    <tr>
+    <tr id="room-row-${r.id}">
       <td><input type="checkbox" class="room-row-check" data-room-id="${r.id}" onchange="updateRoomsSelectedCount()" /></td>
       <td><b>${escapeHtml(r.room_number)}</b></td>
       <td>${escapeHtml(type?.name || r.room_type || '-')}</td>
       <td>${escapeHtml(type?.type_code||'-')}</td>
-      <td><button class="btn small secondary" onclick="editRoom(${r.id})">수정</button></td>
+      <td><button class="btn small secondary" onclick="startInlineEditRoom(${r.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteRoom(${r.id})">삭제</button></td>
     </tr>`;
   }).join('');
@@ -2625,26 +2625,45 @@ function updateRoomsSelectedCount(){
   if(label) label.textContent = count;
 }
 
-async function editRoom(id){
+function startInlineEditRoom(id){
   const room = ROOMS.find(r=>r.id===id);
   if(!room) return;
-  const number = prompt('객실번호 수정', room.room_number);
-  if(number===null || !number.trim()) return;
-  const typeOptions = ROOM_TYPES.map((t,i)=>`${i+1}. ${t.name} (${t.type_code||'-'})`).join('\n');
-  const typeInput = prompt(`타입 번호 선택 (현재: ${room.room_type||'없음'}):\n${typeOptions}\n0. 타입 없음`, '');
-  if(typeInput===null) return;
-  const typeIdx = Number(typeInput)-1;
-  const type = ROOM_TYPES[typeIdx] || null;
+  const tr = document.getElementById('room-row-'+id);
+  if(!tr) return;
+  const typeOptions = ROOM_TYPES.map(t=>`<option value="${t.id}" ${t.id===room.room_type_id?'selected':''}>${escapeHtml(t.name)} (${escapeHtml(t.type_code||'-')})</option>`).join('');
+  tr.classList.add('inline-editing');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="room-row-check" data-room-id="${id}" onchange="updateRoomsSelectedCount()" /></td>
+    <td><input type="text" id="ier-num-${id}" value="${escapeHtml(room.room_number)}" style="width:80px;" /></td>
+    <td colspan="2">
+      <select id="ier-type-${id}" style="width:100%;">
+        <option value="">타입 없음</option>
+        ${typeOptions}
+      </select>
+    </td>
+    <td style="white-space:nowrap;">
+      <button class="inline-save-btn" onclick="saveInlineEditRoom(${id})">저장</button>
+      <button class="inline-cancel-btn" onclick="renderRoomsTable()" style="margin-left:4px;">취소</button>
+    </td>
+    <td></td>`;
+  document.getElementById('ier-num-'+id).focus();
+}
+async function saveInlineEditRoom(id){
+  const number = document.getElementById('ier-num-'+id)?.value.trim();
+  const typeId  = document.getElementById('ier-type-'+id)?.value;
+  if(!number){ alert('객실번호를 입력해주세요.'); return; }
+  const type = ROOM_TYPES.find(t=>String(t.id)===String(typeId)) || null;
   const {error} = await sb.from('rooms').update({
-    room_number: number.trim(),
+    room_number:  number,
     room_type_id: type? type.id : null,
-    room_type: type? type.name : null
+    room_type:    type? type.name : null
   }).eq('id', id);
   if(error){ alert('수정 실패: '+error.message); return; }
   showToast('객실 정보가 수정되었습니다.');
   await refreshRoomsAndForms();
   await loadDefects();
 }
+async function editRoom(id){ startInlineEditRoom(id); }
 async function deleteRoom(id){
   if(!confirm('이 객실을 삭제하시겠습니까? 연결된 하자 이력도 함께 삭제됩니다.')) return;
   const {data, error} = await sb.from('rooms').delete().eq('id', id).select();
