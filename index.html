@@ -623,26 +623,27 @@
       <!-- 하자유형 대분류 -->
       <div class="form-row">
         <label>하자유형(대분류) <span style="color:var(--danger)">*</span></label>
-        <div id="reqCategoryGroup" style="display:flex;flex-direction:column;gap:6px;">
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="객실 내 시설" onchange="updateReqSubCategory()" /> 객실 내 시설</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="욕실·수전" onchange="updateReqSubCategory()" /> 욕실·수전</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="전기·조명" onchange="updateReqSubCategory()" /> 전기·조명</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="냉난방·냉기" onchange="updateReqSubCategory()" /> 냉난방·냉기</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="세탁·건조기" onchange="updateReqSubCategory()" /> 세탁·건조기</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="가구·침구" onchange="updateReqSubCategory()" /> 가구·침구</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="주방·가전" onchange="updateReqSubCategory()" /> 주방·가전</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="엘리베이터·계단" onchange="updateReqSubCategory()" /> 엘리베이터·계단</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="외부·공용부" onchange="updateReqSubCategory()" /> 외부·공용부</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;"><input type="radio" name="reqCategory" value="기타" onchange="updateReqSubCategory()" /> 기타</label>
-        </div>
+        <select id="reqCategory" onchange="updateReqSubCategory()">
+          <option value="">-- 선택 --</option>
+          <option value="객실 내 시설">객실 내 시설</option>
+          <option value="욕실·수전">욕실·수전</option>
+          <option value="전기·조명">전기·조명</option>
+          <option value="냉난방·냉기">냉난방·냉기</option>
+          <option value="세탁·건조기">세탁·건조기</option>
+          <option value="가구·침구">가구·침구</option>
+          <option value="주방·가전">주방·가전</option>
+          <option value="엘리베이터·계단">엘리베이터·계단</option>
+          <option value="외부·공용부">외부·공용부</option>
+          <option value="기타">기타</option>
+        </select>
       </div>
 
       <!-- 하자부위 소분류 -->
       <div class="form-row">
         <label>하자부위(소분류) <span style="color:var(--danger)">*</span></label>
-        <div id="reqSubCategoryGroup" style="display:flex;flex-direction:column;gap:6px;color:var(--sub);font-size:13px;">
-          대분류를 먼저 선택해주세요.
-        </div>
+        <select id="reqSubCategory">
+          <option value="">-- 대분류를 먼저 선택 --</option>
+        </select>
       </div>
 
       <!-- 하자/보수 내용 -->
@@ -3225,14 +3226,13 @@ function updateSlackNoticeUI(){
 }
 
 function updateReqSubCategory(){
-  const cat = document.querySelector('input[name="reqCategory"]:checked')?.value;
-  const group = document.getElementById('reqSubCategoryGroup');
-  if(!group) return;
+  const cat = document.getElementById('reqCategory')?.value;
+  const sel = document.getElementById('reqSubCategory');
+  if(!sel) return;
   const subs = REQ_SUBCATEGORY_MAP[cat] || [];
-  group.innerHTML = subs.map(s=>`
-    <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
-      <input type="radio" name="reqSubCategory" value="${s}" /> ${s}
-    </label>`).join('');
+  sel.innerHTML = subs.length
+    ? subs.map(s=>`<option value="${s}">${s}</option>`).join('')
+    : '<option value="">-- 대분류를 먼저 선택 --</option>';
 }
 
 function searchReqRoom(q){
@@ -3278,8 +3278,8 @@ async function uploadReqFile(inputEl, targetFieldId, statusId){
 
 async function submitRequestForm(){
   const roomId   = document.getElementById('reqRoomId').value;
-  const category = document.querySelector('input[name="reqCategory"]:checked')?.value;
-  const subCat   = document.querySelector('input[name="reqSubCategory"]:checked')?.value;
+  const category = document.getElementById('reqCategory')?.value;
+  const subCat   = document.getElementById('reqSubCategory')?.value;
   const desc     = document.getElementById('reqDescription').value.trim();
 
   if(!roomId)   { alert('호실을 선택해주세요.'); return; }
@@ -3363,9 +3363,10 @@ function buildSlackMessage(payload, room, defectId){
 }
 
 function resetRequestForm(){
-  document.querySelectorAll('input[name="reqCategory"]').forEach(r=>r.checked=false);
-  document.querySelectorAll('input[name="reqSubCategory"]').forEach(r=>r.checked=false);
-  document.getElementById('reqSubCategoryGroup').innerHTML = '대분류를 먼저 선택해주세요.';
+  const cat = document.getElementById('reqCategory');
+  const sub = document.getElementById('reqSubCategory');
+  if(cat) cat.value = '';
+  if(sub){ sub.innerHTML = '<option value="">-- 대분류를 먼저 선택 --</option>'; }
   document.getElementById('reqRoomId').value='';
   document.getElementById('reqRoomSearch').value='';
   document.getElementById('reqDescription').value='';
