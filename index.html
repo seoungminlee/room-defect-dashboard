@@ -196,6 +196,20 @@
   .bulk-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
   .bulk-toolbar .selected-count{font-size:13px;color:var(--sub);}
   tr.row-selected td{background:#eff6ff !important;}
+
+  /* ── 인라인 행 편집 ── */
+  tr.inline-editing td{background:#f0f9ff !important;padding-top:6px;padding-bottom:6px;}
+  tr.inline-editing input[type="text"],
+  tr.inline-editing input[type="number"]{
+    border:1px solid var(--accent);border-radius:6px;padding:4px 8px;
+    font-size:13.5px;width:100%;box-sizing:border-box;background:#fff;
+  }
+  .inline-save-btn{background:var(--accent);color:#fff;border:none;border-radius:6px;
+    padding:4px 12px;font-size:13px;cursor:pointer;font-weight:600;}
+  .inline-save-btn:hover{opacity:.85;}
+  .inline-cancel-btn{background:none;border:1px solid var(--border);border-radius:6px;
+    padding:4px 10px;font-size:13px;cursor:pointer;color:var(--sub);}
+  .inline-cancel-btn:hover{background:var(--bg);}
 </style>
 </head>
 <body>
@@ -1149,77 +1163,7 @@
   </div>
 </div>
 
-<!-- ===================== 하자부위 수정 모달 ===================== -->
-<div class="overlay" id="editLocationModal">
-  <div class="modal" style="position:relative;width:380px;">
-    <button onclick="document.getElementById('editLocationModal').classList.remove('active')"
-            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
-    <h3>하자부위 수정</h3>
-    <input type="hidden" id="editLocationId" />
-    <div class="form-row">
-      <label>부위명 <span style="color:var(--danger)">*</span></label>
-      <input id="editLocationNameInput" placeholder="예: 화장실 벽면" />
-    </div>
-    <button class="btn" onclick="saveEditLocation()" style="margin-top:12px;">저장</button>
-  </div>
-</div>
-
-<!-- ===================== 객실타입 수정 모달 ===================== -->
-<div class="overlay" id="editRoomTypeModal">
-  <div class="modal" style="position:relative;width:420px;">
-    <button onclick="document.getElementById('editRoomTypeModal').classList.remove('active')"
-            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
-    <h3>객실타입 수정</h3>
-    <input type="hidden" id="editRoomTypeId" />
-    <div class="form-row">
-      <label>타입명 <span style="color:var(--danger)">*</span></label>
-      <input id="editRoomTypeNameInput" placeholder="예: 스튜디오 로프트" />
-    </div>
-    <div class="form-row">
-      <label>타입코드</label>
-      <input id="editRoomTypeCodeInput" placeholder="예: SL" style="text-transform:uppercase;" />
-    </div>
-    <div class="form-row">
-      <label>설명</label>
-      <input id="editRoomTypeDescInput" placeholder="예: 스튜디오 로프트형" />
-    </div>
-    <button class="btn" onclick="saveEditRoomType()" style="margin-top:12px;">저장</button>
-  </div>
-</div>
-
-<!-- ===================== 수리부속 수정 모달 ===================== -->
-<div class="overlay" id="editPartModal">
-  <div class="modal" style="position:relative;width:420px;">
-    <button onclick="document.getElementById('editPartModal').classList.remove('active')"
-            style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
-    <h3>수리부속 수정</h3>
-    <input type="hidden" id="editPartId" />
-    <div class="form-row">
-      <label>부속명 <span style="color:var(--danger)">*</span></label>
-      <input id="editPartName" placeholder="예: 변기 시트" />
-    </div>
-    <div class="form-row">
-      <label>단위</label>
-      <input id="editPartUnit" placeholder="예: 개, m, set" />
-    </div>
-    <div class="form-row">
-      <label>단가(원)</label>
-      <input id="editPartPrice" type="number" placeholder="예: 15000" />
-    </div>
-    <div class="form-row">
-      <label>주거래처 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
-      <input id="editPartVendor" placeholder="예: OO자재" />
-    </div>
-    <div class="form-row">
-      <label>예상 월평균 사용량</label>
-      <input id="editPartExpectedUsage" type="number" placeholder="예: 2" />
-    </div>
-    <div class="form-actions">
-      <button class="btn secondary" onclick="document.getElementById('editPartModal').classList.remove('active')">취소</button>
-      <button class="btn" onclick="saveEditPart()">저장</button>
-    </div>
-  </div>
-</div>
+<!-- 수정 모달 제거됨: 하자부위·객실타입·수리부속 모두 인라인 행 편집으로 전환 -->
 
 <div class="toast" id="toast"></div>
 
@@ -2688,16 +2632,51 @@ function renderPartsTable(){
   const body = document.getElementById('partsTableBody');
   if(!body) return;
   body.innerHTML = PARTS.map(p=>`
-    <tr>
+    <tr id="part-row-${p.id}">
       <td><input type="checkbox" class="parts-row-check" value="${p.id}" onchange="updateSelectedCount('parts-row-check','partsSelectedCount','partsSelectAll')" /></td>
       <td>${escapeHtml(p.name)}</td>
       <td>${escapeHtml(p.unit)}</td>
       <td>${Number(p.unit_price).toLocaleString()}원</td>
       <td>${escapeHtml(p.vendor_name||'-')}</td>
-      <td><span class="badge ${p.is_active?'ok-badge':'inactive'}" style="${p.is_active?'background:#dcfce7;color:#166534;':''}">${p.is_active?'활성':'비활성'}</span></td>
-      <td><button class="btn small secondary" onclick="openEditPartModal(${p.id})">수정</button></td>
+      <td><span class="badge ok-badge" style="background:#dcfce7;color:#166534;">${p.is_active?'활성':'비활성'}</span></td>
+      <td><button class="btn small secondary" onclick="startInlineEditPart(${p.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deletePart(${p.id})">삭제</button></td>
     </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
+}
+
+function startInlineEditPart(id){
+  const p = PARTS.find(x=>x.id===id);
+  if(!p) return;
+  const tr = document.getElementById('part-row-'+id);
+  if(!tr) return;
+  tr.classList.add('inline-editing');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="parts-row-check" value="${id}" onchange="updateSelectedCount('parts-row-check','partsSelectedCount','partsSelectAll')" /></td>
+    <td><input type="text" id="iep-name-${id}" value="${escapeHtml(p.name||'')}" placeholder="부속명" /></td>
+    <td><input type="text" id="iep-unit-${id}" value="${escapeHtml(p.unit||'개')}" placeholder="단위" style="width:60px;" /></td>
+    <td><input type="number" id="iep-price-${id}" value="${p.unit_price||0}" placeholder="단가" style="width:90px;" /></td>
+    <td><input type="text" id="iep-vendor-${id}" value="${escapeHtml(p.vendor_name||'')}" placeholder="거래처" /></td>
+    <td><span class="badge ok-badge" style="background:#dcfce7;color:#166534;">${p.is_active?'활성':'비활성'}</span></td>
+    <td style="white-space:nowrap;">
+      <button class="inline-save-btn" onclick="saveInlineEditPart(${id})">저장</button>
+      <button class="inline-cancel-btn" onclick="renderPartsTable()" style="margin-left:4px;">취소</button>
+    </td>
+    <td></td>`;
+  document.getElementById('iep-name-'+id).focus();
+}
+
+async function saveInlineEditPart(id){
+  const name  = document.getElementById('iep-name-'+id)?.value.trim();
+  const unit  = document.getElementById('iep-unit-'+id)?.value.trim() || '개';
+  const price = Number(document.getElementById('iep-price-'+id)?.value || 0);
+  const vendor= document.getElementById('iep-vendor-'+id)?.value.trim() || null;
+  if(!name){ alert('부속명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_parts').update({
+    name, unit, unit_price: price, vendor_name: vendor||null
+  }).eq('id', id);
+  if(error){ alert('수정 실패: '+error.message); return; }
+  showToast('수정되었습니다.');
+  await reloadMasterData();
 }
 async function addPart(){
   const name = document.getElementById('partName').value.trim();
@@ -2719,34 +2698,8 @@ async function addPart(){
   await reloadMasterData();
 }
 
-function openEditPartModal(id){
-  const p = PARTS.find(x=>x.id===id);
-  if(!p) return;
-  document.getElementById('editPartId').value = id;
-  document.getElementById('editPartName').value = p.name||'';
-  document.getElementById('editPartUnit').value = p.unit||'개';
-  document.getElementById('editPartPrice').value = p.unit_price||'';
-  document.getElementById('editPartVendor').value = p.vendor_name||'';
-  document.getElementById('editPartExpectedUsage').value = p.expected_monthly_usage||'';
-  document.getElementById('editPartModal').classList.add('active');
-}
-
-async function saveEditPart(){
-  const id   = document.getElementById('editPartId').value;
-  const name = document.getElementById('editPartName').value.trim();
-  if(!name){ alert('부속명을 입력해주세요.'); return; }
-  const {error} = await sb.from('defect_parts').update({
-    name,
-    unit:                   document.getElementById('editPartUnit').value.trim()||'개',
-    unit_price:             Number(document.getElementById('editPartPrice').value||0),
-    vendor_name:            document.getElementById('editPartVendor').value.trim()||null,
-    expected_monthly_usage: Number(document.getElementById('editPartExpectedUsage').value||0)
-  }).eq('id', id);
-  if(error){ alert('수정 실패: '+error.message); return; }
-  document.getElementById('editPartModal').classList.remove('active');
-  showToast('수정되었습니다.');
-  await reloadMasterData();
-}
+// openEditPartModal → 인라인 편집으로 전환됨 (startInlineEditPart 사용)
+function openEditPartModal(id){ startInlineEditPart(id); }
 
 async function deletePart(id){
   if(!confirm('이 부속을 삭제하시겠습니까? 재고 및 사용 이력은 유지됩니다.')) return;
@@ -2766,16 +2719,38 @@ function renderLocationsTable(){
   const body = document.getElementById('locationsTableBody');
   if(!body) return;
   body.innerHTML = LOCATIONS.map(l=>`
-    <tr>
+    <tr id="loc-row-${l.id}">
       <td><input type="checkbox" class="locs-row-check" value="${l.id}" onchange="updateSelectedCount('locs-row-check','locsSelectedCount','locsSelectAll')" /></td>
       <td>${escapeHtml(l.name)}</td>
-      <td>
-        <button class="btn small secondary" onclick="openEditLocationModal(${l.id})">수정</button>
-      </td>
-      <td>
-        <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteLocation(${l.id})">삭제</button>
-      </td>
+      <td><button class="btn small secondary" onclick="startInlineEditLocation(${l.id})">수정</button></td>
+      <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteLocation(${l.id})">삭제</button></td>
     </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">등록된 하자부위가 없습니다.</td></tr>';
+}
+
+function startInlineEditLocation(id){
+  const loc = LOCATIONS.find(l=>l.id===id);
+  if(!loc) return;
+  const tr = document.getElementById('loc-row-'+id);
+  if(!tr) return;
+  tr.classList.add('inline-editing');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="locs-row-check" value="${id}" onchange="updateSelectedCount('locs-row-check','locsSelectedCount','locsSelectAll')" /></td>
+    <td><input type="text" id="iel-name-${id}" value="${escapeHtml(loc.name||'')}" placeholder="부위명" /></td>
+    <td style="white-space:nowrap;">
+      <button class="inline-save-btn" onclick="saveInlineEditLocation(${id})">저장</button>
+      <button class="inline-cancel-btn" onclick="renderLocationsTable()" style="margin-left:4px;">취소</button>
+    </td>
+    <td></td>`;
+  document.getElementById('iel-name-'+id).focus();
+}
+
+async function saveInlineEditLocation(id){
+  const name = document.getElementById('iel-name-'+id)?.value.trim();
+  if(!name){ alert('부위명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_locations').update({name}).eq('id', id);
+  if(error){ alert('수정 실패: '+error.message); return; }
+  showToast('수정되었습니다.');
+  await reloadMasterData();
 }
 async function addLocation(){
   const name = document.getElementById('locName').value.trim();
@@ -2793,16 +2768,6 @@ function openEditLocationModal(id){
   document.getElementById('editLocationNameInput').value = loc.name||'';
   document.getElementById('editLocationModal').classList.add('active');
 }
-async function saveEditLocation(){
-  const id   = document.getElementById('editLocationId').value;
-  const name = document.getElementById('editLocationNameInput').value.trim();
-  if(!name){ alert('부위명을 입력해주세요.'); return; }
-  const {error} = await sb.from('defect_locations').update({name}).eq('id', id);
-  if(error){ alert('수정 실패: '+error.message); return; }
-  document.getElementById('editLocationModal').classList.remove('active');
-  showToast('수정되었습니다.');
-  await reloadMasterData();
-}
 async function deleteSelectedLocations(){
   const checked = [...document.querySelectorAll('.locs-row-check:checked')].map(c=>Number(c.value));
   if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
@@ -2814,10 +2779,8 @@ async function deleteSelectedLocations(){
   document.getElementById('locsSelectedCount').textContent = '0';
   await reloadMasterData();
 }
-// legacy editLocation kept for backward compat (now unused in render)
-async function editLocation(id){
-  openEditLocationModal(id);
-}
+function openEditLocationModal(id){ startInlineEditLocation(id); }
+async function editLocation(id){ startInlineEditLocation(id); }
 async function deleteLocation(id){
   if(!confirm('이 하자부위를 삭제하시겠습니까?')) return;
   const {error} = await sb.from('defect_locations').delete().eq('id', id);
@@ -2830,14 +2793,44 @@ function renderRoomTypesTable(){
   const body = document.getElementById('roomTypesTableBody');
   if(!body) return;
   body.innerHTML = ROOM_TYPES.map(r=>`
-    <tr>
+    <tr id="rt-row-${r.id}">
       <td><input type="checkbox" class="rt-row-check" value="${r.id}" onchange="updateSelectedCount('rt-row-check','rtSelectedCount','rtSelectAll')" /></td>
       <td>${escapeHtml(r.name)}</td>
       <td>${escapeHtml(r.type_code||'-')}</td>
       <td>${escapeHtml(r.description||'-')}</td>
-      <td><button class="btn small secondary" onclick="openEditRoomTypeModal(${r.id})">수정</button></td>
+      <td><button class="btn small secondary" onclick="startInlineEditRoomType(${r.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteRoomType(${r.id})">삭제</button></td>
     </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--sub);padding:20px;">등록된 객실타입이 없습니다.</td></tr>';
+}
+
+function startInlineEditRoomType(id){
+  const rt = ROOM_TYPES.find(r=>r.id===id);
+  if(!rt) return;
+  const tr = document.getElementById('rt-row-'+id);
+  if(!tr) return;
+  tr.classList.add('inline-editing');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="rt-row-check" value="${id}" onchange="updateSelectedCount('rt-row-check','rtSelectedCount','rtSelectAll')" /></td>
+    <td><input type="text" id="iert-name-${id}" value="${escapeHtml(rt.name||'')}" placeholder="타입명" /></td>
+    <td><input type="text" id="iert-code-${id}" value="${escapeHtml(rt.type_code||'')}" placeholder="코드" style="width:70px;text-transform:uppercase;" /></td>
+    <td><input type="text" id="iert-desc-${id}" value="${escapeHtml(rt.description||'')}" placeholder="설명" /></td>
+    <td style="white-space:nowrap;">
+      <button class="inline-save-btn" onclick="saveInlineEditRoomType(${id})">저장</button>
+      <button class="inline-cancel-btn" onclick="renderRoomTypesTable()" style="margin-left:4px;">취소</button>
+    </td>
+    <td></td>`;
+  document.getElementById('iert-name-'+id).focus();
+}
+
+async function saveInlineEditRoomType(id){
+  const name = document.getElementById('iert-name-'+id)?.value.trim();
+  const code = document.getElementById('iert-code-'+id)?.value.trim().toUpperCase() || null;
+  const desc = document.getElementById('iert-desc-'+id)?.value.trim() || null;
+  if(!name){ alert('타입명을 입력해주세요.'); return; }
+  const {error} = await sb.from('room_types').update({name, type_code: code, description: desc}).eq('id', id);
+  if(error){ alert('수정 실패: '+error.message); return; }
+  showToast('수정되었습니다.');
+  await reloadMasterData();
 }
 async function addRoomType(){
   const name = document.getElementById('roomTypeName').value.trim();
@@ -2852,29 +2845,8 @@ async function addRoomType(){
   showToast('객실타입이 등록되었습니다.');
   await reloadMasterData();
 }
-function openEditRoomTypeModal(id){
-  const rt = ROOM_TYPES.find(r=>r.id===id);
-  if(!rt) return;
-  document.getElementById('editRoomTypeId').value = id;
-  document.getElementById('editRoomTypeNameInput').value = rt.name||'';
-  document.getElementById('editRoomTypeCodeInput').value = rt.type_code||'';
-  document.getElementById('editRoomTypeDescInput').value = rt.description||'';
-  document.getElementById('editRoomTypeModal').classList.add('active');
-}
-async function saveEditRoomType(){
-  const id   = document.getElementById('editRoomTypeId').value;
-  const name = document.getElementById('editRoomTypeNameInput').value.trim();
-  if(!name){ alert('타입명을 입력해주세요.'); return; }
-  const code = document.getElementById('editRoomTypeCodeInput').value.trim().toUpperCase();
-  const desc = document.getElementById('editRoomTypeDescInput').value.trim();
-  const {error} = await sb.from('room_types').update({
-    name, type_code: code||null, description: desc||null
-  }).eq('id', id);
-  if(error){ alert('수정 실패: '+error.message); return; }
-  document.getElementById('editRoomTypeModal').classList.remove('active');
-  showToast('수정되었습니다.');
-  await reloadMasterData();
-}
+function openEditRoomTypeModal(id){ startInlineEditRoomType(id); }
+async function editRoomType(id){ startInlineEditRoomType(id); }
 async function deleteSelectedRoomTypes(){
   const checked = [...document.querySelectorAll('.rt-row-check:checked')].map(c=>Number(c.value));
   if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
