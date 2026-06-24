@@ -390,12 +390,6 @@
     justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,.3);">
     ＋ 하자 등록
   </button>
-  <button onclick="openQuickDefectModal()" style="
-    width:100%;padding:16px;font-size:15px;font-weight:600;
-    background:#fff;color:var(--accent);border:2px solid var(--accent);
-    border-radius:14px;cursor:pointer;margin-bottom:10px;">
-    ⚡ 빠른 등록
-  </button>
 
   <!-- 보조 메뉴 -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
@@ -876,7 +870,6 @@
       </select>
       <input id="searchBox" placeholder="객실번호/제목 검색" style="min-width:180px;"/>
       <div class="spacer"></div>
-      <button class="btn secondary" onclick="openQuickDefectModal()">📱 빠른 등록</button>
       <button class="btn" onclick="openNewDefectModal()">+ 하자 등록</button>
     </div>
 
@@ -1203,6 +1196,8 @@
     <button onclick="closeDefectModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='#374151';this.style.background='#f3f4f6'" onmouseout="this.style.color='#9ca3af';this.style.background='none'" title="닫기">✕</button>
     <h3 id="modalTitle">하자 등록</h3>
     <input type="hidden" id="editDefectId" />
+
+    <!-- ── 필수 필드 (항상 표시) ── -->
     <div class="form-row" style="position:relative;">
       <label>객실 선택</label>
       <input id="formRoomSearch" placeholder="객실번호 또는 타입 검색 (예: 1001, SLF)" autocomplete="off" />
@@ -1223,16 +1218,8 @@
       </select>
     </div>
     <div class="form-row">
-      <label>하자부위 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
-      <select id="formLocation"><option value="">— 선택 안함 —</option></select>
-    </div>
-    <div class="form-row">
       <label>하자 제목</label>
       <input id="formTitle" placeholder="예: 화장실 타일 깨짐" />
-    </div>
-    <div class="form-row">
-      <label>상세 설명</label>
-      <textarea id="formDesc" placeholder="위치, 증상 등을 자세히 적어주세요"></textarea>
     </div>
     <div class="form-row">
       <label>우선순위</label>
@@ -1244,66 +1231,85 @@
       </select>
     </div>
     <div class="form-row">
-      <label>상태</label>
-      <select id="formStatus">
-        <option value="접수">접수</option>
-        <option value="확인">확인</option>
-        <option value="조치중">조치중</option>
-        <option value="완료">완료</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>예정일 (처리 목표일)</label>
-      <input id="formDueDate" type="date" />
-    </div>
-    <div class="form-row">
-      <label>처리방식</label>
-      <select id="formProcessType">
-        <option value="자체">자체처리</option>
-        <option value="외주">외주처리</option>
-      </select>
-    </div>
-    <div class="form-row" id="vendorRow" style="display:none;">
-      <label>외주업체명</label>
-      <input id="formVendor" placeholder="예: OO인테리어" />
-    </div>
-    <div class="form-row" id="outsourcedCostRow" style="display:none;">
-      <label>외주 처리비(원)</label>
-      <input id="formOutsourcedCost" type="number" placeholder="예: 80000" />
-      <div style="font-size:12px;color:var(--sub);margin-top:4px;">외주는 부품 내역 대신 총 처리비를 한 번에 입력합니다.</div>
-    </div>
-    <div class="form-row checkrow">
-      <input type="checkbox" id="formVacant" />
-      <label style="margin:0;">방막 처리 (이 하자로 객실 판매 불가)</label>
-    </div>
-    <div class="form-row" id="vacantDaysRow" style="display:none;">
-      <label>방막기간(일)</label>
-      <input id="formVacantDays" type="number" placeholder="예: 2" />
-    </div>
-    <div style="font-size:12px;color:var(--sub);margin-top:-8px;margin-bottom:14px;">
-      ※ 반복하자 여부는 등록 시 같은 객실 기준 자동 판별됩니다 (최근 30일 내 동일 사례 존재 시).
-    </div>
-    <div class="form-row">
-      <label>담당자</label>
-      <select id="formAssigned" onchange="handleManualEmployeeInput(this)"></select>
-    </div>
-    <div class="form-row">
       <label>등록자</label>
       <select id="formReporter" onchange="handleManualEmployeeInput(this)"></select>
     </div>
 
-    <div class="form-row" id="partsUsedSection">
-      <label>사용 부속 / 발생비용 <span style="color:#9ca3af;font-weight:400;">(자체처리 전용, 저장 후 등록 가능)</span></label>
-      <div id="partsUsedList"></div>
-      <div id="partsUsedAddRow" style="display:none;">
-        <div class="masterform" style="margin-top:6px;">
-          <select id="useePartSelect"></select>
-          <input id="useePartQty" type="number" placeholder="수량" value="1" style="width:70px;" />
-          <input id="useePartLabor" type="number" placeholder="인건비(원)" style="width:110px;" />
-          <button class="btn small" onclick="addPartUsage()">+ 추가</button>
-        </div>
+    <!-- ── 추가 필드 토글 버튼 ── -->
+    <button id="toggleExtraFields" onclick="toggleDefectExtraFields()" style="
+      width:100%;padding:9px;margin:4px 0 12px;font-size:13px;font-weight:600;
+      background:#f8fafc;border:1px dashed var(--border);border-radius:8px;
+      cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center;gap:6px;">
+      <span id="toggleExtraIcon">＋</span> <span id="toggleExtraLabel">추가 정보 입력</span>
+    </button>
+
+    <!-- ── 추가 필드 (기본 숨김, 모바일) ── -->
+    <div id="defectExtraFields">
+      <div class="form-row">
+        <label>하자부위 <span style="color:var(--sub);font-weight:400;">(선택)</span></label>
+        <select id="formLocation"><option value="">— 선택 안함 —</option></select>
       </div>
-      <div style="margin-top:6px;font-size:12.5px;color:var(--sub);" id="totalCostDisplay"></div>
+      <div class="form-row">
+        <label>상세 설명</label>
+        <textarea id="formDesc" placeholder="위치, 증상 등을 자세히 적어주세요"></textarea>
+      </div>
+      <div class="form-row">
+        <label>상태</label>
+        <select id="formStatus">
+          <option value="접수">접수</option>
+          <option value="확인">확인</option>
+          <option value="조치중">조치중</option>
+          <option value="완료">완료</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>예정일 (처리 목표일)</label>
+        <input id="formDueDate" type="date" />
+      </div>
+      <div class="form-row">
+        <label>처리방식</label>
+        <select id="formProcessType">
+          <option value="자체">자체처리</option>
+          <option value="외주">외주처리</option>
+        </select>
+      </div>
+      <div class="form-row" id="vendorRow" style="display:none;">
+        <label>외주업체명</label>
+        <input id="formVendor" placeholder="예: OO인테리어" />
+      </div>
+      <div class="form-row" id="outsourcedCostRow" style="display:none;">
+        <label>외주 처리비(원)</label>
+        <input id="formOutsourcedCost" type="number" placeholder="예: 80000" />
+        <div style="font-size:12px;color:var(--sub);margin-top:4px;">외주는 부품 내역 대신 총 처리비를 한 번에 입력합니다.</div>
+      </div>
+      <div class="form-row checkrow">
+        <input type="checkbox" id="formVacant" />
+        <label style="margin:0;">방막 처리 (이 하자로 객실 판매 불가)</label>
+      </div>
+      <div class="form-row" id="vacantDaysRow" style="display:none;">
+        <label>방막기간(일)</label>
+        <input id="formVacantDays" type="number" placeholder="예: 2" />
+      </div>
+      <div style="font-size:12px;color:var(--sub);margin-top:-8px;margin-bottom:14px;">
+        ※ 반복하자 여부는 등록 시 같은 객실 기준 자동 판별됩니다 (최근 30일 내 동일 사례 존재 시).
+      </div>
+      <div class="form-row">
+        <label>담당자</label>
+        <select id="formAssigned" onchange="handleManualEmployeeInput(this)"></select>
+      </div>
+      <div class="form-row" id="partsUsedSection">
+        <label>사용 부속 / 발생비용 <span style="color:#9ca3af;font-weight:400;">(자체처리 전용, 저장 후 등록 가능)</span></label>
+        <div id="partsUsedList"></div>
+        <div id="partsUsedAddRow" style="display:none;">
+          <div class="masterform" style="margin-top:6px;">
+            <select id="useePartSelect"></select>
+            <input id="useePartQty" type="number" placeholder="수량" value="1" style="width:70px;" />
+            <input id="useePartLabor" type="number" placeholder="인건비(원)" style="width:110px;" />
+            <button class="btn small" onclick="addPartUsage()">+ 추가</button>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:12.5px;color:var(--sub);" id="totalCostDisplay"></div>
+      </div>
     </div>
 
     <div class="form-actions">
@@ -1313,8 +1319,8 @@
   </div>
 </div>
 
-<!-- ===================== 빠른 등록 모달 (모바일 우선, 현장용) ===================== -->
-<div class="overlay" id="quickModal">
+<!-- 빠른 등록 모달 제거됨: 하자 등록 모달로 통합 (모바일에서 추가 필드 토글 방식) -->
+<div class="overlay" id="quickModal" style="display:none!important;">
   <div class="modal" style="width:380px;">
     <h3>📱 빠른 하자 등록</h3>
     <p style="font-size:12.5px;color:var(--sub);margin-top:-8px;">현장에서 빠르게 등록할 때 사용하세요. 나머지 상세정보는 나중에 PC에서 보완할 수 있습니다.</p>
@@ -2604,6 +2610,18 @@ function renderCategoryDashboard(){
 }
 
 // ---------- 모달 ----------
+// 추가 필드 토글 (모바일에서 기본 접힘, PC에서 기본 펼침)
+function toggleDefectExtraFields(forceOpen){
+  const el     = document.getElementById('defectExtraFields');
+  const icon   = document.getElementById('toggleExtraIcon');
+  const label  = document.getElementById('toggleExtraLabel');
+  const isOpen = el.style.display !== 'none';
+  const open   = forceOpen !== undefined ? forceOpen : !isOpen;
+  el.style.display    = open ? '' : 'none';
+  icon.textContent    = open ? '－' : '＋';
+  label.textContent   = open ? '추가 정보 접기' : '추가 정보 입력';
+}
+
 function openNewDefectModal(){
   document.getElementById('modalTitle').textContent = '하자 등록';
   document.getElementById('editDefectId').value = '';
@@ -2629,8 +2647,13 @@ function openNewDefectModal(){
   CURRENT_PARTS_USED = [];
   document.getElementById('partsUsedAddRow').style.display = 'none';
   renderPartsUsedList();
+  // 모바일: 추가 필드 접힘 / PC: 펼침
+  toggleDefectExtraFields(!IS_MOBILE);
   document.getElementById('defectModal').classList.add('active');
 }
+
+// 빠른 등록 → 하자 등록 모달로 통합
+function openQuickDefectModal(){ openNewDefectModal(); }
 async function openEditModal(id){
   const d = DEFECTS.find(x=>x.id===id);
   if(!d) return;
@@ -2663,6 +2686,7 @@ async function openEditModal(id){
     quantity:r.quantity, unit_price:r.unit_price, labor_cost:r.labor_cost
   }));
   renderPartsUsedList();
+  toggleDefectExtraFields(true); // 수정 시 항상 펼침
   document.getElementById('defectModal').classList.add('active');
 }
 function closeDefectModal(){
