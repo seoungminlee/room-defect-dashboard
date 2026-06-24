@@ -565,6 +565,33 @@
         </div>
       </div>
 
+      <!-- 운영 데이터 초기화 -->
+      <div class="card" style="margin-top:16px;border:1.5px solid var(--danger);">
+        <h3 style="color:var(--danger);">🗑️ 운영 데이터 초기화</h3>
+        <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">
+          하자 이력, 부품 사용 내역, 재고 입출고, 공지사항 등 <b>트랜잭션 데이터만</b> 삭제합니다.<br/>
+          객실 목록·객실타입·수리부속·하자부위·외주업체 등 기준정보는 유지됩니다.<br/>
+          <b style="color:var(--danger);">이 작업은 되돌릴 수 없습니다.</b>
+        </p>
+        <div style="background:#fef2f2;border-radius:8px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:13px;margin-bottom:8px;">삭제 대상 테이블:</div>
+          <div style="font-size:12.5px;color:var(--sub);line-height:1.8;">
+            defects (하자 이력) · defect_photos (사진) · defect_parts_used (부품 사용 내역)<br/>
+            part_stock_in (재고 입고) · part_stock_out (재고 출고) · part_stock_adjustments (재고 조정)<br/>
+            announcements (공지사항)
+          </div>
+        </div>
+        <div class="form-row" style="margin-bottom:10px;">
+          <label style="color:var(--danger);font-weight:700;">확인 문구 입력</label>
+          <input id="resetConfirmInput" placeholder="데이터 초기화" style="border-color:var(--danger);" oninput="checkResetInput()" />
+          <div style="font-size:12px;color:var(--sub);margin-top:4px;"><b>데이터 초기화</b> 를 그대로 입력해야 버튼이 활성화됩니다.</div>
+        </div>
+        <button id="resetDataBtn" class="btn" onclick="executeDataReset()"
+          style="background:var(--danger);border-color:var(--danger);opacity:0.4;cursor:not-allowed;"
+          disabled>🗑️ 운영 데이터 초기화 실행</button>
+        <span id="resetDataMsg" style="font-size:12.5px;margin-left:12px;"></span>
+      </div>
+
     </div>
   </div>
 
@@ -1638,6 +1665,66 @@ async function deleteNotice(id){
 // ============================================================
 // 수정이력 (admin 전용)
 // ============================================================
+// ============================================================
+// 운영 데이터 초기화
+// ============================================================
+function checkResetInput(){
+  const val = document.getElementById('resetConfirmInput')?.value || '';
+  const btn = document.getElementById('resetDataBtn');
+  if(!btn) return;
+  const ok = val === '데이터 초기화';
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '0.4';
+  btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+}
+
+async function executeDataReset(){
+  if(CURRENT_ROLE !== 'admin'){ alert('관리자만 실행할 수 있습니다.'); return; }
+  const val = document.getElementById('resetConfirmInput')?.value || '';
+  if(val !== '데이터 초기화'){ alert('확인 문구가 올바르지 않습니다.'); return; }
+
+  const msg = document.getElementById('resetDataMsg');
+  const btn = document.getElementById('resetDataBtn');
+  btn.disabled = true;
+  btn.style.opacity = '0.4';
+  msg.style.color = 'var(--sub)';
+  msg.textContent = '초기화 중…';
+
+  const tables = [
+    'defect_parts_used',
+    'defect_photos',
+    'part_stock_adjustments',
+    'part_stock_in',
+    'part_stock_out',
+    'defects',
+    'announcements',
+  ];
+
+  const errors = [];
+  for(const table of tables){
+    // neq 트릭: id > 0 조건으로 전체 삭제 (RLS bypass 없이 전체 행 삭제)
+    const { error } = await sb.from(table).delete().gte('id', 0);
+    if(error) errors.push(`${table}: ${error.message}`);
+  }
+
+  if(errors.length){
+    msg.style.color = 'var(--danger)';
+    msg.textContent = '일부 실패: ' + errors.join(' / ');
+    btn.disabled = false; btn.style.opacity = '1';
+    return;
+  }
+
+  document.getElementById('resetConfirmInput').value = '';
+  checkResetInput();
+  msg.style.color = 'var(--ok)';
+  msg.textContent = '✅ 초기화 완료 — ' + new Date().toLocaleString('ko-KR');
+
+  // 메모리 데이터 갱신
+  await reloadMasterData();
+  await loadDefects();
+  showToast('운영 데이터가 초기화되었습니다.');
+}
+
 async function loadAuditLog(){
   if(!sb || CURRENT_ROLE !== 'admin') return;
   const { data, error } = await sb
