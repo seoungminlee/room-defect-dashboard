@@ -362,19 +362,61 @@
 </div>
 
 <div class="tabs">
-  <div class="tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
-  <div class="tab" data-tab="rooms" onclick="switchTab('rooms')">객실별 하자 리스트</div>
-  <div class="tab" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
-  <div class="tab" data-tab="coststat" onclick="switchTab('coststat')">💰 비용·부품 통계</div>
-  <div class="tab" data-tab="vendors" onclick="switchTab('vendors')">🏢 외주업체</div>
-  <div class="tab" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
-  <div class="tab" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
+  <div class="tab pc-only" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
+  <div class="tab" data-tab="rooms" onclick="switchTab('rooms')" data-mobile-label="📋 하자 목록">객실별 하자 리스트</div>
+  <div class="tab pc-only" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
+  <div class="tab pc-only" data-tab="coststat" onclick="switchTab('coststat')">💰 비용·부품 통계</div>
+  <div class="tab pc-only" data-tab="vendors" onclick="switchTab('vendors')">🏢 외주업체</div>
+  <div class="tab pc-only" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
+  <div class="tab pc-only" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
   <div class="tab" data-tab="notice" onclick="switchTab('notice')">📢 공지사항</div>
-  <div class="tab admin-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">🛡️ 관리자</div>
+  <div class="tab admin-only pc-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">🛡️ 관리자</div>
 </div>
 
 <!-- ===================== 공지/재고경고 배너 영역 ===================== -->
 <div class="banner-area" id="bannerArea"></div>
+
+<!-- ===================== 모바일 전용 홈 패널 ===================== -->
+<div id="mobileHome" style="display:none;padding:20px 14px 100px;">
+  <!-- 공지 배너 (모바일 홈용) -->
+  <div id="mobileNoticeBanner" style="margin-bottom:16px;"></div>
+
+  <!-- 하자 등록 버튼 -->
+  <!-- 등록 버튼 -->
+  <button onclick="openNewDefectModal()" style="
+    width:100%;padding:22px 16px;font-size:18px;font-weight:700;
+    background:var(--accent);color:#fff;border:none;border-radius:14px;
+    cursor:pointer;margin-bottom:10px;display:flex;align-items:center;
+    justify-content:center;gap:10px;box-shadow:0 4px 12px rgba(37,99,235,.3);">
+    ＋ 하자 등록
+  </button>
+  <button onclick="openQuickDefectModal()" style="
+    width:100%;padding:16px;font-size:15px;font-weight:600;
+    background:#fff;color:var(--accent);border:2px solid var(--accent);
+    border-radius:14px;cursor:pointer;margin-bottom:10px;">
+    ⚡ 빠른 등록
+  </button>
+
+  <!-- 보조 메뉴 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+    <button onclick="switchTab('rooms')" style="
+      padding:14px;font-size:14px;font-weight:600;background:#fff;
+      color:var(--text);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
+      📋 전체 하자 목록
+    </button>
+    <button onclick="switchTab('notice')" style="
+      padding:14px;font-size:14px;font-weight:600;background:#fff;
+      color:var(--text);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
+      📢 공지사항
+    </button>
+  </div>
+
+  <!-- 내 하자 목록 -->
+  <div style="font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">내가 등록한 하자</div>
+  <div id="mobileMyDefects">
+    <div class="empty">로딩 중…</div>
+  </div>
+</div>
 
 <div class="container">
 
@@ -1440,15 +1482,102 @@ function onLoginSuccess(user){
 
   // admin 전용 탭/버튼 표시
   if(CURRENT_ROLE === 'admin'){
-    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+    document.querySelectorAll('.admin-only:not(.pc-only)').forEach(el => el.style.display = '');
   }
 
-  loadAll().then(() => loadNotices());
-  switchTab('dashboard');
+  const mobile = window.innerWidth <= 768;
+  if(mobile){
+    // 모바일: pc-only 탭 숨기기, 탭바 자체 숨기기, 모바일 홈 표시
+    document.querySelectorAll('.pc-only').forEach(el => el.style.display = 'none');
+    document.querySelector('.tabs').style.display = 'none';
+    document.querySelector('.container').style.display = 'none';
+    document.getElementById('mobileHome').style.display = 'block';
+    loadAll().then(() => {
+      loadNotices();
+      renderMobileMyDefects();
+      renderMobileNoticeBanner();
+    });
+  } else {
+    loadAll().then(() => loadNotices());
+    switchTab('dashboard');
+  }
 }
 
 async function doLogout(){
   await sb.auth.signOut();
+}
+
+// ============================================================
+// 모바일 전용 함수
+// ============================================================
+const IS_MOBILE = window.innerWidth <= 768;
+
+function renderMobileMyDefects(){
+  const container = document.getElementById('mobileMyDefects');
+  if(!container) return;
+  if(!CURRENT_USER){ container.innerHTML = '<div class="empty">로그인 필요</div>'; return; }
+
+  const myDefects = DEFECTS
+    .filter(d => d.created_by === CURRENT_USER.id || d.assigned_to === (CURRENT_USER.user_metadata?.full_name || CURRENT_USER.email))
+    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 20);
+
+  if(!myDefects.length){
+    container.innerHTML = '<div class="empty" style="padding:24px;">등록된 하자가 없습니다.</div>';
+    return;
+  }
+
+  const statusColor = { '접수':'#fee2e2', '확인':'#fef3c7', '조치중':'#dbeafe', '완료':'#dcfce7' };
+  const statusText  = { '접수':'#b91c1c', '확인':'#92400e', '조치중':'#1e40af', '완료':'#166534' };
+
+  container.innerHTML = myDefects.map(d => {
+    const room = d.rooms?.room_number || '-';
+    const date = new Date(d.created_at).toLocaleDateString('ko-KR', {month:'2-digit', day:'2-digit'});
+    const sc = statusColor[d.status] || '#f1f5f9';
+    const st = statusText[d.status]  || '#374151';
+    return `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <span style="font-weight:700;font-size:15px;">${room}호</span>
+        <span style="background:${sc};color:${st};font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;">${d.status}</span>
+      </div>
+      <div style="font-size:14px;color:var(--text);margin-bottom:4px;">${escapeHtml(d.title)}</div>
+      <div style="font-size:12px;color:var(--sub);">${d.symptom||''} ${d.symptom&&d.defect_locations?.name?' · ':''}${d.defect_locations?.name||''} · ${date}</div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <select style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;background:#fff;"
+                onchange="changeMobileStatus(${d.id}, this.value)">
+          ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <button onclick="openEditModal(${d.id})" style="padding:7px 14px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:#fff;cursor:pointer;">수정</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function changeMobileStatus(id, newStatus){
+  const {error} = await sb.from('defects').update({status:newStatus}).eq('id',id);
+  if(error){ showToast('상태 변경 실패'); return; }
+  showToast('상태가 변경되었습니다.');
+  await loadDefects();
+  renderMobileMyDefects();
+}
+
+function renderMobileNoticeBanner(){
+  const container = document.getElementById('mobileNoticeBanner');
+  if(!container) return;
+  const active = (window.NOTICES_CACHE || []).filter(n => {
+    if(!n.is_active) return false;
+    const now = new Date();
+    if(n.start_date && new Date(n.start_date) > now) return false;
+    if(n.end_date   && new Date(n.end_date)   < now) return false;
+    return true;
+  }).slice(0, 3);
+  if(!active.length){ container.innerHTML = ''; return; }
+  container.innerHTML = active.map(n => `
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:13.5px;color:#1e40af;">
+      📢 ${escapeHtml(n.content)}
+      ${n.link_url ? `<a href="${escapeHtml(n.link_url)}" target="_blank" style="display:block;margin-top:4px;font-size:12.5px;font-weight:700;color:#1d4ed8;">링크 보기 →</a>` : ''}
+    </div>`).join('');
 }
 
 // ============================================================
@@ -1553,6 +1682,27 @@ function switchTab(name){
     showToast('관리자만 접근할 수 있습니다.');
     return;
   }
+
+  // 모바일: PC 전용 탭 차단, 허용 탭은 오버레이 방식으로 표시
+  if(IS_MOBILE){
+    if(['dashboard','categories','coststat','vendors','inventory','master','admin'].includes(name)){
+      showToast('PC에서 확인해주세요.');
+      return;
+    }
+    // 공지/하자목록은 모바일 홈 위에 컨테이너를 임시 표시
+    document.getElementById('mobileHome').style.display = 'none';
+    document.querySelector('.container').style.display = 'block';
+    document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    const panel = document.getElementById('panel-'+name);
+    if(panel) panel.classList.add('active');
+    if(name==='notice') loadNotices();
+    if(name==='rooms')  renderDefectsTable();
+    // 뒤로가기 버튼 표시
+    showMobileBackBtn();
+    return;
+  }
+
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
@@ -1565,6 +1715,22 @@ function switchTab(name){
   if(name==='coststat')   try{ initCostStatPanel(); renderCostStat(); }catch(e){ console.error(e); }
   if(name==='notice')     loadNotices();
   if(name==='admin')      loadAdminUsers();
+}
+
+function showMobileBackBtn(){
+  if(document.getElementById('mobileBackBtn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'mobileBackBtn';
+  btn.textContent = '← 홈으로';
+  btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:90;background:var(--accent);color:#fff;border:none;border-radius:30px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2);';
+  btn.onclick = () => {
+    document.getElementById('mobileHome').style.display = 'block';
+    document.querySelector('.container').style.display = 'none';
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    btn.remove();
+  };
+  document.body.appendChild(btn);
 }
 
 function switchAdminSubtab(name){
@@ -1646,8 +1812,10 @@ async function loadNotices(){
     .order('created_at', { ascending: false });
   if(error){ showToast('공지 로드 실패: ' + error.message); return; }
   NOTICES = data || [];
+  window.NOTICES_CACHE = NOTICES;
   renderNoticeList();
   renderBanners();
+  if(IS_MOBILE) renderMobileNoticeBanner();
 }
 
 function renderNoticeList(){
@@ -1956,6 +2124,7 @@ async function loadDefects(){
   renderDefectsTable();
   renderCategoryDashboard();
   try{ renderMainDashboard(); }catch(e){ console.error(e); }
+  if(IS_MOBILE) renderMobileMyDefects();
 }
 
 // ---------- 필터 옵션 채우기 ----------
