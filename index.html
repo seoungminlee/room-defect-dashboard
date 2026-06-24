@@ -2643,7 +2643,7 @@ function startInlineEditRoom(id){
     </td>
     <td style="white-space:nowrap;">
       <button class="inline-save-btn" onclick="saveInlineEditRoom(${id})">저장</button>
-      <button class="inline-cancel-btn" onclick="renderRoomsTable()" style="margin-left:4px;">취소</button>
+      <button class="inline-cancel-btn" onclick="renderRoomsInfoTable(document.getElementById('roomsSearchBox')?.value||'')" style="margin-left:4px;">취소</button>
     </td>
     <td></td>`;
   document.getElementById('ier-num-'+id).focus();
