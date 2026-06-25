@@ -2610,9 +2610,11 @@ async function loadNotices(){
     .from('announcements')
     .select('*')
     .order('created_at', { ascending: false });
+  console.log('[loadNotices] data:', data, 'error:', error);
   if(error){ showToast('공지 로드 실패: ' + error.message); return; }
   NOTICES = data || [];
   window.NOTICES_CACHE = NOTICES;
+  console.log('[loadNotices] NOTICES count:', NOTICES.length, NOTICES.map(n=>({id:n.id,starts_at:n.starts_at,ends_at:n.ends_at})));
   renderNoticeList();
   renderBanners();
   if(IS_MOBILE) renderMobileNoticeBanner();
