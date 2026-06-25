@@ -1589,14 +1589,14 @@ function onLoginSuccess(user){
   roleBadge.textContent = CURRENT_ROLE === 'admin' ? '관리자' : '일반';
   roleBadge.className = 'role-badge' + (CURRENT_ROLE === 'admin' ? ' admin' : '');
 
-  // admin 전용 탭/버튼 표시
+  // admin 전용 탭/버튼 표시 (pc-only 포함 모두)
   if(CURRENT_ROLE === 'admin'){
-    document.querySelectorAll('.admin-only:not(.pc-only)').forEach(el => el.style.display = '');
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
   }
 
   const mobile = window.innerWidth <= 768;
   if(mobile){
-    // 모바일: pc-only 탭 숨기기, 탭바 자체 숨기기, 모바일 홈 표시
+    // 모바일: pc-only 탭 숨기기 (admin-only.pc-only 포함), 탭바 숨기기
     document.querySelectorAll('.pc-only').forEach(el => el.style.display = 'none');
     document.querySelector('.tabs').style.display = 'none';
     document.querySelector('.container').style.display = 'none';
@@ -1993,12 +1993,11 @@ async function changeMobileStatus(id, newStatus){
 function renderMobileNoticeBanner(){
   const container = document.getElementById('mobileNoticeBanner');
   if(!container) return;
+  const today = new Date().toISOString().slice(0,10);
   const active = (window.NOTICES_CACHE || []).filter(n => {
-    if(!n.is_active) return false;
-    const now = new Date();
-    if(n.start_date && new Date(n.start_date) > now) return false;
-    if(n.end_date   && new Date(n.end_date)   < now) return false;
-    return true;
+    const s = n.starts_at || '0000-01-01';
+    const e = n.ends_at   || '9999-12-31';
+    return s <= today && today <= e;
   }).slice(0, 3);
   if(!active.length){ container.innerHTML = ''; return; }
   container.innerHTML = active.map(n => `
@@ -2231,7 +2230,7 @@ function adminResetPasswordQuick(email){
 // 공지사항
 // ============================================================
 let NOTICES = [];
-let DISMISSED_BANNERS = new Set(JSON.parse(sessionStorage.getItem('dismissed_banners')||'[]'));
+let DISMISSED_BANNERS = new Set(); // 새로고침 시 배너 재표시 (의도적으로 세션 미저장)
 
 async function loadNotices(){
   if(!sb) return;
@@ -2276,7 +2275,13 @@ function renderBanners(){
   const area = document.getElementById('bannerArea');
   if(!area) return;
   const today = new Date().toISOString().slice(0,10);
-  const activeNotices = NOTICES.filter(n => n.starts_at <= today && today <= n.ends_at && !DISMISSED_BANNERS.has('n'+n.id));
+  // starts_at/ends_at 없는 경우(미입력)도 표시되도록 방어 처리
+  const activeNotices = NOTICES.filter(n => {
+    if(DISMISSED_BANNERS.has('n'+n.id)) return false;
+    const s = n.starts_at || '0000-01-01';
+    const e = n.ends_at   || '9999-12-31';
+    return s <= today && today <= e;
+  });
 
   // 재고경고 배너
   const lowStock = PARTS.filter(p => {
@@ -2313,7 +2318,6 @@ function renderBanners(){
 
 function dismissBanner(key){
   DISMISSED_BANNERS.add(key);
-  sessionStorage.setItem('dismissed_banners', JSON.stringify([...DISMISSED_BANNERS]));
   renderBanners();
 }
 
