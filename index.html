@@ -323,6 +323,113 @@
   .inline-cancel-btn{background:none;border:1px solid var(--border);border-radius:6px;
     padding:4px 10px;font-size:13px;cursor:pointer;color:var(--sub);}
   .inline-cancel-btn:hover{background:var(--bg);}
+
+/* =========================================================
+   PRINT / PDF 스타일
+   ========================================================= */
+@media print {
+  /* 인쇄 기본 설정 */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 15mm 18mm 15mm;
+  }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* 화면 전용 요소 전부 숨김 */
+  body > *:not(#printReport) { display: none !important; }
+  .topbar, .tabs, .banner-area, #loginScreen, #mobileHome,
+  #printBtn, .btn-logout, #settingsBtn { display: none !important; }
+
+  /* 인쇄 영역만 표시 */
+  #printReport { display: block !important; }
+
+  /* 기본 타이포그래피 */
+  body { font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif; font-size: 10pt; color: #111; background: #fff; }
+
+  /* 표지 */
+  .pr-cover {
+    page-break-after: always;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    min-height: 240mm; text-align: center;
+  }
+  .pr-cover-logo { font-size: 13pt; color: #64748b; margin-bottom: 8mm; letter-spacing: 2px; }
+  .pr-cover-title { font-size: 28pt; font-weight: 900; color: #1e3a5f; margin-bottom: 5mm; }
+  .pr-cover-sub { font-size: 14pt; color: #475569; margin-bottom: 16mm; }
+  .pr-cover-period { font-size: 12pt; color: #334155; background: #f0f6ff; padding: 4mm 10mm; border-radius: 6px; display: inline-block; margin-bottom: 4mm; }
+  .pr-cover-meta { font-size: 9.5pt; color: #94a3b8; margin-top: 12mm; }
+  .pr-cover-line { width: 60mm; height: 3px; background: linear-gradient(90deg,#1e3a5f,#3b82f6); margin: 8mm auto; border-radius: 2px; }
+
+  /* 섹션 공통 */
+  .pr-section { page-break-inside: avoid; margin-bottom: 8mm; }
+  .pr-section-title {
+    font-size: 13pt; font-weight: 800; color: #1e3a5f;
+    border-left: 4px solid #3b82f6; padding-left: 3mm;
+    margin-bottom: 4mm; margin-top: 8mm;
+  }
+  .pr-break-before { page-break-before: always; }
+
+  /* KPI 그리드 */
+  .pr-kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 3mm; margin-bottom: 6mm; }
+  .pr-kpi {
+    border: 1.5px solid #e2e8f0; border-radius: 6px; padding: 3mm 2mm;
+    text-align: center; background: #f8fafc;
+  }
+  .pr-kpi.danger { border-color: #fca5a5; background: #fff1f2; }
+  .pr-kpi.warn   { border-color: #fcd34d; background: #fffbeb; }
+  .pr-kpi.ok     { border-color: #6ee7b7; background: #f0fdf4; }
+  .pr-kpi .num   { font-size: 18pt; font-weight: 800; color: #1e3a5f; line-height: 1.1; }
+  .pr-kpi.danger .num { color: #dc2626; }
+  .pr-kpi.warn .num   { color: #d97706; }
+  .pr-kpi.ok .num     { color: #059669; }
+  .pr-kpi .lbl   { font-size: 7.5pt; color: #64748b; margin-top: 1mm; }
+
+  /* 2컬럼 그리드 */
+  .pr-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-bottom: 6mm; }
+
+  /* 카드 */
+  .pr-card { border: 1px solid #e2e8f0; border-radius: 6px; padding: 4mm; background: #fff; }
+  .pr-card h4 { font-size: 10.5pt; font-weight: 700; color: #334155; margin: 0 0 3mm 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 2mm; }
+
+  /* 표 */
+  .pr-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  .pr-table th {
+    background: #1e3a5f; color: #fff; padding: 2mm 2.5mm;
+    text-align: left; font-weight: 700; font-size: 8pt;
+  }
+  .pr-table td { padding: 1.8mm 2.5mm; border-bottom: 1px solid #e2e8f0; color: #334155; }
+  .pr-table tr:nth-child(even) td { background: #f8fafc; }
+  .pr-table tr:last-child td { border-bottom: none; }
+  .pr-table td.num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+  .pr-table td.center { text-align: center; }
+
+  /* 배지 */
+  .pr-badge { display: inline-block; padding: 0.5mm 2mm; border-radius: 3px; font-size: 7.5pt; font-weight: 700; }
+  .pr-badge.danger { background: #fee2e2; color: #dc2626; }
+  .pr-badge.warn   { background: #fef3c7; color: #d97706; }
+  .pr-badge.ok     { background: #dcfce7; color: #16a34a; }
+  .pr-badge.blue   { background: #dbeafe; color: #1d4ed8; }
+
+  /* 비용 요약 행 */
+  .pr-cost-row { display: flex; gap: 6mm; flex-wrap: wrap; margin-bottom: 4mm; }
+  .pr-cost-item { background: #f0f6ff; border-radius: 5px; padding: 2mm 4mm; font-size: 9pt; }
+  .pr-cost-item strong { color: #1e3a5f; }
+
+  /* SLA 통계 행 */
+  .pr-sla-stat { display: flex; gap: 6mm; margin-bottom: 4mm; }
+  .pr-sla-item { font-size: 10pt; }
+  .pr-sla-item strong { color: #1e3a5f; font-size: 13pt; }
+
+  /* 미처리 우선순위 색상 */
+  .pr-pri-urgent { color: #dc2626; font-weight: 700; }
+  .pr-pri-high   { color: #d97706; font-weight: 700; }
+  .pr-pri-normal { color: #334155; }
+
+  /* 푸터 */
+  .pr-footer { margin-top: 10mm; padding-top: 4mm; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }
+}
+
+/* 화면에서는 printReport 숨김 */
+#printReport { display: none; }
 </style>
 </head>
 <body>
@@ -760,7 +867,8 @@
         <button class="btn secondary small" onclick="setReportPeriod('thisMonth')">이번달</button>
         <button class="btn secondary small" onclick="setReportPeriod('lastMonth')">지난달</button>
         <button class="btn secondary small" onclick="setReportPeriod('3month')">3개월</button>
-        <button class="btn" onclick="downloadReportExcel()" style="margin-left:4px;">⬇ Excel</button>
+        <button class="btn secondary" onclick="downloadReportExcel()" style="margin-left:4px;">⬇ Excel</button>
+        <button class="btn" id="printBtn" onclick="printReport()" style="margin-left:4px;background:#1e3a5f;">🖨 PDF 출력</button>
       </div>
     </div>
 
@@ -1867,6 +1975,270 @@ function renderReportPending(defects){
       <td>${d.due_date||'-'}</td>
     </tr>`;
   }).join('');
+}
+
+/* =========================================================
+   PDF 출력 — printReport()
+   ========================================================= */
+async function printReport(){
+  const defects = getReportDefects();
+  const from = document.getElementById('reportDateFrom').value;
+  const to   = document.getElementById('reportDateTo').value;
+  const now  = new Date();
+  const genTime = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}  ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  // ── 1. KPI 계산 ──────────────────────────────────────────
+  const total     = defects.length;
+  const done      = defects.filter(d=>d.status==='완료').length;
+  const pending   = total - done;
+  const vacant    = defects.reduce((s,d)=>s+(d.is_vacant?(d.vacant_days||0):0),0);
+  const totalCost = defects.reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const repeated  = defects.filter(d=>d.is_repeated).length;
+  const rate      = total ? Math.round(done/total*100) : 0;
+
+  // ── 2. 증상별 ────────────────────────────────────────────
+  const symMap = {};
+  defects.forEach(d=>{
+    const k = d.symptom||'미분류';
+    if(!symMap[k]) symMap[k]={total:0,done:0};
+    symMap[k].total++; if(d.status==='완료') symMap[k].done++;
+  });
+  const symRows = Object.entries(symMap).sort((a,b)=>b[1].total-a[1].total).map(([k,v])=>`
+    <tr><td>${k}</td><td class="num-cell">${v.total}</td>
+    <td class="num-cell">${Math.round(v.total/total*100)}%</td>
+    <td class="num-cell">${v.done}</td><td class="num-cell">${v.total-v.done}</td></tr>`).join('');
+
+  // ── 3. 부위별 ────────────────────────────────────────────
+  const locMap = {};
+  defects.forEach(d=>{
+    const k = d.defect_categories?.name||'미분류';
+    if(!locMap[k]) locMap[k]={total:0,done:0};
+    locMap[k].total++; if(d.status==='완료') locMap[k].done++;
+  });
+  const locRows = Object.entries(locMap).sort((a,b)=>b[1].total-a[1].total).map(([k,v])=>`
+    <tr><td>${k}</td><td class="num-cell">${v.total}</td>
+    <td class="num-cell">${Math.round(v.total/total*100)}%</td>
+    <td class="num-cell">${v.done}</td><td class="num-cell">${v.total-v.done}</td></tr>`).join('');
+
+  // ── 4. 객실별 집중도 ─────────────────────────────────────
+  const roomMap = {};
+  defects.forEach(d=>{
+    const k = d.rooms?.room_number||'?';
+    if(!roomMap[k]) roomMap[k]={count:0,pend:0,vacant:0,repeat:0,cost:0};
+    roomMap[k].count++;
+    if(d.status!=='완료') roomMap[k].pend++;
+    if(d.is_vacant) roomMap[k].vacant += (d.vacant_days||0);
+    if(d.is_repeated) roomMap[k].repeat++;
+    roomMap[k].cost += Number(d.total_cost||0);
+  });
+  const roomRows = Object.entries(roomMap).filter(([,v])=>v.count>=3)
+    .sort((a,b)=>b[1].count-a[1].count).map(([room,v])=>`
+    <tr><td><b>${room}</b></td><td class="num-cell">${v.count}</td>
+    <td class="num-cell">${v.pend}</td><td class="num-cell">${v.vacant}일</td>
+    <td class="num-cell">${v.repeat}</td><td class="num-cell">${v.cost.toLocaleString()}원</td></tr>`).join('');
+
+  // ── 5. 처리 소요일 ───────────────────────────────────────
+  const completed = defects.filter(d=>d.status==='완료' && d.created_at);
+  const buckets = {'1일 이내':0,'2~3일':0,'4~7일':0,'8~14일':0,'15일 이상':0};
+  let totalDays=0;
+  completed.forEach(d=>{
+    const days=Math.floor((new Date(d.updated_at||d.created_at)-new Date(d.created_at))/(864e5));
+    totalDays+=days;
+    if(days<=1) buckets['1일 이내']++;
+    else if(days<=3) buckets['2~3일']++;
+    else if(days<=7) buckets['4~7일']++;
+    else if(days<=14) buckets['8~14일']++;
+    else buckets['15일 이상']++;
+  });
+  const avgDays = completed.length ? Math.round(totalDays/completed.length) : 0;
+  const slaTotal = completed.length||1;
+  const slaRows = Object.entries(buckets).map(([k,v])=>`
+    <tr><td>${k}</td><td class="num-cell">${v}</td><td class="num-cell">${Math.round(v/slaTotal*100)}%</td></tr>`).join('');
+
+  // ── 6. 반복하자 ──────────────────────────────────────────
+  const repMap = {};
+  defects.filter(d=>d.is_repeated).forEach(d=>{
+    const k=`${d.rooms?.room_number||'?'}__${d.symptom||'?'}`;
+    if(!repMap[k]) repMap[k]={room:d.rooms?.room_number||'?',symptom:d.symptom||'?',count:0,lastDate:'',cost:0};
+    repMap[k].count++; repMap[k].cost+=Number(d.total_cost||0);
+    if((d.created_at||'').slice(0,10)>repMap[k].lastDate) repMap[k].lastDate=(d.created_at||'').slice(0,10);
+  });
+  const repRows = Object.values(repMap).sort((a,b)=>b.count-a.count).map(r=>`
+    <tr><td>${r.room}</td><td>${r.symptom}</td><td class="num-cell"><b>${r.count}건</b></td>
+    <td class="center">${r.lastDate}</td><td class="num-cell">${r.cost.toLocaleString()}원</td></tr>`).join('');
+
+  // ── 7. 비용 ──────────────────────────────────────────────
+  const selfCost = defects.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const outCost  = defects.filter(d=>d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const vendorMap={};
+  defects.filter(d=>d.is_outsourced&&d.vendor_name).forEach(d=>{
+    if(!vendorMap[d.vendor_name]) vendorMap[d.vendor_name]={count:0,cost:0};
+    vendorMap[d.vendor_name].count++; vendorMap[d.vendor_name].cost+=Number(d.outsourced_cost||0);
+  });
+  const vendorRows = Object.entries(vendorMap).sort((a,b)=>b[1].cost-a[1].cost).map(([name,v])=>`
+    <tr><td>${name}</td><td class="num-cell">${v.count}건</td><td class="num-cell">${v.cost.toLocaleString()}원</td></tr>`).join('');
+
+  // ── 8. 부품 (async) ──────────────────────────────────────
+  let partsRows = '<tr><td colspan="4" style="text-align:center;color:#94a3b8;">데이터 없음</td></tr>';
+  if(sb && defects.length){
+    const ids = defects.map(d=>d.id);
+    const {data} = await sb.from('defect_parts_used').select('*, defect_parts(name,unit)').in('defect_id',ids);
+    const pm={};
+    (data||[]).forEach(r=>{
+      const name=r.defect_parts?.name||r.part_name_manual||'부속';
+      if(!pm[name]) pm[name]={usages:0,qty:0,cost:0};
+      pm[name].usages++; pm[name].qty+=Number(r.quantity||0);
+      pm[name].cost+=Number(r.quantity||0)*Number(r.unit_price||0)+Number(r.labor_cost||0);
+    });
+    const prows=Object.entries(pm).sort((a,b)=>b[1].cost-a[1].cost);
+    if(prows.length) partsRows=prows.map(([name,v])=>`
+      <tr><td>${name}</td><td class="num-cell">${v.usages}건</td>
+      <td class="num-cell">${v.qty}</td><td class="num-cell">${v.cost.toLocaleString()}원</td></tr>`).join('');
+  }
+
+  // ── 9. 미처리 목록 ───────────────────────────────────────
+  const pOrder={긴급:0,높음:1,보통:2,낮음:3};
+  const pendingList = defects.filter(d=>d.status!=='완료').sort((a,b)=>(pOrder[a.priority]??2)-(pOrder[b.priority]??2));
+  const pendingRows = pendingList.map(d=>{
+    const days=Math.floor((new Date()-new Date(d.created_at))/(864e5));
+    const priCls = d.priority==='긴급'?'danger':d.priority==='높음'?'warn':'';
+    const priClass = `pr-badge ${priCls}`;
+    return `<tr>
+      <td><b>${d.rooms?.room_number||'-'}</b></td>
+      <td>${d.symptom||'-'}</td>
+      <td>${escapeHtml(d.title)}</td>
+      <td><span class="${priClass}">${d.priority}</span></td>
+      <td>${d.status}</td>
+      <td class="num-cell">${days}일</td>
+      <td class="center">${d.due_date||'-'}</td>
+    </tr>`;
+  }).join('');
+
+  // ── HTML 조립 ─────────────────────────────────────────────
+  const html = `
+  <div class="pr-cover">
+    <div class="pr-cover-logo">르컬렉티브 시흥 웨이브파크</div>
+    <div class="pr-cover-line"></div>
+    <div class="pr-cover-title">운영 하자관리 보고서</div>
+    <div class="pr-cover-sub">Operations Defect Management Report</div>
+    <div class="pr-cover-period">📅 ${from} ~ ${to}</div>
+    <div class="pr-cover-meta">생성일시 : ${genTime} &nbsp;|&nbsp; 생성자 : ${CURRENT_USER?.email||''}</div>
+  </div>
+
+  <!-- ① 요약 -->
+  <div class="pr-section">
+    <div class="pr-section-title">1. 요약 KPI</div>
+    <div class="pr-kpi-row">
+      <div class="pr-kpi"><div class="num">${total}</div><div class="lbl">총 발생 건수</div></div>
+      <div class="pr-kpi ok"><div class="num">${rate}%</div><div class="lbl">완료율 (${done}건)</div></div>
+      <div class="pr-kpi danger"><div class="num">${pending}</div><div class="lbl">미처리 건수</div></div>
+      <div class="pr-kpi warn"><div class="num">${vacant}일</div><div class="lbl">방막 손실일수</div></div>
+      <div class="pr-kpi"><div class="num">${totalCost.toLocaleString()}원</div><div class="lbl">총 발생 비용</div></div>
+    </div>
+  </div>
+
+  <!-- ② 증상별 + 부위별 -->
+  <div class="pr-section">
+    <div class="pr-section-title">2. 증상별 · 부위별 현황</div>
+    <div class="pr-grid2">
+      <div class="pr-card">
+        <h4>증상별 발생 현황</h4>
+        <table class="pr-table">
+          <thead><tr><th>증상</th><th>건수</th><th>비중</th><th>완료</th><th>미처리</th></tr></thead>
+          <tbody>${symRows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;">데이터 없음</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="pr-card">
+        <h4>부위별 발생 현황</h4>
+        <table class="pr-table">
+          <thead><tr><th>부위</th><th>건수</th><th>비중</th><th>완료</th><th>미처리</th></tr></thead>
+          <tbody>${locRows||'<tr><td colspan="5" style="text-align:center;color:#94a3b8;">데이터 없음</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 객실별 집중도 -->
+  <div class="pr-section pr-break-before">
+    <div class="pr-section-title">3. 객실별 하자 집중도 <span style="font-size:9pt;color:#64748b;font-weight:400;">— 3건 이상 발생 객실</span></div>
+    <div class="pr-card">
+      ${roomRows ? `<table class="pr-table">
+        <thead><tr><th>객실</th><th>총 건수</th><th>미처리</th><th>방막일수</th><th>반복하자</th><th>총 비용</th></tr></thead>
+        <tbody>${roomRows}</tbody>
+      </table>` : '<div style="color:#94a3b8;font-size:9pt;padding:6mm;text-align:center;">3건 이상 발생 객실 없음</div>'}
+    </div>
+  </div>
+
+  <!-- ④ 처리 소요일 -->
+  <div class="pr-section">
+    <div class="pr-section-title">4. 처리 소요일 분포</div>
+    <div class="pr-card">
+      <div class="pr-sla-stat">
+        <div class="pr-sla-item"><strong>${avgDays}일</strong> 평균 처리 소요일</div>
+        <div class="pr-sla-item"><strong>${completed.length}</strong> 완료 건수</div>
+        <div class="pr-sla-item"><strong>${repeated}</strong> 반복하자</div>
+      </div>
+      <table class="pr-table">
+        <thead><tr><th>소요일 구간</th><th>건수</th><th>비중</th></tr></thead>
+        <tbody>${slaRows}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ⑤ 반복하자 -->
+  <div class="pr-section">
+    <div class="pr-section-title">5. 반복하자 리스트</div>
+    <div class="pr-card">
+      ${repRows ? `<table class="pr-table">
+        <thead><tr><th>객실</th><th>증상</th><th>누적 건수</th><th>최근 발생일</th><th>누적 비용</th></tr></thead>
+        <tbody>${repRows}</tbody>
+      </table>` : '<div style="color:#94a3b8;font-size:9pt;padding:6mm;text-align:center;">해당 기간 반복하자 없음</div>'}
+    </div>
+  </div>
+
+  <!-- ⑥ 비용 내역 -->
+  <div class="pr-section pr-break-before">
+    <div class="pr-section-title">6. 비용 내역</div>
+    <div class="pr-cost-row">
+      <div class="pr-cost-item">자체처리 <strong>${selfCost.toLocaleString()}원</strong></div>
+      <div class="pr-cost-item">외주처리 <strong>${outCost.toLocaleString()}원</strong></div>
+      <div class="pr-cost-item">합계 <strong>${(selfCost+outCost).toLocaleString()}원</strong></div>
+    </div>
+    <div class="pr-grid2">
+      <div class="pr-card">
+        <h4>외주업체별 비용</h4>
+        ${vendorRows ? `<table class="pr-table">
+          <thead><tr><th>업체명</th><th>처리건수</th><th>외주비용</th></tr></thead>
+          <tbody>${vendorRows}</tbody>
+        </table>` : '<div style="color:#94a3b8;font-size:9pt;padding:4mm;">외주 처리 없음</div>'}
+      </div>
+      <div class="pr-card">
+        <h4>부품 사용 내역</h4>
+        <table class="pr-table">
+          <thead><tr><th>부품명</th><th>사용건수</th><th>수량</th><th>비용</th></tr></thead>
+          <tbody>${partsRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ 미처리 목록 -->
+  <div class="pr-section pr-break-before">
+    <div class="pr-section-title">7. 미처리 하자 전체 목록 <span style="font-size:9pt;color:#dc2626;font-weight:400;">(${pendingList.length}건)</span></div>
+    <div class="pr-card">
+      ${pendingRows ? `<table class="pr-table">
+        <thead><tr><th>객실</th><th>증상</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>처리기한</th></tr></thead>
+        <tbody>${pendingRows}</tbody>
+      </table>` : '<div style="color:#059669;font-size:9pt;padding:6mm;text-align:center;">미처리 하자 없음 🎉</div>'}
+    </div>
+  </div>
+
+  <div class="pr-footer">
+    르컬렉티브 시흥 웨이브파크 운영팀 &nbsp;|&nbsp; 보고서 생성 : ${genTime} &nbsp;|&nbsp; 대상 기간 : ${from} ~ ${to}
+  </div>`;
+
+  document.getElementById('printReport').innerHTML = html;
+  setTimeout(()=>{ window.print(); }, 80);
 }
 
 async function downloadReportExcel(){
@@ -4441,6 +4813,9 @@ try{
   console.error('초기화 중 오류:', e);
 }
 </script>
+
+<!-- PDF 출력 전용 영역 (화면에서는 숨김, 인쇄 시에만 표시) -->
+<div id="printReport"></div>
 
 </body>
 </html>
