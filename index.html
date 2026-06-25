@@ -370,6 +370,7 @@
   <div class="tab pc-only" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
   <div class="tab pc-only" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
   <div class="tab" data-tab="notice" onclick="switchTab('notice')">📢 공지사항</div>
+  <div class="tab pc-only" data-tab="report" onclick="switchTab('report')">📑 보고서</div>
   <div class="tab admin-only pc-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">🛡️ 관리자</div>
 </div>
 
@@ -744,9 +745,111 @@
     </div>
   </div>
 
-  <!-- ===================== 메인 대시보드 패널 ===================== -->
 
-  <!-- ===================== 메인 대시보드 패널 ===================== -->
+  <!-- ===================== 보고서 패널 ===================== -->
+  <div class="panel" id="panel-report">
+
+    <!-- 헤더 + 기간 선택 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+      <h2 style="margin:0;font-size:17px;font-weight:700;">📑 운영 보고서</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:13px;color:var(--sub);">기간</label>
+        <input type="date" id="reportDateFrom" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" onchange="renderReport()" />
+        <span style="color:var(--sub);font-size:13px;">~</span>
+        <input type="date" id="reportDateTo" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" onchange="renderReport()" />
+        <button class="btn secondary small" onclick="setReportPeriod('thisMonth')">이번달</button>
+        <button class="btn secondary small" onclick="setReportPeriod('lastMonth')">지난달</button>
+        <button class="btn secondary small" onclick="setReportPeriod('3month')">3개월</button>
+        <button class="btn" onclick="downloadReportExcel()" style="margin-left:4px;">⬇ Excel</button>
+      </div>
+    </div>
+
+    <!-- 1. 요약 KPI -->
+    <div class="section-label">요약</div>
+    <div id="reportKpiRow" class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:20px;"></div>
+
+    <!-- 2. 증상별 + 부위별 -->
+    <div class="grid2" style="margin-bottom:20px;">
+      <div class="card">
+        <h3>증상별 발생 현황</h3>
+        <div class="table-scroll"><table id="reportSymptomTable">
+          <thead><tr><th>증상</th><th>건수</th><th>비중</th><th>완료</th><th>미처리</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h3>부위별 발생 현황</h3>
+        <div class="table-scroll"><table id="reportLocationTable">
+          <thead><tr><th>부위</th><th>건수</th><th>비중</th><th>완료</th><th>미처리</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 3. 객실별 하자 집중도 -->
+    <div class="card" style="margin-bottom:20px;">
+      <h3>객실별 하자 집중도 <span style="font-size:12px;color:var(--sub);font-weight:400;">— 3건 이상 발생 객실</span></h3>
+      <div class="table-scroll"><table id="reportRoomTable">
+        <thead><tr><th>객실</th><th>총 건수</th><th>미처리</th><th>방막일수</th><th>반복하자</th><th>총 비용</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="reportRoomEmpty" style="display:none;">해당 기간 내 3건 이상 발생 객실 없음</div>
+    </div>
+
+    <!-- 4. 처리 소요일 -->
+    <div class="card" style="margin-bottom:20px;">
+      <h3>처리 소요일 분포</h3>
+      <div id="reportSlaStats" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;"></div>
+      <div class="table-scroll"><table id="reportSlaTable">
+        <thead><tr><th>구간</th><th>건수</th><th>비중</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- 5. 반복하자 -->
+    <div class="card" style="margin-bottom:20px;">
+      <h3>반복하자 리스트</h3>
+      <div class="table-scroll"><table id="reportRepeatTable">
+        <thead><tr><th>객실</th><th>증상</th><th>누적 건수</th><th>최근 발생일</th><th>누적 비용</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="reportRepeatEmpty" style="display:none;">해당 기간 내 반복하자 없음</div>
+    </div>
+
+    <!-- 6. 비용 내역 -->
+    <div class="grid2" style="margin-bottom:20px;">
+      <div class="card">
+        <h3>비용 내역</h3>
+        <div id="reportCostSummary" style="margin-bottom:12px;"></div>
+        <div class="table-scroll"><table id="reportVendorTable">
+          <thead><tr><th>외주업체</th><th>처리건수</th><th>외주비용</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="empty" id="reportVendorEmpty" style="display:none;">외주 처리 없음</div>
+      </div>
+      <div class="card">
+        <h3>부품 사용 내역</h3>
+        <div class="table-scroll"><table id="reportPartsTable">
+          <thead><tr><th>부품명</th><th>사용건수</th><th>총 수량</th><th>총 비용</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <div class="empty" id="reportPartsEmpty" style="display:none;">사용된 부품 없음</div>
+      </div>
+    </div>
+
+    <!-- 7. 미처리 하자 목록 -->
+    <div class="card" style="margin-bottom:20px;">
+      <h3>미처리 하자 전체 목록 <span id="reportPendingCount" style="font-size:13px;color:var(--danger);font-weight:400;"></span></h3>
+      <div class="table-scroll"><table id="reportPendingTable">
+        <thead><tr><th>객실</th><th>증상</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>처리기한</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty" id="reportPendingEmpty" style="display:none;">미처리 하자 없음 🎉</div>
+    </div>
+
+  </div>
+
+
   <div class="panel active" id="panel-dashboard">
 
     <div class="kpi-row">
@@ -1509,6 +1612,325 @@ function onLoginSuccess(user){
   }
 }
 
+// ============================================================
+// 보고서 기능
+// ============================================================
+function initReportPanel(){
+  // 기간 미설정 시 이번달 기본값
+  if(!document.getElementById('reportDateFrom').value){
+    setReportPeriod('thisMonth');
+  } else {
+    renderReport();
+  }
+}
+
+function setReportPeriod(type){
+  const now = new Date();
+  let from, to;
+  if(type === 'thisMonth'){
+    from = new Date(now.getFullYear(), now.getMonth(), 1);
+    to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  } else if(type === 'lastMonth'){
+    from = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    to   = new Date(now.getFullYear(), now.getMonth(), 0);
+  } else if(type === '3month'){
+    from = new Date(now.getFullYear(), now.getMonth()-2, 1);
+    to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  }
+  const fmt = d => d.toISOString().slice(0,10);
+  document.getElementById('reportDateFrom').value = fmt(from);
+  document.getElementById('reportDateTo').value   = fmt(to);
+  renderReport();
+}
+
+function getReportDefects(){
+  const from = document.getElementById('reportDateFrom').value;
+  const to   = document.getElementById('reportDateTo').value;
+  if(!from || !to) return DEFECTS;
+  return DEFECTS.filter(d => {
+    const dt = d.created_at.slice(0,10);
+    return dt >= from && dt <= to;
+  });
+}
+
+async function renderReport(){
+  const defects = getReportDefects();
+  renderReportKpi(defects);
+  renderReportSymptom(defects);
+  renderReportLocation(defects);
+  renderReportRoom(defects);
+  renderReportSla(defects);
+  renderReportRepeat(defects);
+  renderReportCost(defects);
+  await renderReportParts(defects);
+  renderReportPending(defects);
+}
+
+function renderReportKpi(defects){
+  const total    = defects.length;
+  const done     = defects.filter(d=>d.status==='완료').length;
+  const pending  = total - done;
+  const vacant   = defects.reduce((s,d)=>s+(d.is_vacant? (d.vacant_days||0):0), 0);
+  const totalCost= defects.reduce((s,d)=>s+Number(d.total_cost||0), 0);
+  const repeated = defects.filter(d=>d.is_repeated).length;
+  const rate     = total? Math.round(done/total*100) : 0;
+
+  document.getElementById('reportKpiRow').innerHTML = `
+    <div class="kpi"><div class="num">${total}</div><div class="label">총 발생 건수</div></div>
+    <div class="kpi ok"><div class="num">${rate}%</div><div class="label">완료율 (${done}건)</div></div>
+    <div class="kpi ${pending>0?'danger':''}"><div class="num">${pending}</div><div class="label">미처리 건수</div></div>
+    <div class="kpi ${vacant>0?'warn':''}"><div class="num">${vacant}일</div><div class="label">방막 손실일수</div></div>
+    <div class="kpi"><div class="num">${totalCost.toLocaleString()}원</div><div class="label">총 발생비용</div></div>`;
+}
+
+function renderReportSymptom(defects){
+  const map = {};
+  defects.forEach(d=>{
+    const k = d.symptom||'미분류';
+    if(!map[k]) map[k]={total:0,done:0};
+    map[k].total++;
+    if(d.status==='완료') map[k].done++;
+  });
+  const total = defects.length||1;
+  const rows = Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  document.querySelector('#reportSymptomTable tbody').innerHTML = rows.map(([k,v])=>`
+    <tr><td>${k}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
+    <td>${v.done}</td><td>${v.total-v.done}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">데이터 없음</td></tr>';
+}
+
+function renderReportLocation(defects){
+  const map = {};
+  defects.forEach(d=>{
+    const k = d.defect_locations?.name||'미분류';
+    if(!map[k]) map[k]={total:0,done:0};
+    map[k].total++;
+    if(d.status==='완료') map[k].done++;
+  });
+  const total = defects.length||1;
+  const rows = Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
+  document.querySelector('#reportLocationTable tbody').innerHTML = rows.map(([k,v])=>`
+    <tr><td>${k}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
+    <td>${v.done}</td><td>${v.total-v.done}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">데이터 없음</td></tr>';
+}
+
+function renderReportRoom(defects){
+  const map = {};
+  defects.forEach(d=>{
+    const k = d.rooms?.room_number||'미지정';
+    if(!map[k]) map[k]={total:0,pending:0,vacant:0,repeated:0,cost:0};
+    map[k].total++;
+    if(d.status!=='완료') map[k].pending++;
+    if(d.is_vacant) map[k].vacant += (d.vacant_days||0);
+    if(d.is_repeated) map[k].repeated++;
+    map[k].cost += Number(d.total_cost||0);
+  });
+  const rows = Object.entries(map).filter(([,v])=>v.total>=3).sort((a,b)=>b[1].total-a[1].total);
+  const tbody = document.querySelector('#reportRoomTable tbody');
+  const empty = document.getElementById('reportRoomEmpty');
+  if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(([room,v])=>`
+    <tr>
+      <td><b>${room}</b></td>
+      <td>${v.total}</td>
+      <td>${v.pending>0?`<span style="color:var(--danger);font-weight:700;">${v.pending}</span>`:0}</td>
+      <td>${v.vacant>0?`<span style="color:var(--warn);">${v.vacant}일</span>`:'-'}</td>
+      <td>${v.repeated>0?`<span style="color:var(--warn);">${v.repeated}건</span>`:'-'}</td>
+      <td>${v.cost.toLocaleString()}원</td>
+    </tr>`).join('');
+}
+
+function renderReportSla(defects){
+  const completed = defects.filter(d=>d.status==='완료' && d.created_at);
+  const buckets = {'1일 이내':0,'2~3일':0,'4~7일':0,'8~14일':0,'15일 이상':0};
+  let totalDays = 0;
+  completed.forEach(d=>{
+    const days = Math.floor((new Date(d.updated_at||d.created_at)-new Date(d.created_at))/(1000*60*60*24));
+    totalDays += days;
+    if(days<=1)       buckets['1일 이내']++;
+    else if(days<=3)  buckets['2~3일']++;
+    else if(days<=7)  buckets['4~7일']++;
+    else if(days<=14) buckets['8~14일']++;
+    else              buckets['15일 이상']++;
+  });
+  const avg = completed.length ? Math.round(totalDays/completed.length) : 0;
+  document.getElementById('reportSlaStats').innerHTML = `
+    <div class="kpi" style="padding:10px 16px;"><div class="num" style="font-size:20px;">${avg}일</div><div class="label">평균 처리 소요일</div></div>
+    <div class="kpi ok" style="padding:10px 16px;"><div class="num" style="font-size:20px;">${completed.length}</div><div class="label">완료 건수</div></div>`;
+  const total = completed.length||1;
+  document.querySelector('#reportSlaTable tbody').innerHTML = Object.entries(buckets).map(([k,v])=>`
+    <tr><td>${k}</td><td>${v}</td><td>${Math.round(v/total*100)}%</td></tr>`).join('');
+}
+
+function renderReportRepeat(defects){
+  const map = {};
+  defects.filter(d=>d.is_repeated).forEach(d=>{
+    const k = `${d.rooms?.room_number||'?'}__${d.symptom||'?'}`;
+    if(!map[k]) map[k]={room:d.rooms?.room_number||'?',symptom:d.symptom||'?',count:0,lastDate:'',cost:0};
+    map[k].count++;
+    if(d.created_at.slice(0,10) > map[k].lastDate) map[k].lastDate = d.created_at.slice(0,10);
+    map[k].cost += Number(d.total_cost||0);
+  });
+  const rows = Object.values(map).sort((a,b)=>b.count-a.count);
+  const tbody = document.querySelector('#reportRepeatTable tbody');
+  const empty = document.getElementById('reportRepeatEmpty');
+  if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(r=>`
+    <tr><td>${r.room}</td><td>${r.symptom}</td><td><b>${r.count}건</b></td>
+    <td>${r.lastDate}</td><td>${r.cost.toLocaleString()}원</td></tr>`).join('');
+}
+
+function renderReportCost(defects){
+  const selfCost     = defects.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const outsourceCost= defects.filter(d=>d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const total = selfCost + outsourceCost;
+  document.getElementById('reportCostSummary').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:8px;">
+      <div style="background:#f0f9ff;border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">자체처리</div>
+        <div style="font-size:16px;font-weight:700;">${selfCost.toLocaleString()}원</div>
+      </div>
+      <div style="background:#fff7ed;border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">외주처리</div>
+        <div style="font-size:16px;font-weight:700;">${outsourceCost.toLocaleString()}원</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:var(--sub);margin-bottom:3px;">합계</div>
+        <div style="font-size:16px;font-weight:700;">${total.toLocaleString()}원</div>
+      </div>
+    </div>`;
+
+  // 외주업체별
+  const vendorMap = {};
+  defects.filter(d=>d.is_outsourced && d.vendor_name).forEach(d=>{
+    if(!vendorMap[d.vendor_name]) vendorMap[d.vendor_name]={count:0,cost:0};
+    vendorMap[d.vendor_name].count++;
+    vendorMap[d.vendor_name].cost += Number(d.outsourced_cost||0);
+  });
+  const vrows = Object.entries(vendorMap).sort((a,b)=>b[1].cost-a[1].cost);
+  const vtbody = document.querySelector('#reportVendorTable tbody');
+  const vempty = document.getElementById('reportVendorEmpty');
+  if(!vrows.length){ vtbody.innerHTML=''; vempty.style.display='block'; return; }
+  vempty.style.display='none';
+  vtbody.innerHTML = vrows.map(([name,v])=>`
+    <tr><td>${name}</td><td>${v.count}건</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
+}
+
+async function renderReportParts(defects){
+  if(!sb) return;
+  const ids = defects.map(d=>d.id);
+  if(!ids.length){
+    document.querySelector('#reportPartsTable tbody').innerHTML = '';
+    document.getElementById('reportPartsEmpty').style.display='block';
+    return;
+  }
+  const {data} = await sb.from('defect_parts_used')
+    .select('*, defect_parts(name,unit)')
+    .in('defect_id', ids);
+  const partsMap = {};
+  (data||[]).forEach(r=>{
+    const name = r.defect_parts?.name || r.part_name_manual || '부속';
+    if(!partsMap[name]) partsMap[name]={usages:0,qty:0,cost:0};
+    partsMap[name].usages++;
+    partsMap[name].qty  += Number(r.quantity||0);
+    partsMap[name].cost += Number(r.quantity||0)*Number(r.unit_price||0) + Number(r.labor_cost||0);
+  });
+  const rows = Object.entries(partsMap).sort((a,b)=>b[1].cost-a[1].cost);
+  const tbody = document.querySelector('#reportPartsTable tbody');
+  const empty = document.getElementById('reportPartsEmpty');
+  if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = rows.map(([name,v])=>`
+    <tr><td>${name}</td><td>${v.usages}건</td><td>${v.qty}</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
+}
+
+function renderReportPending(defects){
+  const pending = defects.filter(d=>d.status!=='완료').sort((a,b)=>{
+    const pOrder = {긴급:0,높음:1,보통:2,낮음:3};
+    return (pOrder[a.priority]??2)-(pOrder[b.priority]??2);
+  });
+  document.getElementById('reportPendingCount').textContent = pending.length ? `(${pending.length}건)` : '';
+  const tbody = document.querySelector('#reportPendingTable tbody');
+  const empty = document.getElementById('reportPendingEmpty');
+  if(!pending.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  tbody.innerHTML = pending.map(d=>{
+    const days = Math.floor((new Date()-new Date(d.created_at))/(1000*60*60*24));
+    return `<tr>
+      <td><b>${d.rooms?.room_number||'-'}</b></td>
+      <td>${d.symptom||'-'}</td>
+      <td>${escapeHtml(d.title)}</td>
+      <td><span class="badge p-${d.priority}">${d.priority}</span></td>
+      <td><span class="badge s-${d.status}">${d.status}</span></td>
+      <td>${days}일</td>
+      <td>${d.due_date||'-'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function downloadReportExcel(){
+  if(typeof XLSX === 'undefined'){ showToast('Excel 라이브러리 로드 실패'); return; }
+  const defects = getReportDefects();
+  const from = document.getElementById('reportDateFrom').value;
+  const to   = document.getElementById('reportDateTo').value;
+  const wb   = XLSX.utils.book_new();
+
+  // 시트1: 요약
+  const total=defects.length, done=defects.filter(d=>d.status==='완료').length;
+  const vacant=defects.reduce((s,d)=>s+(d.is_vacant?(d.vacant_days||0):0),0);
+  const totalCost=defects.reduce((s,d)=>s+Number(d.total_cost||0),0);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    [`운영팀 하자 보고서 (${from} ~ ${to})`],[''],
+    ['항목','값'],
+    ['총 발생 건수',total],['완료 건수',done],['미처리 건수',total-done],
+    ['완료율(%)',total?Math.round(done/total*100):0],
+    ['방막 손실일수',vacant],['총 발생비용',totalCost],
+  ]), '요약');
+
+  // 시트2: 증상별
+  const symMap={};
+  defects.forEach(d=>{const k=d.symptom||'미분류';if(!symMap[k])symMap[k]={total:0,done:0};symMap[k].total++;if(d.status==='완료')symMap[k].done++;});
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['증상','건수','완료','미처리','비중(%)'],
+    ...Object.entries(symMap).sort((a,b)=>b[1].total-a[1].total)
+      .map(([k,v])=>[k,v.total,v.done,v.total-v.done,total?Math.round(v.total/total*100):0])
+  ]), '증상별');
+
+  // 시트3: 객실별
+  const roomMap={};
+  defects.forEach(d=>{const k=d.rooms?.room_number||'미지정';if(!roomMap[k])roomMap[k]={total:0,pending:0,vacant:0,repeated:0,cost:0};roomMap[k].total++;if(d.status!=='완료')roomMap[k].pending++;if(d.is_vacant)roomMap[k].vacant+=(d.vacant_days||0);if(d.is_repeated)roomMap[k].repeated++;roomMap[k].cost+=Number(d.total_cost||0);});
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['객실','총 건수','미처리','방막일수','반복하자','총 비용'],
+    ...Object.entries(roomMap).sort((a,b)=>b[1].total-a[1].total)
+      .map(([r,v])=>[r,v.total,v.pending,v.vacant,v.repeated,v.cost])
+  ]), '객실별');
+
+  // 시트4: 비용내역
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['처리방식','건수','비용'],
+    ['자체처리', defects.filter(d=>!d.is_outsourced).length, defects.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0)],
+    ['외주처리', defects.filter(d=>d.is_outsourced).length,  defects.filter(d=>d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0)],
+    [''],['외주업체','처리건수','비용'],
+    ...Object.entries(defects.filter(d=>d.is_outsourced&&d.vendor_name).reduce((m,d)=>{if(!m[d.vendor_name])m[d.vendor_name]={c:0,cost:0};m[d.vendor_name].c++;m[d.vendor_name].cost+=Number(d.outsourced_cost||0);return m;},{}))
+      .sort((a,b)=>b[1].cost-a[1].cost).map(([n,v])=>[n,v.c,v.cost])
+  ]), '비용내역');
+
+  // 시트5: 미처리 목록
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+    ['객실','증상','하자내용','우선순위','상태','경과일','처리기한'],
+    ...defects.filter(d=>d.status!=='완료').map(d=>[
+      d.rooms?.room_number||'-', d.symptom||'-', d.title,
+      d.priority, d.status,
+      Math.floor((new Date()-new Date(d.created_at))/(1000*60*60*24)),
+      d.due_date||'-'
+    ])
+  ]), '미처리목록');
+
+  XLSX.writeFile(wb, `운영보고서_${from}_${to}.xlsx`);
+  showToast('Excel 보고서가 다운로드되었습니다.');
+}
+
 async function doLogout(){
   await sb.auth.signOut();
 }
@@ -1721,6 +2143,7 @@ function switchTab(name){
   if(name==='coststat')   try{ initCostStatPanel(); renderCostStat(); }catch(e){ console.error(e); }
   if(name==='notice')     loadNotices();
   if(name==='admin')      loadAdminUsers();
+  if(name==='report')     initReportPanel();
 }
 
 function showMobileBackBtn(){
