@@ -485,7 +485,6 @@
 <div class="topbar">
   <h1>🏨 <span class="topbar-full">시흥 웨이브파크 </span>하자관리</h1>
   <div class="topbar-right">
-    <div class="status admin-only" id="connStatus" style="display:none;">Supabase 연결 대기중…</div>
     <div class="user-chip" id="userChip" style="display:none;">
       <button class="btn-logout" id="btnLogout" onclick="doLogout()"><span class="btn-text">로그아웃</span></button>
     </div>
@@ -857,6 +856,7 @@
     <div class="subpanel" id="subpanel-admin-settings">
       <div class="card">
         <h3>Supabase 연결 설정</h3>
+        <div id="connStatus" style="margin-bottom:12px;font-size:13px;font-weight:600;color:var(--sub);">Supabase 연결 대기중…</div>
         <div class="setup-box">
           1. supabase.com 프로젝트 → <code>Project Settings → API</code>에서<br/>
           <b>Project URL</b>과 <b>anon public key</b>를 복사해 아래에 붙여넣으세요.<br/>
@@ -1333,6 +1333,7 @@
         <h3>수리부속 등록</h3>
         <div class="masterform">
           <input id="partName" placeholder="부속명 (예: 변기 시트)" />
+          <input id="partNumber" placeholder="제품번호 (선택)" style="width:130px;" />
           <input id="partUnit" placeholder="단위 (예: 개, m, set)" value="개" />
           <input id="partPrice" type="number" placeholder="단가(원)" />
           <input id="partVendor" placeholder="주거래처 (선택)" />
@@ -1345,7 +1346,7 @@
           <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedParts()">선택 삭제 (<span id="partsSelectedCount">0</span>개)</button>
         </div>
         <div class="table-scroll"><table>
-          <thead><tr><th style="width:32px;"></th><th>부속명</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th><th></th></tr></thead>
+          <thead><tr><th style="width:32px;"></th><th>부속명</th><th>제품번호</th><th>단위</th><th>단가</th><th>거래처</th><th>상태</th><th></th><th></th></tr></thead>
           <tbody id="partsTableBody"></tbody>
         </table></div>
       </div>
@@ -1628,7 +1629,8 @@ function saveConfig(){
 function initSupabase(url, key){
   try{
     sb = window.supabase.createClient(url, key);
-    document.getElementById('connStatus').textContent = '✅ Supabase 연결됨';
+    const cs = document.getElementById('connStatus');
+    if(cs){ cs.textContent = '✅ Supabase 연결됨'; cs.style.color = 'var(--ok)'; }
     // 연결 후 기존 세션 확인 → 있으면 바로 로그인 처리
     sb.auth.getSession().then(({ data: { session } }) => {
       if(session){
@@ -1645,7 +1647,8 @@ function initSupabase(url, key){
       }
     });
   }catch(e){
-    document.getElementById('connStatus').textContent = '⚠ 연결 실패: ' + e.message;
+    const cs = document.getElementById('connStatus');
+    if(cs){ cs.textContent = '⚠ 연결 실패: ' + e.message; cs.style.color = 'var(--danger)'; }
   }
 }
 
@@ -2629,15 +2632,16 @@ function renderNoticeList(){
     const statusBadge = isActive
       ? `<span class="notice-active">노출중</span>`
       : (today > n.ends_at ? `<span class="notice-expired">종료</span>` : `<span class="notice-period">예정</span>`);
-    const canDelete = CURRENT_USER && (n.created_by === CURRENT_USER.id || CURRENT_ROLE === 'admin');
+    const canEdit = CURRENT_USER && (n.created_by === CURRENT_USER.id || CURRENT_ROLE === 'admin');
     return `<div class="notice-card">
       <div class="notice-content">${escapeHtml(n.content)} ${statusBadge}</div>
       ${n.url ? `<div class="notice-url"><a href="${escapeHtml(n.url)}" target="_blank">🔗 ${escapeHtml(n.url)}</a></div>` : ''}
       <div class="notice-meta" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
         <span>📅 ${n.starts_at} ~ ${n.ends_at} &nbsp;|&nbsp; ✍️ ${escapeHtml(n.created_by_email||'')}</span>
         <div style="display:flex;gap:6px;">
-          ${canDelete ? `<button class="btn secondary small" onclick="editNotice(${n.id})">수정</button>` : ''}
-          ${canDelete ? `<button class="btn small" style="background:var(--danger);" onclick="deleteNotice(${n.id})">삭제</button>` : ''}
+          ${canEdit && isActive ? `<button class="btn small" style="background:var(--ok);color:#fff;" onclick="closeNotice(${n.id})">완료</button>` : ''}
+          ${canEdit ? `<button class="btn secondary small" onclick="editNotice(${n.id})">수정</button>` : ''}
+          ${canEdit ? `<button class="btn small" style="background:var(--danger);" onclick="deleteNotice(${n.id})">삭제</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -2750,6 +2754,15 @@ async function deleteNotice(id){
   const { error } = await sb.from('announcements').delete().eq('id', id);
   if(error){ showToast('삭제 실패: ' + error.message); return; }
   showToast('삭제되었습니다.');
+  await loadNotices();
+}
+
+async function closeNotice(id){
+  if(!confirm('공지를 완료 처리하시겠습니까?\n상단 노출이 즉시 종료됩니다.')) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  const { error } = await sb.from('announcements').update({ ends_at: yesterday }).eq('id', id);
+  if(error){ showToast('완료 처리 실패: ' + error.message); return; }
+  showToast('✅ 공지가 완료 처리되었습니다.');
   await loadNotices();
 }
 
@@ -2946,7 +2959,10 @@ function populateFormSelects(){
   }
   const partSel = document.getElementById('useePartSelect');
   if(partSel){
-    partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${Number(p.unit_price).toLocaleString()}원/${escapeHtml(p.unit||'')})</option>`).join('');
+    partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>{
+      const no = p.part_number ? ` [${escapeHtml(p.part_number)}]` : '';
+      return `<option value="${p.id}">${escapeHtml(p.name)}${no} (${Number(p.unit_price).toLocaleString()}원/${escapeHtml(p.unit||'')})</option>`;
+    }).join('');
   }
   const partOptions = PARTS.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (현재고 ${p.current_stock||0})</option>`).join('');
   ['stockInPart','stockOutPart','adjustPart'].forEach(id=>{
@@ -3806,13 +3822,14 @@ function renderPartsTable(){
     <tr id="part-row-${p.id}">
       <td><input type="checkbox" class="parts-row-check" value="${p.id}" onchange="updateSelectedCount('parts-row-check','partsSelectedCount','partsSelectAll')" /></td>
       <td>${escapeHtml(p.name)}</td>
+      <td style="color:var(--sub);font-size:12px;">${escapeHtml(p.part_number||'-')}</td>
       <td>${escapeHtml(p.unit)}</td>
       <td>${Number(p.unit_price).toLocaleString()}원</td>
       <td>${escapeHtml(p.vendor_name||'-')}</td>
       <td><span class="badge ok-badge" style="background:#dcfce7;color:#166534;">${p.is_active?'활성':'비활성'}</span></td>
       <td><button class="btn small secondary" onclick="startInlineEditPart(${p.id})">수정</button></td>
       <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deletePart(${p.id})">삭제</button></td>
-    </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--sub);padding:20px;">등록된 부속이 없습니다.</td></tr>';
 }
 
 function startInlineEditPart(id){
@@ -3824,6 +3841,7 @@ function startInlineEditPart(id){
   tr.innerHTML = `
     <td><input type="checkbox" class="parts-row-check" value="${id}" onchange="updateSelectedCount('parts-row-check','partsSelectedCount','partsSelectAll')" /></td>
     <td><input type="text" id="iep-name-${id}" value="${escapeHtml(p.name||'')}" placeholder="부속명" /></td>
+    <td><input type="text" id="iep-partno-${id}" value="${escapeHtml(p.part_number||'')}" placeholder="제품번호" style="width:110px;" /></td>
     <td><input type="text" id="iep-unit-${id}" value="${escapeHtml(p.unit||'개')}" placeholder="단위" style="width:60px;" /></td>
     <td><input type="number" id="iep-price-${id}" value="${p.unit_price||0}" placeholder="단가" style="width:90px;" /></td>
     <td><input type="text" id="iep-vendor-${id}" value="${escapeHtml(p.vendor_name||'')}" placeholder="거래처" /></td>
@@ -3837,31 +3855,34 @@ function startInlineEditPart(id){
 }
 
 async function saveInlineEditPart(id){
-  const name  = document.getElementById('iep-name-'+id)?.value.trim();
-  const unit  = document.getElementById('iep-unit-'+id)?.value.trim() || '개';
-  const price = Number(document.getElementById('iep-price-'+id)?.value || 0);
-  const vendor= document.getElementById('iep-vendor-'+id)?.value.trim() || null;
+  const name    = document.getElementById('iep-name-'+id)?.value.trim();
+  const partNo  = document.getElementById('iep-partno-'+id)?.value.trim() || null;
+  const unit    = document.getElementById('iep-unit-'+id)?.value.trim() || '개';
+  const price   = Number(document.getElementById('iep-price-'+id)?.value || 0);
+  const vendor  = document.getElementById('iep-vendor-'+id)?.value.trim() || null;
   if(!name){ alert('부속명을 입력해주세요.'); return; }
   const {error} = await sb.from('defect_parts').update({
-    name, unit, unit_price: price, vendor_name: vendor||null
+    name, part_number: partNo, unit, unit_price: price, vendor_name: vendor||null
   }).eq('id', id);
   if(error){ alert('수정 실패: '+error.message); return; }
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
 async function addPart(){
-  const name = document.getElementById('partName').value.trim();
-  const unit = document.getElementById('partUnit').value.trim() || '개';
-  const price = Number(document.getElementById('partPrice').value || 0);
-  const vendor = document.getElementById('partVendor').value.trim();
+  const name          = document.getElementById('partName').value.trim();
+  const partNumber    = document.getElementById('partNumber')?.value.trim() || null;
+  const unit          = document.getElementById('partUnit').value.trim() || '개';
+  const price         = Number(document.getElementById('partPrice').value || 0);
+  const vendor        = document.getElementById('partVendor').value.trim();
   const expectedUsage = Number(document.getElementById('partExpectedUsage')?.value || 0);
   if(!name){ alert('부속명을 입력해주세요.'); return; }
   const {error} = await sb.from('defect_parts').insert({
-    name, unit, unit_price: price, vendor_name: vendor || null,
+    name, part_number: partNumber, unit, unit_price: price, vendor_name: vendor || null,
     expected_monthly_usage: expectedUsage, registered_at: new Date().toISOString()
   });
   if(error){ alert('등록 실패: '+error.message); return; }
   document.getElementById('partName').value='';
+  if(document.getElementById('partNumber')) document.getElementById('partNumber').value='';
   document.getElementById('partPrice').value='';
   document.getElementById('partVendor').value='';
   if(document.getElementById('partExpectedUsage')) document.getElementById('partExpectedUsage').value='';
