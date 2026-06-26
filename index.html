@@ -31,8 +31,6 @@
   .topbar h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap;flex-shrink:0;}
   .topbar .status{font-size:13px;color:var(--sub);}
   .topbar-right{display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;}
-  .topbar-username{font-weight:600;font-size:13.5px;white-space:nowrap;}
-  .topbar-email{color:var(--sub);font-size:12.5px;white-space:nowrap;}
   /* ── 새 네비게이션 ── */
   .tabs{display:flex;align-items:stretch;padding:0 20px;background:var(--card);border-bottom:1px solid var(--border);gap:0;}
   .tab{padding:0 16px;height:44px;display:flex;align-items:center;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;gap:5px;position:relative;}
@@ -165,12 +163,6 @@
     .topbar-right{gap:5px;flex-shrink:1;min-width:0;overflow:hidden;}
     .topbar .status{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72px;flex-shrink:1;}
     .user-chip{gap:4px;flex-wrap:nowrap;flex-shrink:1;min-width:0;overflow:hidden;}
-    .user-chip .role-badge{font-size:10px;padding:2px 5px;flex-shrink:0;}
-    .topbar-username{display:none;}
-    .topbar-email{display:none;}
-    /* 모바일: 내 정보 아이콘만, 로그아웃 숨김 → 내 정보 모달 내부로 이동 */
-    #btnMyInfo .btn-text{display:none;}
-    #btnLogout{display:none;}
     #mobileLogoutRow{display:block !important;}
     .btn-logout{font-size:13px;padding:4px 6px;white-space:nowrap;flex-shrink:0;}
     #settingsBtn{font-size:13px;padding:4px 6px;flex-shrink:0;}
@@ -312,8 +304,6 @@
 
   /* ── topbar 사용자 표시 ── */
   .user-chip{display:flex;align-items:center;gap:8px;font-size:13px;}
-  .user-chip .role-badge{background:#ede9fe;color:#6d28d9;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;}
-  .user-chip .role-badge.admin{background:#fef3c7;color:#92400e;}
   .btn-logout{font-size:12px;padding:5px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--sub);}
   .btn-logout:hover{border-color:var(--danger);color:var(--danger);}
 
@@ -496,12 +486,8 @@
 <div class="topbar">
   <h1>🏨 <span class="topbar-full">시흥 웨이브파크 </span>하자관리</h1>
   <div class="topbar-right">
-    <div class="status" id="connStatus">Supabase 연결 대기중…</div>
+    <div class="status admin-only" id="connStatus" style="display:none;">Supabase 연결 대기중…</div>
     <div class="user-chip" id="userChip" style="display:none;">
-      <span id="topUserName" class="topbar-username"></span>
-      <span id="userEmail" class="topbar-email"></span>
-      <span class="role-badge" id="userRoleBadge"></span>
-      <button class="btn-logout" id="btnMyInfo" onclick="openChangePwModal()">👤 <span class="btn-text">내 정보</span></button>
       <button class="btn-logout" id="btnLogout" onclick="doLogout()"><span class="btn-text">로그아웃</span></button>
     </div>
     <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
@@ -513,6 +499,7 @@
   <div class="tab pc-only" data-tab="dashboard" onclick="switchTab('dashboard')">현황</div>
   <div class="tab" data-tab="rooms" onclick="switchTab('rooms')" data-mobile-label="📋 하자 목록">하자 목록</div>
   <div class="tab" data-tab="notice" onclick="switchTab('notice')">공지</div>
+  <div class="tab pc-only" data-tab="inventory" onclick="switchTab('inventory')">부품 재고관리</div>
 
   <div class="tab-spacer"></div>
   <div class="tab-divider pc-only"></div>
@@ -527,7 +514,6 @@
       <div class="submenu-item" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
       <div class="submenu-item" data-tab="coststat"   onclick="switchTab('coststat')">비용·부품 통계</div>
       <div class="submenu-item" data-tab="vendors"    onclick="switchTab('vendors')">외주업체</div>
-      <div class="submenu-item" data-tab="inventory"  onclick="switchTab('inventory')">부품 재고관리</div>
       <div class="submenu-item" data-tab="report"     onclick="switchTab('report')">보고서</div>
     </div>
   </div>
@@ -540,7 +526,8 @@
       설정
       <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     </div>
-    <div class="submenu">
+    <div class="submenu" style="left:auto;right:0;border-radius:8px 0 8px 8px;">
+      <div class="submenu-item" data-tab="myinfo" onclick="openChangePwModal()">내 정보</div>
       <div class="submenu-item" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
       <div class="submenu-item admin-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">관리자</div>
     </div>
@@ -1753,17 +1740,10 @@ function onLoginSuccess(user){
   // 로그인 화면 숨기기
   document.getElementById('loginScreen').style.display = 'none';
 
-  // topbar 사용자 정보 표시
+  // topbar 표시
   document.getElementById('userChip').style.display = 'flex';
-  const fullName = user?.user_metadata?.full_name || '';
-  const nameEl = document.getElementById('topUserName');
-  if(nameEl) nameEl.textContent = fullName ? fullName : '';
-  document.getElementById('userEmail').textContent = user.email;
-  const roleBadge = document.getElementById('userRoleBadge');
-  roleBadge.textContent = CURRENT_ROLE === 'admin' ? '관리자' : '일반';
-  roleBadge.className = 'role-badge' + (CURRENT_ROLE === 'admin' ? ' admin' : '');
 
-  // admin 전용 탭/버튼 표시 (pc-only 포함 모두)
+  // admin 전용 요소 표시 (connStatus 포함)
   if(CURRENT_ROLE === 'admin'){
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
   }
@@ -2550,7 +2530,7 @@ function switchTab(name){
 
   // 모바일: PC 전용 탭 차단, 허용 탭은 오버레이 방식으로 표시
   if(IS_MOBILE){
-    if(['dashboard','categories','coststat','vendors','inventory','master','admin'].includes(name)){
+    if(['dashboard','categories','coststat','vendors','inventory','master','admin','myinfo'].includes(name)){
       showToast('PC에서 확인해주세요.');
       return;
     }
@@ -2573,8 +2553,8 @@ function switchTab(name){
   // 서브메뉴 아이템 active
   document.querySelectorAll('.submenu-item').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
   // 분석/설정 그룹 버튼 active 처리
-  const analyticsGroup = ['categories','coststat','vendors','inventory','report'];
-  const settingsGroup  = ['master','admin'];
+  const analyticsGroup = ['categories','coststat','vendors','report'];
+  const settingsGroup  = ['master','admin','myinfo'];
   const analyticsBtn = document.getElementById('tabGroupAnalyticsBtn');
   const settingsBtn  = document.getElementById('tabGroupSettingsBtn');
   if(analyticsBtn) analyticsBtn.classList.toggle('group-active', analyticsGroup.includes(name));
