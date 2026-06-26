@@ -3,9 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
+  style-src 'self' 'unsafe-inline';
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+  img-src 'self' data: blob: https://*.supabase.co;
+  font-src 'self' data:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 <title>시흥 웨이브파크 하자관리</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.0/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -1855,7 +1868,7 @@ function renderReportSymptom(defects){
   const total = defects.length||1;
   const rows = Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
   document.querySelector('#reportSymptomTable tbody').innerHTML = rows.map(([k,v])=>`
-    <tr><td>${k}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
+    <tr><td>${escapeHtml(k)}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
     <td>${v.done}</td><td>${v.total-v.done}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">데이터 없음</td></tr>';
 }
 
@@ -1870,7 +1883,7 @@ function renderReportLocation(defects){
   const total = defects.length||1;
   const rows = Object.entries(map).sort((a,b)=>b[1].total-a[1].total);
   document.querySelector('#reportLocationTable tbody').innerHTML = rows.map(([k,v])=>`
-    <tr><td>${k}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
+    <tr><td>${escapeHtml(k)}</td><td>${v.total}</td><td>${Math.round(v.total/total*100)}%</td>
     <td>${v.done}</td><td>${v.total-v.done}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">데이터 없음</td></tr>';
 }
 
@@ -1892,7 +1905,7 @@ function renderReportRoom(defects){
   empty.style.display='none';
   tbody.innerHTML = rows.map(([room,v])=>`
     <tr>
-      <td><b>${room}</b></td>
+      <td><b>${escapeHtml(room)}</b></td>
       <td>${v.total}</td>
       <td>${v.pending>0?`<span style="color:var(--danger);font-weight:700;">${v.pending}</span>`:0}</td>
       <td>${v.vacant>0?`<span style="color:var(--warn);">${v.vacant}일</span>`:'-'}</td>
@@ -1938,8 +1951,8 @@ function renderReportRepeat(defects){
   if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   tbody.innerHTML = rows.map(r=>`
-    <tr><td>${r.room}</td><td>${r.symptom}</td><td><b>${r.count}건</b></td>
-    <td>${r.lastDate}</td><td>${r.cost.toLocaleString()}원</td></tr>`).join('');
+    <tr><td>${escapeHtml(r.room)}</td><td>${escapeHtml(r.symptom)}</td><td><b>${r.count}건</b></td>
+    <td>${escapeHtml(r.lastDate)}</td><td>${r.cost.toLocaleString()}원</td></tr>`).join('');
 }
 
 function renderReportCost(defects){
@@ -1975,7 +1988,7 @@ function renderReportCost(defects){
   if(!vrows.length){ vtbody.innerHTML=''; vempty.style.display='block'; return; }
   vempty.style.display='none';
   vtbody.innerHTML = vrows.map(([name,v])=>`
-    <tr><td>${name}</td><td>${v.count}건</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
+    <tr><td>${escapeHtml(name)}</td><td>${v.count}건</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
 }
 
 async function renderReportParts(defects){
@@ -2003,7 +2016,7 @@ async function renderReportParts(defects){
   if(!rows.length){ tbody.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   tbody.innerHTML = rows.map(([name,v])=>`
-    <tr><td>${name}</td><td>${v.usages}건</td><td>${v.qty}</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
+    <tr><td>${escapeHtml(name)}</td><td>${v.usages}건</td><td>${v.qty}</td><td>${v.cost.toLocaleString()}원</td></tr>`).join('');
 }
 
 function renderReportPending(defects){
@@ -2019,13 +2032,13 @@ function renderReportPending(defects){
   tbody.innerHTML = pending.map(d=>{
     const days = Math.floor((new Date()-new Date(d.created_at))/(1000*60*60*24));
     return `<tr>
-      <td><b>${d.rooms?.room_number||'-'}</b></td>
-      <td>${d.symptom||'-'}</td>
+      <td><b>${escapeHtml(d.rooms?.room_number||'-')}</b></td>
+      <td>${escapeHtml(d.symptom||'-')}</td>
       <td>${escapeHtml(d.title)}</td>
-      <td><span class="badge p-${d.priority}">${d.priority}</span></td>
-      <td><span class="badge s-${d.status}">${d.status}</span></td>
+      <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
+      <td><span class="badge s-${d.status}">${escapeHtml(d.status)}</span></td>
       <td>${days}일</td>
-      <td>${d.due_date||'-'}</td>
+      <td>${escapeHtml(d.due_date||'-')}</td>
     </tr>`;
   }).join('');
 }
@@ -2117,8 +2130,8 @@ async function printReport(){
     if((d.created_at||'').slice(0,10)>repMap[k].lastDate) repMap[k].lastDate=(d.created_at||'').slice(0,10);
   });
   const repRows = Object.values(repMap).sort((a,b)=>b.count-a.count).map(r=>`
-    <tr><td>${r.room}</td><td>${r.symptom}</td><td class="num-cell"><b>${r.count}건</b></td>
-    <td class="center">${r.lastDate}</td><td class="num-cell">${r.cost.toLocaleString()}원</td></tr>`).join('');
+    <tr><td>${escapeHtml(r.room)}</td><td>${escapeHtml(r.symptom)}</td><td class="num-cell"><b>${r.count}건</b></td>
+    <td class="center">${escapeHtml(r.lastDate)}</td><td class="num-cell">${r.cost.toLocaleString()}원</td></tr>`).join('');
 
   // ── 7. 비용 ──────────────────────────────────────────────
   const selfCost = defects.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
@@ -2157,13 +2170,13 @@ async function printReport(){
     const priCls = d.priority==='긴급'?'danger':d.priority==='높음'?'warn':'';
     const priClass = `pr-badge ${priCls}`;
     return `<tr>
-      <td><b>${d.rooms?.room_number||'-'}</b></td>
-      <td>${d.symptom||'-'}</td>
+      <td><b>${escapeHtml(d.rooms?.room_number||'-')}</b></td>
+      <td>${escapeHtml(d.symptom||'-')}</td>
       <td>${escapeHtml(d.title)}</td>
-      <td><span class="${priClass}">${d.priority}</span></td>
-      <td>${d.status}</td>
+      <td><span class="${priClass}">${escapeHtml(d.priority)}</span></td>
+      <td>${escapeHtml(d.status)}</td>
       <td class="num-cell">${days}일</td>
-      <td class="center">${d.due_date||'-'}</td>
+      <td class="center">${escapeHtml(d.due_date||'-')}</td>
     </tr>`;
   }).join('');
 
@@ -2391,11 +2404,11 @@ function renderMobileMyDefects(){
     return `
     <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-        <span style="font-weight:700;font-size:15px;">${room}호</span>
-        <span style="background:${sc};color:${st};font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;">${d.status}</span>
+        <span style="font-weight:700;font-size:15px;">${escapeHtml(room)}호</span>
+        <span style="background:${sc};color:${st};font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;">${escapeHtml(d.status)}</span>
       </div>
       <div style="font-size:14px;color:var(--text);margin-bottom:4px;">${escapeHtml(d.title)}</div>
-      <div style="font-size:12px;color:var(--sub);">${d.symptom||''} ${d.symptom&&d.defect_locations?.name?' · ':''}${d.defect_locations?.name||''} · ${date}</div>
+      <div style="font-size:12px;color:var(--sub);">${escapeHtml(d.symptom||'')} ${d.symptom&&d.defect_locations?.name?' · ':''}${escapeHtml(d.defect_locations?.name||'')} · ${date}</div>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <select style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;background:#fff;"
                 onchange="changeMobileStatus(${d.id}, this.value)">
@@ -2637,14 +2650,23 @@ function renderAdminUsers(){
     const otherRole = u.role === 'admin' ? 'staff' : 'admin';
     const otherRoleLabel = u.role === 'admin' ? '일반으로 변경' : '관리자로 변경';
     return `<tr>
-      <td>${u.email}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
+      <td>${escapeHtml(u.email)}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
       <td>${roleLabel}</td>
       <td style="font-size:12.5px;color:var(--sub);">${lastLogin}</td>
       <td style="font-size:12.5px;color:var(--sub);">${createdAt}</td>
-      <td>${isMe ? '–' : `<button class="btn secondary small" onclick="adminChangeRole('${u.email}','${otherRole}')">${otherRoleLabel}</button>`}</td>
-      <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" onclick="adminResetPasswordQuick('${u.email}')">초기화</button>`}</td>
+      <td>${isMe ? '–' : `<button class="btn secondary small" data-email="${escapeHtml(u.email)}" data-role="${escapeHtml(otherRole)}" onclick="adminChangeRoleFromBtn(this)">${otherRoleLabel}</button>`}</td>
+      <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" data-email="${escapeHtml(u.email)}" onclick="adminResetPasswordQuickFromBtn(this)">초기화</button>`}</td>
     </tr>`;
   }).join('');
+}
+
+function adminChangeRoleFromBtn(btn){
+  const email = btn.dataset.email;
+  const newRole = btn.dataset.role;
+  adminChangeRole(email, newRole);
+}
+function adminResetPasswordQuickFromBtn(btn){
+  adminResetPasswordQuick(btn.dataset.email);
 }
 
 async function adminChangeRole(email, newRole){
@@ -3000,26 +3022,26 @@ async function loadDefects(){
 function populateRoomFilter(){
   const sel = document.getElementById('filterRoom');
   sel.innerHTML = '<option value="">전체 객실</option>' +
-    ROOMS.map(r=>`<option value="${r.id}">${r.room_number} (${r.room_type||''})</option>`).join('');
+    ROOMS.map(r=>`<option value="${r.id}">${escapeHtml(r.room_number)} (${escapeHtml(r.room_type||'')})</option>`).join('');
 }
 function populateFormSelects(){
   const locSel = document.getElementById('formLocation');
   if(locSel){
     locSel.innerHTML = '<option value="">— 선택 안함 —</option>' +
-      LOCATIONS.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+      LOCATIONS.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
   }
   const partSel = document.getElementById('useePartSelect');
   if(partSel){
-    partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name} (${Number(p.unit_price).toLocaleString()}원/${p.unit})</option>`).join('');
+    partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (${Number(p.unit_price).toLocaleString()}원/${escapeHtml(p.unit||'')})</option>`).join('');
   }
-  const partOptions = PARTS.map(p=>`<option value="${p.id}">${p.name} (현재고 ${p.current_stock||0})</option>`).join('');
+  const partOptions = PARTS.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} (현재고 ${p.current_stock||0})</option>`).join('');
   ['stockInPart','stockOutPart','adjustPart'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.innerHTML = partOptions;
   });
 
   const empOptions = '<option value="">— 선택 안함 —</option>' +
-    EMPLOYEES.filter(e=>e.is_active).map(e=>`<option value="${e.name}">${e.name}${e.role? ' ('+e.role+')':''}</option>`).join('') +
+    EMPLOYEES.filter(e=>e.is_active).map(e=>`<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}${e.role? ' ('+escapeHtml(e.role)+')':''}</option>`).join('') +
     '<option value="__manual__">+ 직접 입력...</option>';
   ['formAssigned','formReporter'].forEach(id=>{
     const el = document.getElementById(id);
@@ -3109,13 +3131,13 @@ function renderDefectsTable(){
     return `
     <tr>
       <td>
-        <b>${d.rooms?.room_number||'-'}</b> <span style="color:#9ca3af;font-size:12px;">${d.rooms?.floor||''}</span>
+        <b>${escapeHtml(d.rooms?.room_number||'-')}</b> <span style="color:#9ca3af;font-size:12px;">${escapeHtml(d.rooms?.floor||'')}</span>
         ${d.is_repeated? '<div><span class="badge" style="background:#fef9c3;color:#854d0e;">🔁 반복하자</span></div>':''}
       </td>
-      <td>${d.symptom||'-'}</td>
-      <td class="col-hide-mobile">${d.defect_locations?.name||'-'}</td>
+      <td>${escapeHtml(d.symptom||'-')}</td>
+      <td class="col-hide-mobile">${escapeHtml(d.defect_locations?.name||'-')}</td>
       <td>${escapeHtml(d.title)}</td>
-      <td><span class="badge p-${d.priority}">${d.priority}</span></td>
+      <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
       <td class="col-hide-mobile"><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
       <td>
         <select class="status-select s-${d.status}" onchange="changeStatus(${d.id}, this.value)">
@@ -3123,11 +3145,11 @@ function renderDefectsTable(){
         </select>
       </td>
       <td>${(()=>{ const sla=getSlaInfo(d); return sla? `<span class="badge ${sla.level}">${sla.days}일</span>` : '<span class="badge sla-ok">완료</span>'; })()}</td>
-      <td class="col-hide-mobile">${d.due_date? `${d.due_date}${isOverdue(d)? ' <span class=\"badge sla-over\">초과</span>':''}` : '-'}</td>
-      <td class="col-hide-mobile">${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${d.vacant_days||0}일</span>` : '-'}</td>
+      <td class="col-hide-mobile">${d.due_date? `${escapeHtml(d.due_date)}${isOverdue(d)? ' <span class=\"badge sla-over\">초과</span>':''}` : '-'}</td>
+      <td class="col-hide-mobile">${d.is_vacant? `<span class="badge" style="background:#fee2e2;color:#b91c1c;">방막 ${Number(d.vacant_days||0)}일</span>` : '-'}</td>
       <td class="col-hide-mobile">${Number(d.total_cost||0).toLocaleString()}원</td>
       <td class="col-hide-mobile">${date}</td>
-      <td class="col-hide-mobile">${d.assigned_to||'-'}</td>
+      <td class="col-hide-mobile">${escapeHtml(d.assigned_to||'-')}</td>
       <td><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
     </tr>`;
   }).join('');
@@ -3175,10 +3197,10 @@ function renderTodoList(){
   if(body){
     body.innerHTML = items.map(d=>`
       <tr>
-        <td><b>${d.rooms?.room_number||'-'}</b></td>
+        <td><b>${escapeHtml(d.rooms?.room_number||'-')}</b></td>
         <td>${escapeHtml(d.title)}</td>
-        <td><span class="badge p-${d.priority}">${d.priority}</span></td>
-        <td>${d.status}</td>
+        <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
+        <td>${escapeHtml(d.status)}</td>
         <td>${d.sla? d.sla.days+'일' : '-'}</td>
         <td>
           ${d.sla? `<span class="badge ${d.sla.level}">${d.sla.label}</span>` : ''}
@@ -3845,7 +3867,7 @@ function populateRoomTypeSelectForRoom(){
   const sel = document.getElementById('roomTypeSelectForRoom');
   if(!sel) return;
   sel.innerHTML = '<option value="">— 타입 선택 —</option>' +
-    ROOM_TYPES.map(t=>`<option value="${t.id}">${t.name}${t.type_code? ' ('+t.type_code+')':''}</option>`).join('');
+    ROOM_TYPES.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}${t.type_code? ' ('+escapeHtml(t.type_code)+')':''}</option>`).join('');
 }
 
 function renderRoomsInfoTable(filterText){
