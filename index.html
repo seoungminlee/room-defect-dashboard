@@ -20,9 +20,35 @@
   .topbar-right{display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;}
   .topbar-username{font-weight:600;font-size:13.5px;white-space:nowrap;}
   .topbar-email{color:var(--sub);font-size:12.5px;white-space:nowrap;}
-  .tabs{display:flex;gap:4px;padding:0 24px;background:var(--card);border-bottom:1px solid var(--border);}
-  .tab{padding:12px 16px;font-size:14px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;}
+  /* ── 새 네비게이션 ── */
+  .tabs{display:flex;align-items:stretch;padding:0 20px;background:var(--card);border-bottom:1px solid var(--border);gap:0;}
+  .tab{padding:0 16px;height:44px;display:flex;align-items:center;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;gap:5px;position:relative;}
   .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab:hover:not(.active){color:var(--text);}
+  .tab-spacer{flex:1;}
+  /* hover 드롭다운 */
+  .tab-group{position:relative;display:flex;align-items:stretch;}
+  .tab-group > .tab{gap:4px;}
+  .tab-group > .tab .chevron{font-size:10px;opacity:.5;transition:transform .15s;}
+  .tab-group:hover > .tab .chevron{transform:rotate(180deg);}
+  .tab-group .submenu{
+    display:none;
+    position:absolute;top:100%;right:0;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:0 0 10px 10px;
+    padding:5px;
+    min-width:150px;
+    z-index:200;
+    box-shadow:0 6px 18px rgba(0,0,0,.1);
+  }
+  .tab-group:hover .submenu{display:block;}
+  .submenu-item{padding:8px 12px;font-size:13px;color:var(--sub);border-radius:6px;cursor:pointer;white-space:nowrap;}
+  .submenu-item:hover{background:var(--bg);color:var(--text);}
+  .submenu-item.active{background:var(--bg);color:var(--accent);font-weight:600;}
+  .tab-group > .tab.group-active{color:var(--accent);border-bottom-color:var(--accent);}
+  /* 분리선 */
+  .tab-divider{width:1px;background:var(--border);margin:10px 4px;}
   .container{max-width:1280px;margin:0 auto;padding:20px 24px 60px;}
   .panel{display:none;}
   .panel.active{display:block;}
@@ -143,7 +169,8 @@
     /* ── 탭 ── */
     .tabs{display:flex;overflow-x:auto;white-space:nowrap;padding:0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
     .tabs::-webkit-scrollbar{display:none;}
-    .tab{padding:10px 12px;font-size:13px;flex-shrink:0;}
+    .tab{height:40px;padding:0 12px;font-size:13px;flex-shrink:0;}
+    .tab-spacer,.tab-divider,.tab-group{display:none !important;}
 
     /* ── 컨테이너 ── */
     .container{padding:12px 12px 80px;}
@@ -469,16 +496,42 @@
 </div>
 
 <div class="tabs">
-  <div class="tab pc-only" data-tab="dashboard" onclick="switchTab('dashboard')">📊 대시보드</div>
-  <div class="tab" data-tab="rooms" onclick="switchTab('rooms')" data-mobile-label="📋 하자 목록">객실별 하자 리스트</div>
-  <div class="tab pc-only" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
-  <div class="tab pc-only" data-tab="coststat" onclick="switchTab('coststat')">💰 비용·부품 통계</div>
-  <div class="tab pc-only" data-tab="vendors" onclick="switchTab('vendors')">🏢 외주업체</div>
-  <div class="tab pc-only" data-tab="inventory" onclick="switchTab('inventory')">🔧 부품 재고관리</div>
-  <div class="tab pc-only" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
-  <div class="tab" data-tab="notice" onclick="switchTab('notice')">📢 공지사항</div>
-  <div class="tab pc-only" data-tab="report" onclick="switchTab('report')">📑 보고서</div>
-  <div class="tab admin-only pc-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">🛡️ 관리자</div>
+  <!-- 상시 노출 탭 -->
+  <div class="tab pc-only" data-tab="dashboard" onclick="switchTab('dashboard')">현황</div>
+  <div class="tab" data-tab="rooms" onclick="switchTab('rooms')" data-mobile-label="📋 하자 목록">하자 목록</div>
+  <div class="tab" data-tab="notice" onclick="switchTab('notice')">공지</div>
+
+  <div class="tab-spacer"></div>
+  <div class="tab-divider pc-only"></div>
+
+  <!-- 분석 hover 그룹 -->
+  <div class="tab-group pc-only" id="tabGroupAnalytics">
+    <div class="tab" id="tabGroupAnalyticsBtn">
+      분석
+      <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="submenu">
+      <div class="submenu-item" data-tab="categories" onclick="switchTab('categories')">증상별 통계</div>
+      <div class="submenu-item" data-tab="coststat"   onclick="switchTab('coststat')">비용·부품 통계</div>
+      <div class="submenu-item" data-tab="vendors"    onclick="switchTab('vendors')">외주업체</div>
+      <div class="submenu-item" data-tab="inventory"  onclick="switchTab('inventory')">부품 재고관리</div>
+      <div class="submenu-item" data-tab="report"     onclick="switchTab('report')">보고서</div>
+    </div>
+  </div>
+
+  <div class="tab-divider pc-only"></div>
+
+  <!-- 설정 hover 그룹 -->
+  <div class="tab-group pc-only" id="tabGroupSettings">
+    <div class="tab" id="tabGroupSettingsBtn">
+      설정
+      <svg class="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="submenu">
+      <div class="submenu-item" data-tab="master" onclick="switchTab('master')">기준정보 관리</div>
+      <div class="submenu-item admin-only" data-tab="admin" onclick="switchTab('admin')" style="display:none;">관리자</div>
+    </div>
+  </div>
 </div>
 
 <!-- ===================== 공지/재고경고 배너 영역 ===================== -->
@@ -2502,7 +2555,18 @@ function switchTab(name){
     return;
   }
 
+  // 일반 탭 active
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  // 서브메뉴 아이템 active
+  document.querySelectorAll('.submenu-item').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  // 분석/설정 그룹 버튼 active 처리
+  const analyticsGroup = ['categories','coststat','vendors','inventory','report'];
+  const settingsGroup  = ['master','admin'];
+  const analyticsBtn = document.getElementById('tabGroupAnalyticsBtn');
+  const settingsBtn  = document.getElementById('tabGroupSettingsBtn');
+  if(analyticsBtn) analyticsBtn.classList.toggle('group-active', analyticsGroup.includes(name));
+  if(settingsBtn)  settingsBtn.classList.toggle('group-active', settingsGroup.includes(name));
+
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+name);
   if(panel) panel.classList.add('active');
