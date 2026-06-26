@@ -165,7 +165,6 @@
     .user-chip{gap:4px;flex-wrap:nowrap;flex-shrink:1;min-width:0;overflow:hidden;}
     #mobileLogoutRow{display:block !important;}
     .btn-logout{font-size:13px;padding:4px 6px;white-space:nowrap;flex-shrink:0;}
-    #settingsBtn{font-size:13px;padding:4px 6px;flex-shrink:0;}
 
     /* ── 공지/배너 ── */
     .banner-area{padding:0 12px;margin-top:6px;}
@@ -368,7 +367,7 @@
   /* 화면 전용 요소 전부 숨김 */
   body > *:not(#printReport) { display: none !important; }
   .topbar, .tabs, .banner-area, #loginScreen, #mobileHome,
-  #printBtn, .btn-logout, #settingsBtn { display: none !important; }
+  #printBtn, .btn-logout { display: none !important; }
 
   /* 인쇄 영역만 표시 */
   #printReport { display: block !important; }
@@ -490,7 +489,6 @@
     <div class="user-chip" id="userChip" style="display:none;">
       <button class="btn-logout" id="btnLogout" onclick="doLogout()"><span class="btn-text">로그아웃</span></button>
     </div>
-    <button class="btn secondary small" id="settingsBtn" onclick="switchTab('settings')" title="연결 설정" style="font-size:16px;line-height:1;padding:6px 10px;display:none;">⚙️</button>
   </div>
 </div>
 
@@ -1583,70 +1581,11 @@
   </div>
 </div>
 
-<!-- 빠른 등록 모달 제거됨: 하자 등록 모달로 통합 (모바일에서 추가 필드 토글 방식) -->
-<div class="overlay" id="quickModal" style="display:none!important;">
-  <div class="modal" style="width:380px;">
-    <h3>📱 빠른 하자 등록</h3>
-    <p style="font-size:12.5px;color:var(--sub);margin-top:-8px;">현장에서 빠르게 등록할 때 사용하세요. 나머지 상세정보는 나중에 PC에서 보완할 수 있습니다.</p>
-
-    <div class="form-row">
-      <label>객실번호</label>
-      <input id="quickRoomNumber" placeholder="예: 705 (없으면 자동 등록)" />
-    </div>
-    <div class="form-row">
-      <label>하자증상 <span style="color:var(--danger)">*</span></label>
-      <select id="quickSymptom">
-        <option value="">— 선택하세요 —</option>
-        <option value="누수·누전">누수·누전</option>
-        <option value="파손·균열">파손·균열</option>
-        <option value="오염·변색">오염·변색</option>
-        <option value="작동불량">작동불량</option>
-        <option value="소음·냄새">소음·냄새</option>
-        <option value="기타">기타</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>하자 내용</label>
-      <input id="quickTitle" placeholder="예: 화장실 타일 깨짐" />
-    </div>
-    <div class="form-row">
-      <label>우선순위</label>
-      <select id="quickPriority">
-        <option value="긴급">긴급</option>
-        <option value="높음">높음</option>
-        <option value="보통" selected>보통</option>
-        <option value="낮음">낮음</option>
-      </select>
-    </div>
-    <div class="form-row">
-      <label>등록자</label>
-      <input id="quickReporter" placeholder="예: 이성민" />
-    </div>
-
-    <!-- 사진 첨부 기능: 현재 비활성화 (Supabase Storage 용량 관리 목적).
-         ENABLE_PHOTO_UPLOAD를 true로 바꾸면 즉시 활성화됩니다. -->
-    <div class="form-row" id="quickPhotoRow" style="display:none;">
-      <label>사진 첨부</label>
-      <input type="file" id="quickPhotoInput" accept="image/*" capture="environment" />
-    </div>
-
-    <div class="form-actions">
-      <button class="btn secondary" onclick="closeQuickModal()">취소</button>
-      <button class="btn" onclick="saveQuickDefect()">빠르게 등록</button>
-    </div>
-  </div>
-</div>
-
 <!-- 수정 모달 제거됨: 하자부위·객실타입·수리부속 모두 인라인 행 편집으로 전환 -->
 
 <div class="toast" id="toast"></div>
 
 <script>
-// 사진 첨부 기능 스위치. true로 바꾸면 빠른 등록 모달에 사진 첨부 입력란이 나타나고
-// saveQuickDefect()가 자동으로 사진을 압축해 Supabase Storage에 업로드합니다.
-// 현재는 Storage 무료 용량(1GB) 관리를 위해 꺼둔 상태입니다.
-const ENABLE_PHOTO_UPLOAD = false;
-
 // room_number는 DB에 텍스트로 저장돼 있어, 그냥 정렬하면 "1001"이 "702"보다 앞에 오는
 // 문자열 순서가 됩니다. 객실번호를 숫자로 바꿔 비교해 진짜 오름차순(702, 703...1001)으로 정렬합니다.
 function sortRoomsNumerically(rooms){
@@ -1655,7 +1594,6 @@ function sortRoomsNumerically(rooms){
 
 let sb = null;
 let ROOMS = [];
-let CATEGORIES = [];
 let DEFECTS = [];
 let ROOM_TYPES = [];
 let LOCATIONS = [];
@@ -2451,9 +2389,6 @@ async function saveDisplayName(){
     // 로컬 CURRENT_USER 캐시 업데이트
     if(CURRENT_USER) CURRENT_USER.user_metadata = { ...CURRENT_USER.user_metadata, full_name: name };
     msg.style.color='var(--ok)'; msg.textContent='✅ 이름이 저장되었습니다.';
-    // 상단 로그인 정보 갱신
-    const nameEl = document.getElementById('topUserName');
-    if(nameEl) nameEl.textContent = name;
   }
 }
 
@@ -2508,7 +2443,7 @@ async function adminResetPassword(){
 function onLogout(){
   CURRENT_USER = null;
   CURRENT_ROLE = 'staff';
-  ROOMS = []; CATEGORIES = []; DEFECTS = []; ROOM_TYPES = [];
+  ROOMS = []; DEFECTS = []; ROOM_TYPES = [];
   LOCATIONS = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
   PARTS_USED_ALL = [];
 
@@ -2530,7 +2465,7 @@ function switchTab(name){
 
   // 모바일: PC 전용 탭 차단, 허용 탭은 오버레이 방식으로 표시
   if(IS_MOBILE){
-    if(['dashboard','categories','coststat','vendors','inventory','master','admin','myinfo'].includes(name)){
+    if(['dashboard','categories','coststat','vendors','inventory','master','admin'].includes(name)){
       showToast('PC에서 확인해주세요.');
       return;
     }
@@ -2970,7 +2905,6 @@ async function loadAll(){
   if(e7) console.error('employees 로드 실패:', e7);
   if(e8) console.error('vendors 로드 실패:', e8);
   ROOMS = sortRoomsNumerically(rooms||[]);
-  CATEGORIES = [];
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
   PARTS = parts||[];
@@ -3517,8 +3451,6 @@ function openNewDefectModal(){
   document.getElementById('defectModal').classList.add('active');
 }
 
-// 빠른 등록 → 하자 등록 모달로 통합
-function openQuickDefectModal(){ openNewDefectModal(); }
 async function openEditModal(id){
   const d = DEFECTS.find(x=>x.id===id);
   if(!d) return;
@@ -3602,90 +3534,6 @@ document.addEventListener('click', e=>{
     if(box) box.style.display = 'none';
   }
 });
-
-// ---------- 빠른 등록 모달 (모바일 우선) ----------
-function openQuickDefectModal(){
-  document.getElementById('quickRoomNumber').value = '';
-  document.getElementById('quickSymptom').value = '';
-  document.getElementById('quickTitle').value = '';
-  document.getElementById('quickPriority').value = '보통';
-  document.getElementById('quickReporter').value = '';
-  document.getElementById('quickPhotoRow').style.display = ENABLE_PHOTO_UPLOAD? 'block':'none';
-  if(document.getElementById('quickPhotoInput')) document.getElementById('quickPhotoInput').value = '';
-  document.getElementById('quickModal').classList.add('active');
-}
-function closeQuickModal(){
-  document.getElementById('quickModal').classList.remove('active');
-}
-
-// 사진을 가로 1200px 기준으로 리사이즈+압축하여 Blob으로 반환합니다.
-// ENABLE_PHOTO_UPLOAD가 true가 되면 saveQuickDefect()에서 이 함수로 압축한 뒤 업로드합니다.
-async function compressImage(file, maxWidth=1200, quality=0.7){
-  return new Promise((resolve, reject)=>{
-    const img = new Image();
-    const reader = new FileReader();
-    reader.onload = e=>{ img.src = e.target.result; };
-    reader.onerror = reject;
-    img.onload = ()=>{
-      const scale = Math.min(1, maxWidth / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob=>resolve(blob), 'image/jpeg', quality);
-    };
-    img.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-async function saveQuickDefect(){
-  const roomNumber = document.getElementById('quickRoomNumber').value.trim();
-  const symptom = document.getElementById('quickSymptom').value;
-  const title = document.getElementById('quickTitle').value.trim();
-  if(!roomNumber){ alert('객실번호를 입력해주세요.'); return; }
-  if(!symptom){ alert('하자증상을 선택해주세요.'); return; }
-  if(!title){ alert('하자 내용을 입력해주세요.'); return; }
-
-  let room = ROOMS.find(r=>r.room_number===roomNumber);
-  if(!room){
-    const {data, error} = await sb.from('rooms').insert({room_number:roomNumber}).select().single();
-    if(error){ alert('객실 등록 실패: '+error.message); return; }
-    room = data;
-    ROOMS.push(room);
-  }
-
-  const payload = {
-    room_id: room.id,
-    symptom,
-    title,
-    priority: document.getElementById('quickPriority').value,
-    status: '접수',
-    reported_by: document.getElementById('quickReporter').value.trim() || null
-  };
-  const {data: inserted, error} = await sb.from('defects').insert(payload).select().single();
-  if(error){ alert('등록 실패: '+error.message); return; }
-
-  if(ENABLE_PHOTO_UPLOAD){
-    const fileInput = document.getElementById('quickPhotoInput');
-    if(fileInput && fileInput.files[0]){
-      try{
-        const compressed = await compressImage(fileInput.files[0]);
-        const path = `defect-${inserted.id}-${Date.now()}.jpg`;
-        const {error: upErr} = await sb.storage.from('defect-photos').upload(path, compressed);
-        if(!upErr){
-          const { data: urlData } = sb.storage.from('defect-photos').getPublicUrl(path);
-          await sb.from('defect_photos').insert({defect_id: inserted.id, photo_url: urlData.publicUrl});
-        }
-      }catch(e){ console.error('사진 업로드 실패:', e); }
-    }
-  }
-
-  closeQuickModal();
-  showToast('빠른 등록 완료되었습니다.');
-  await loadDefects();
-}
 function applyProcessTypeUI(isOutsourced){
   document.getElementById('vendorRow').style.display = isOutsourced? 'block':'none';
   document.getElementById('outsourcedCostRow').style.display = isOutsourced? 'block':'none';
