@@ -3076,6 +3076,7 @@ const APP_UPDATE_HISTORY = [
     date: '2026-06-29',
     category: '기능 추가',
     title: '관리자 계정 삭제 기능',
+    adminOnly: true,
     notes: [
       '관리자 설정 → 사용자 관리에서 계정 완전 삭제 가능',
       '본인 계정은 삭제 불가 (안전장치)',
@@ -3087,6 +3088,7 @@ const APP_UPDATE_HISTORY = [
     date: '2026-06-29',
     category: '기능 추가',
     title: '전 직원 공지 작성 가능',
+    adminOnly: false,
     notes: [
       '일반 직원도 공지사항 탭에서 공지 등록·수정·삭제 가능',
       '중요 공지(상단 배너) 설정은 관리자만 가능',
@@ -3098,6 +3100,7 @@ const APP_UPDATE_HISTORY = [
     date: '2026-06-29',
     category: '기능 추가',
     title: '이메일 초대로 계정 생성',
+    adminOnly: true,
     notes: [
       '관리자 설정에서 이메일·이름·권한 입력 후 초대 링크 발송 가능',
       'Supabase Edge Function 기반 — Service Role Key 서버에서만 보관',
@@ -3167,7 +3170,10 @@ function checkUpdateNotification(){
   const seen = localStorage.getItem('lastSeenVersion');
   if(seen === APP_VERSION) return;  // 이미 본 버전
 
-  const latest = APP_UPDATE_HISTORY[0];
+  // 현재 role에서 볼 수 있는 최신 업데이트 찾기
+  const latest = APP_UPDATE_HISTORY.find(r =>
+    !r.adminOnly || CURRENT_ROLE === 'admin'
+  );
   if(!latest) return;
 
   const toast = document.getElementById('updateToast');
