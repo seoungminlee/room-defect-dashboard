@@ -962,6 +962,52 @@
     <!-- 연결설정 -->
     <div class="subpanel" id="subpanel-admin-settings">
 
+      <!-- ── 업데이트 로그 관리 ── -->
+      <div class="card admin-only" style="margin-bottom:16px;">
+        <h3 style="margin-bottom:14px;">📢 업데이트 로그 관리</h3>
+
+        <!-- 등록 폼 -->
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:600;color:var(--sub);margin-bottom:10px;">새 업데이트 등록</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div>
+              <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">버전명</label>
+              <input id="ulVersion" type="text" placeholder="v1.5" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">분류</label>
+              <select id="ulCategory" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;">
+                <option>기능 추가</option>
+                <option>버그 수정</option>
+                <option>UI 개선</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">제목</label>
+            <input id="ulTitle" type="text" placeholder="이번 업데이트 제목" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;" />
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:12px;color:var(--sub);display:block;margin-bottom:4px;">변경 내용 (항목별 한 줄씩)</label>
+            <textarea id="ulBody" rows="4" placeholder="• 하자 클릭 시 상세 패널 슬라이드인&#10;• 상태 변경 이력 타임라인&#10;• 평균 처리일 KPI 추가"
+              style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;resize:vertical;"></textarea>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="ulShowPopup" checked style="width:16px;height:16px;cursor:pointer;" />
+              사용자에게 팝업 표시
+            </label>
+            <div style="display:flex;gap:8px;">
+              <button class="btn secondary small" onclick="cancelUpdateLog()">취소</button>
+              <button class="btn small" id="ulSubmitBtn" onclick="submitUpdateLog()">등록</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 목록 -->
+        <div id="updateLogList" style="display:flex;flex-direction:column;gap:0;"></div>
+      </div>
+
       <!-- 처리기한 임박 알림 설정 -->
       <div class="card admin-only" style="margin-bottom:16px;">
         <h3>⏰ 처리기한 임박 알림 설정</h3>
@@ -1832,11 +1878,13 @@ function onLoginSuccess(user){
       renderMobileMyDefects();
       renderMobileNoticeBanner();
       initRealtimeSync();
+      checkUpdateNotification();
     });
   } else {
     loadAll().then(() => {
       loadNotices();
       initRealtimeSync();
+      checkUpdateNotification();
     });
     switchTab('dashboard');
   }
@@ -2890,6 +2938,171 @@ function loadAdminSettingsUI(){
   const days = APP_SETTINGS['deadline_alert_days'] || '3';
   const el = document.getElementById('deadlineAlertDaysInput');
   if(el) el.value = days;
+  loadUpdateLogs();
+}
+
+// ── 업데이트 로그 관리 ──────────────────────────────────────
+let UPDATE_LOGS = [];
+let UL_EDIT_ID = null;
+
+async function loadUpdateLogs(){
+  if(!sb) return;
+  const {data} = await sb.from('update_logs').select('*').order('created_at', {ascending:false});
+  UPDATE_LOGS = data || [];
+  renderUpdateLogList();
+}
+
+function renderUpdateLogList(){
+  const container = document.getElementById('updateLogList');
+  if(!container) return;
+  if(!UPDATE_LOGS.length){
+    container.innerHTML = '<p style="font-size:13px;color:var(--sub);text-align:center;padding:16px 0;">등록된 업데이트 로그가 없습니다.</p>';
+    return;
+  }
+  const catColor = {'기능 추가':'#eff6ff;color:#1d4ed8','버그 수정':'#f0fdf4;color:#15803d','UI 개선':'#faf5ff;color:#7e22ce'};
+  container.innerHTML = UPDATE_LOGS.map(r => {
+    const cc = catColor[r.category] || '#f1f5f9;color:#475569';
+    const date = (r.created_at||'').slice(0,10);
+    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${escapeHtml(r.title)}</span>
+          <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:${cc};font-weight:600;">${escapeHtml(r.category)}</span>
+          <span style="font-size:11px;color:#3b82f6;font-weight:700;">${escapeHtml(r.version)}</span>
+        </div>
+        <div style="font-size:11.5px;color:var(--sub);">${date}</div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px;white-space:pre-line;">${escapeHtml(r.body)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <label title="팝업 표시" style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--sub);cursor:pointer;">
+          <input type="checkbox" ${r.show_popup?'checked':''} onchange="toggleUpdateLogPopup(${r.id}, this.checked)"
+            style="width:15px;height:15px;cursor:pointer;" /> 팝업
+        </label>
+        <button class="btn secondary small" onclick="editUpdateLog(${r.id})">수정</button>
+        <button class="btn small" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;" onclick="deleteUpdateLog(${r.id})">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function submitUpdateLog(){
+  const version  = document.getElementById('ulVersion')?.value.trim();
+  const category = document.getElementById('ulCategory')?.value;
+  const title    = document.getElementById('ulTitle')?.value.trim();
+  const body     = document.getElementById('ulBody')?.value.trim();
+  const showPopup= document.getElementById('ulShowPopup')?.checked ?? true;
+
+  if(!version || !title || !body){ showToast('버전명, 제목, 내용을 모두 입력해주세요.'); return; }
+
+  const payload = { version, category, title, body, show_popup: showPopup, created_by: CURRENT_USER?.id || null };
+
+  if(UL_EDIT_ID){
+    const {error} = await sb.from('update_logs').update(payload).eq('id', UL_EDIT_ID);
+    if(error){ showToast('수정 실패: '+error.message); return; }
+    showToast('업데이트 로그가 수정되었습니다.');
+  } else {
+    const {error} = await sb.from('update_logs').insert(payload);
+    if(error){ showToast('등록 실패: '+error.message); return; }
+    // app_settings의 app_version도 최신으로 갱신
+    await sb.from('app_settings').upsert({key:'app_version', value: version, updated_at: new Date().toISOString()});
+    APP_SETTINGS['app_version'] = version;
+    showToast('업데이트 로그가 등록되었습니다.');
+  }
+  cancelUpdateLog();
+  await loadUpdateLogs();
+}
+
+function cancelUpdateLog(){
+  UL_EDIT_ID = null;
+  const f = id => document.getElementById(id);
+  if(f('ulVersion'))  f('ulVersion').value  = '';
+  if(f('ulTitle'))    f('ulTitle').value    = '';
+  if(f('ulBody'))     f('ulBody').value     = '';
+  if(f('ulCategory')) f('ulCategory').value = '기능 추가';
+  if(f('ulShowPopup')) f('ulShowPopup').checked = true;
+  if(f('ulSubmitBtn')) f('ulSubmitBtn').textContent = '등록';
+}
+
+function editUpdateLog(id){
+  const r = UPDATE_LOGS.find(x=>x.id===id);
+  if(!r) return;
+  UL_EDIT_ID = id;
+  document.getElementById('ulVersion').value   = r.version;
+  document.getElementById('ulCategory').value  = r.category;
+  document.getElementById('ulTitle').value     = r.title;
+  document.getElementById('ulBody').value      = r.body;
+  document.getElementById('ulShowPopup').checked = !!r.show_popup;
+  document.getElementById('ulSubmitBtn').textContent = '저장';
+  document.getElementById('ulVersion').focus();
+  document.getElementById('ulVersion').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function deleteUpdateLog(id){
+  if(!confirm('이 업데이트 로그를 삭제하시겠습니까?')) return;
+  const {error} = await sb.from('update_logs').delete().eq('id', id);
+  if(error){ showToast('삭제 실패: '+error.message); return; }
+  showToast('삭제되었습니다.');
+  await loadUpdateLogs();
+}
+
+async function toggleUpdateLogPopup(id, val){
+  await sb.from('update_logs').update({show_popup: val}).eq('id', id);
+  const r = UPDATE_LOGS.find(x=>x.id===id);
+  if(r) r.show_popup = val;
+}
+
+// ── 사용자 업데이트 토스트/팝업 ──────────────────────────────
+let UPDATE_LOG_FOR_POPUP = null;
+
+async function checkUpdateNotification(){
+  if(!sb) return;
+  const {data} = await sb.from('update_logs')
+    .select('*').eq('show_popup', true)
+    .order('created_at', {ascending:false}).limit(1);
+  if(!data || !data.length) return;
+
+  const latest = data[0];
+  const seen = localStorage.getItem('lastSeenVersion');
+  if(seen === latest.version) return;  // 이미 본 버전
+
+  UPDATE_LOG_FOR_POPUP = latest;
+
+  // 토스트 표시
+  const toast = document.getElementById('updateToast');
+  const vLabel = document.getElementById('toastVersionLabel');
+  if(toast && vLabel){
+    vLabel.textContent = latest.version + ' · ' + (latest.created_at||'').slice(0,10);
+    toast.style.display = 'block';
+  }
+}
+
+function openUpdateModal(){
+  if(!UPDATE_LOG_FOR_POPUP) return;
+  const r = UPDATE_LOG_FOR_POPUP;
+
+  document.getElementById('updateModalVersion').textContent = r.version;
+
+  const lines = (r.body||'').split('\n').filter(l=>l.trim());
+  document.getElementById('updateModalBody').innerHTML =
+    `<div style="font-size:13.5px;font-weight:700;color:var(--text);margin-bottom:12px;">${escapeHtml(r.title)}</div>` +
+    lines.map(l => `
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--border);">
+        <span style="width:6px;height:6px;border-radius:50%;background:#3b82f6;flex-shrink:0;margin-top:5px;"></span>
+        <span style="font-size:13px;color:var(--text);line-height:1.5;">${escapeHtml(l.replace(/^[•\-\*]\s*/,''))}</span>
+      </div>`).join('') +
+    `<div style="height:4px;"></div>`;
+
+  document.getElementById('updateModalBackdrop').style.display = 'flex';
+  // 토스트 닫기
+  document.getElementById('updateToast').style.display = 'none';
+}
+
+function closeUpdateModal(){
+  document.getElementById('updateModalBackdrop').style.display = 'none';
+  // 확인한 버전을 localStorage에 저장 → 다음 로그인 시 미표시
+  if(UPDATE_LOG_FOR_POPUP){
+    localStorage.setItem('lastSeenVersion', UPDATE_LOG_FOR_POPUP.version);
+  }
 }
 
 function openNoticeModal(id){
@@ -5330,6 +5543,63 @@ try{
 
   </div>
 </div>
+
+<!-- ── 업데이트 토스트 (우하단) ── -->
+<div id="updateToast" style="
+  display:none;position:fixed;bottom:24px;right:20px;z-index:500;
+  background:var(--card);border:1.5px solid #3b82f6;border-radius:14px;
+  padding:14px 16px;width:240px;
+  box-shadow:0 4px 20px rgba(37,99,235,.18);
+  animation:slideInToast .25s ease;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <div style="width:30px;height:30px;border-radius:50%;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;">✨</div>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);">새 기능이 업데이트됐어요</div>
+      <div id="toastVersionLabel" style="font-size:11.5px;color:var(--sub);margin-top:1px;"></div>
+    </div>
+  </div>
+  <button onclick="openUpdateModal()" style="
+    width:100%;padding:8px;border:none;border-radius:8px;
+    background:#3b82f6;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+    확인하기 →
+  </button>
+</div>
+
+<!-- ── 업데이트 전체 팝업 ── -->
+<div id="updateModalBackdrop" style="
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:600;align-items:center;justify-content:center;">
+  <div id="updateModal" style="
+    background:var(--card);border-radius:16px;border:1px solid var(--border);
+    width:90%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;
+    overflow:hidden;">
+    <!-- 헤더 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px 12px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="updateModalVersion" style="font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:6px;background:#eff6ff;color:#1d4ed8;"></span>
+        <span style="font-size:15px;font-weight:700;color:var(--text);">업데이트 내역</span>
+      </div>
+      <button onclick="closeUpdateModal()" style="
+        width:28px;height:28px;border-radius:50%;border:1px solid var(--border);
+        background:var(--bg);cursor:pointer;font-size:14px;color:var(--sub);
+        display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- 본문 -->
+    <div id="updateModalBody" style="overflow-y:auto;padding:14px 18px;flex:1;"></div>
+    <!-- 푸터 -->
+    <div style="padding:12px 18px 16px;border-top:1px solid var(--border);">
+      <button onclick="closeUpdateModal()" style="
+        width:100%;padding:10px;border:1px solid var(--border);border-radius:9px;
+        background:var(--bg);font-size:13px;color:var(--sub);cursor:pointer;">
+        다음에 안 보기
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes slideInToast{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+</style>
 
 </body>
 </html>
