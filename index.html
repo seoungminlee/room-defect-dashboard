@@ -116,6 +116,38 @@
   /* 모달 */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:100;}
   .overlay.active{display:flex;}
+
+  /* ── 하자 상세 슬라이드 패널 ── */
+  .detail-panel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none;}
+  .detail-panel-backdrop.active{display:block;}
+  .detail-panel{position:fixed;top:0;right:0;width:480px;max-width:100vw;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:201;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);}
+  .detail-panel.active{transform:translateX(0);}
+  .detail-panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .detail-panel-header h3{margin:0;font-size:16px;font-weight:700;}
+  .detail-panel-body{flex:1;overflow-y:auto;padding:20px;}
+  .detail-section{margin-bottom:20px;}
+  .detail-section-title{font-size:12px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+  .detail-row{display:flex;gap:8px;margin-bottom:8px;font-size:13.5px;}
+  .detail-row .dl{color:var(--sub);min-width:80px;flex-shrink:0;}
+  .detail-row .dv{color:var(--text);font-weight:500;}
+  .status-timeline{display:flex;flex-direction:column;gap:0;}
+  .timeline-item{display:flex;gap:12px;position:relative;padding-bottom:16px;}
+  .timeline-item:last-child{padding-bottom:0;}
+  .timeline-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:4px;position:relative;z-index:1;}
+  .timeline-item:not(:last-child) .timeline-dot::after{content:'';position:absolute;left:50%;top:10px;width:2px;height:calc(100% + 6px);background:var(--border);transform:translateX(-50%);}
+  .timeline-content{flex:1;}
+  .timeline-label{font-size:13px;font-weight:600;color:var(--text);}
+  .timeline-meta{font-size:12px;color:var(--sub);margin-top:2px;}
+  .comment-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;}
+  .comment-item{background:var(--bg);border-radius:8px;padding:10px 12px;}
+  .comment-author{font-size:12px;font-weight:700;color:var(--accent);margin-bottom:3px;}
+  .comment-body{font-size:13px;color:var(--text);line-height:1.5;}
+  .comment-time{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .comment-input-row{display:flex;gap:8px;}
+  .comment-input-row textarea{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;resize:none;height:60px;}
+  @media(max-width:768px){
+    .detail-panel{width:100vw;}
+  }
   .modal{background:#fff;border-radius:12px;padding:24px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto;transition:transform .25s ease;}
   @media (max-width:768px){
     .modal{transform:translateY(0);}
@@ -207,18 +239,36 @@
     /* ── 하자 목록 테이블: 컬럼 일부 숨김 ── */
     .col-hide-mobile{display:none;}
 
-    /* ── 모달 ── */
+    /* ── 모달 (모바일: 바텀시트) ── */
     .overlay{align-items:flex-end;}
     .modal{
       width:100%;max-width:100%;border-radius:16px 16px 0 0;
-      padding:20px 16px 32px;max-height:88vh;
+      padding:20px 16px 32px;max-height:92vh;
     }
-    .modal h3{font-size:15px;}
-    .form-row{margin-bottom:12px;}
-    .form-row label{font-size:12.5px;}
-    .form-row input,.form-row select,.form-row textarea{font-size:13.5px;padding:9px 10px;}
+    .modal h3{font-size:15px;margin-bottom:12px;}
+    .form-row{margin-bottom:10px;}
+    .form-row label{font-size:12.5px;margin-bottom:4px;}
+    .form-row input,.form-row select,.form-row textarea{font-size:14px;padding:10px 11px;}
     .form-actions{gap:6px;}
-    .form-actions .btn{flex:1;text-align:center;}
+    .form-actions .btn{flex:1;text-align:center;padding:12px;}
+
+    /* ── 모바일 모달: 필수/선택 구분선 ── */
+    .modal-section-divider{
+      display:flex;align-items:center;gap:8px;margin:14px 0 10px;
+    }
+    .modal-section-divider span{font-size:11.5px;color:var(--muted);white-space:nowrap;font-weight:600;}
+    .modal-section-divider::before,.modal-section-divider::after{
+      content:'';flex:1;height:1px;background:var(--border);
+    }
+
+    /* ── 모바일 FAB(하단 고정 등록버튼) ── */
+    .mobile-fab{
+      display:flex;position:fixed;bottom:70px;right:16px;
+      width:52px;height:52px;border-radius:50%;
+      background:var(--accent);color:#fff;border:none;
+      font-size:26px;align-items:center;justify-content:center;
+      box-shadow:0 4px 16px rgba(37,99,235,.4);cursor:pointer;z-index:90;
+    }
 
     /* ── 서브탭 ── */
     .subtabs{overflow-x:auto;white-space:nowrap;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px;}
@@ -533,8 +583,21 @@
 
 <!-- ===================== 공지/재고경고 배너 영역 ===================== -->
 <div class="banner-area" id="bannerArea"></div>
+<!-- 처리기한 임박 자동 경고 배너 -->
+<div id="deadlineAlertBanner" style="display:none;background:#fff7ed;border-bottom:1px solid #fed7aa;padding:10px 24px;font-size:13px;color:#92400e;">
+  <div style="display:flex;align-items:flex-start;gap:10px;max-width:1280px;margin:0 auto;">
+    <span style="font-size:16px;flex-shrink:0;">⚠️</span>
+    <div>
+      <b>처리기한 임박 하자</b> — 예정일이 <span id="deadlineAlertDaysLabel">3</span>일 이내인 미완료 항목입니다.
+      <div id="deadlineAlertList" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== 모바일 전용 홈 패널 ===================== -->
+<!-- 모바일 FAB 등록 버튼 (모바일에서만 표시) -->
+<button class="mobile-fab" id="mobileFab" onclick="openNewDefectModal()" title="하자 등록" style="display:none;">+</button>
+
 <div id="mobileHome" style="display:none;padding:20px 14px 100px;">
   <!-- 공지 배너 (모바일 홈용) -->
   <div id="mobileNoticeBanner" style="margin-bottom:16px;"></div>
@@ -898,6 +961,20 @@
 
     <!-- 연결설정 -->
     <div class="subpanel" id="subpanel-admin-settings">
+
+      <!-- 처리기한 임박 알림 설정 -->
+      <div class="card admin-only" style="margin-bottom:16px;">
+        <h3>⏰ 처리기한 임박 알림 설정</h3>
+        <p style="font-size:13px;color:var(--sub);margin:0 0 14px;">처리 예정일 기준으로 며칠 전부터 대시보드에 자동 경고를 표시할지 설정합니다.</p>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13.5px;font-weight:600;">처리기한</label>
+          <input type="number" id="deadlineAlertDaysInput" min="1" max="30" value="3"
+            style="width:70px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;text-align:center;" />
+          <span style="font-size:13.5px;">일 전부터 경고 표시</span>
+          <button class="btn small" onclick="saveDeadlineAlertDays()">저장</button>
+        </div>
+      </div>
+
       <div class="card">
         <h3>Supabase 연결 설정</h3>
         <div id="connStatus" style="margin-bottom:12px;font-size:13px;font-weight:600;color:var(--sub);">Supabase 연결 대기중…</div>
@@ -1067,6 +1144,10 @@
       <div class="kpi"><div class="num" id="kpiRepeated">–</div><div class="label">반복하자 건수</div></div>
       <div class="kpi"><div class="num" id="kpiRepeatedPct">–</div><div class="label">반복하자율(%)</div></div>
     </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
+      <div class="kpi"><div class="num" id="kpiAvgDays">–</div><div class="label">평균 처리일 (완료 기준, 데이터 누적 후 표시)</div></div>
+      <div class="kpi warn"><div class="num" id="kpiDeadlineSoon">–</div><div class="label">처리기한 임박 (예정일 기준)</div></div>
+    </div>
 
     <div class="section-label">우선 확인 — 즉시 조치 필요</div>
     <div class="grid2">
@@ -1176,6 +1257,7 @@
       </select>
       <input id="searchBox" placeholder="객실번호/제목 검색" style="min-width:180px;"/>
       <div class="spacer"></div>
+      <button class="btn secondary" onclick="resetFilters()" style="white-space:nowrap;">필터 초기화</button>
       <button class="btn" onclick="openNewDefectModal()">+ 하자 등록</button>
     </div>
 
@@ -1543,11 +1625,12 @@
     </div>
 
     <!-- ── 추가 필드 토글 버튼 ── -->
+    <div class="modal-section-divider"><span>선택 입력 (담당자·비용·방막 등)</span></div>
     <button id="toggleExtraFields" onclick="toggleDefectExtraFields()" style="
-      width:100%;padding:9px;margin:4px 0 12px;font-size:13px;font-weight:600;
-      background:#f8fafc;border:1px dashed var(--border);border-radius:8px;
-      cursor:pointer;color:var(--sub);display:flex;align-items:center;justify-content:center;gap:6px;">
-      <span id="toggleExtraIcon">＋</span> <span id="toggleExtraLabel">추가 정보 입력</span>
+      width:100%;padding:11px;margin:0 0 12px;font-size:13.5px;font-weight:600;
+      background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;
+      cursor:pointer;color:var(--accent);display:flex;align-items:center;justify-content:center;gap:6px;">
+      <span id="toggleExtraIcon">＋</span> <span id="toggleExtraLabel">추가 정보 펼치기</span>
     </button>
 
     <!-- ── 추가 필드 (기본 숨김, 모바일) ── -->
@@ -1650,6 +1733,7 @@ let CURRENT_USER = null;      // 로그인한 사용자 객체
 let CURRENT_ROLE = 'staff';   // 'admin' | 'staff'
 let AUDIT_LOG = [];           // 수정이력 캐시
 let SHOW_INACTIVE_VENDORS = false;
+let APP_SETTINGS = {};        // app_settings 테이블 캐시 {key: value}
 
 // ============================================================
 // 설정 & Supabase 초기화
@@ -1740,13 +1824,20 @@ function onLoginSuccess(user){
     document.querySelector('.tabs').style.display = 'none';
     document.querySelector('.container').style.display = 'none';
     document.getElementById('mobileHome').style.display = 'block';
+    // FAB 버튼 표시
+    const fab = document.getElementById('mobileFab');
+    if(fab) fab.style.display = 'flex';
     loadAll().then(() => {
       loadNotices();
       renderMobileMyDefects();
       renderMobileNoticeBanner();
+      initRealtimeSync();
     });
   } else {
-    loadAll().then(() => loadNotices());
+    loadAll().then(() => {
+      loadNotices();
+      initRealtimeSync();
+    });
     switchTab('dashboard');
   }
 }
@@ -2583,6 +2674,7 @@ function switchAdminSubtab(name){
   if(name==='admin-settings'){
     document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
     document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
+    loadAdminSettingsUI();
   }
 }
 
@@ -2743,6 +2835,63 @@ function dismissBanner(key){
   renderBanners();
 }
 
+// ---------- 처리기한 임박 자동 경고 배너 ----------
+function renderDeadlineAlertBanner(){
+  const alertDays = Number(APP_SETTINGS['deadline_alert_days'] || 3);
+  const banner = document.getElementById('deadlineAlertBanner');
+  const listEl = document.getElementById('deadlineAlertList');
+  const labelEl = document.getElementById('deadlineAlertDaysLabel');
+  if(!banner || !listEl) return;
+
+  // 설정값 라벨 업데이트
+  if(labelEl) labelEl.textContent = alertDays;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limitDate = new Date(today); limitDate.setDate(limitDate.getDate() + alertDays);
+
+  const items = DEFECTS.filter(d=>{
+    if(d.status === '완료' || d.status === '보류') return false;
+    if(!d.due_date) return false;
+    const sd = new Date(d.due_date); sd.setHours(0,0,0,0);
+    return sd >= today && sd <= limitDate;
+  }).sort((a,b)=> new Date(a.due_date)-new Date(b.due_date));
+
+  if(!items.length){
+    banner.style.display = 'none';
+    return;
+  }
+
+  banner.style.display = 'block';
+  listEl.innerHTML = items.map(d=>{
+    const sd = new Date(d.due_date); sd.setHours(0,0,0,0);
+    const diff = Math.round((sd - today) / 86400000);
+    const dLabel = diff === 0 ? 'D-day' : `D-${diff}`;
+    return `<span style="background:#fed7aa;color:#7c2d12;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;"
+      onclick="openDetailPanel(${d.id})">
+      ${escapeHtml(d.rooms?.room_number||'-')} ${escapeHtml(d.title||'')} (${dLabel})
+    </span>`;
+  }).join('');
+}
+
+// ---------- 관리자 설정: 임박 기준일 저장 ----------
+async function saveDeadlineAlertDays(){
+  const val = Number(document.getElementById('deadlineAlertDaysInput')?.value || 3);
+  if(isNaN(val) || val < 1){ showToast('1 이상의 숫자를 입력해주세요.'); return; }
+  const {error} = await sb.from('app_settings')
+    .upsert({key:'deadline_alert_days', value: String(val), updated_at: new Date().toISOString()}, {onConflict:'key'});
+  if(error){ showToast('저장 실패: '+error.message); return; }
+  APP_SETTINGS['deadline_alert_days'] = String(val);
+  showToast(`✅ ${val}일 전 경고로 저장되었습니다.`);
+  renderDeadlineAlertBanner();
+}
+
+// ---------- 관리자 설정 패널 진입 시 설정값 복원 ----------
+function loadAdminSettingsUI(){
+  const days = APP_SETTINGS['deadline_alert_days'] || '3';
+  const el = document.getElementById('deadlineAlertDaysInput');
+  if(el) el.value = days;
+}
+
 function openNoticeModal(id){
   const today = new Date().toISOString().slice(0,10);
   const nextWeek = new Date(Date.now()+7*86400000).toISOString().slice(0,10);
@@ -2840,6 +2989,8 @@ async function executeDataReset(){
   msg.textContent = '초기화 중…';
 
   const tables = [
+    'defect_status_logs',
+    'defect_comments',
     'defect_parts_used',
     'defect_photos',
     'part_stock_adjustments',
@@ -3051,19 +3202,35 @@ function switchSubtab(name){
   if(panel) panel.classList.add('active');
 }
 
+// ---------- 실시간 자동 갱신 (Supabase Realtime) ----------
+let _realtimeChannel = null;
+
+function initRealtimeSync(){
+  if(!sb || _realtimeChannel) return;
+  _realtimeChannel = sb.channel('defects-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'defects' }, () => {
+      loadDefects();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, () => {
+      loadNotices();
+    })
+    .subscribe();
+}
+
 // ---------- 데이터 로드 ----------
 let SAFETY_FACTOR = 1.5;
 
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}, {data:vendors, error:e8}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}, {data:vendors, error:e8}, {data:appCfg, error:e9}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*').order('sort_order'),
     sb.from('defect_parts').select('*').order('name'),
     sb.from('system_settings').select('*'),
     sb.from('employees').select('*').order('name'),
-    sb.from('vendors').select('*').order('name')
+    sb.from('vendors').select('*').order('name'),
+    sb.from('app_settings').select('*')
   ]);
   if(e1) console.error(e1);
   if(e3) console.error('room_types 로드 실패:', e3);
@@ -3072,12 +3239,15 @@ async function loadAll(){
   if(e6) console.error('system_settings 로드 실패:', e6);
   if(e7) console.error('employees 로드 실패:', e7);
   if(e8) console.error('vendors 로드 실패:', e8);
+  if(e9) console.error('app_settings 로드 실패:', e9);
   ROOMS = sortRoomsNumerically(rooms||[]);
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
   PARTS = parts||[];
   EMPLOYEES = emps||[];
   VENDORS = vendors||[];
+  APP_SETTINGS = {};
+  (appCfg||[]).forEach(r=>{ APP_SETTINGS[r.key] = r.value; });
   const sf = (settings||[]).find(s=>s.key==='parts_safety_factor');
   if(sf) SAFETY_FACTOR = Number(sf.value) || 1.5;
   populateRoomFilter();
@@ -3098,6 +3268,7 @@ async function loadDefects(){
   renderCategoryDashboard();
   try{ renderMainDashboard(); }catch(e){ console.error(e); }
   if(IS_MOBILE) renderMobileMyDefects();
+  renderDeadlineAlertBanner();
 }
 
 // ---------- 필터 옵션 채우기 ----------
@@ -3187,9 +3358,41 @@ function renderKpis(){
   document.getElementById('kpiVacantDays').textContent = totalVacantDays;
   document.getElementById('kpiRepeated').textContent = repeatedCount;
   document.getElementById('kpiRepeatedPct').textContent = repeatedPct + '%';
+
+  // 평균 처리일: created_at → updated_at (완료된 하자 기준, 이력 데이터 쌓이기 전 임시 계산)
+  const completed = DEFECTS.filter(d=>d.status==='완료' && d.updated_at && d.created_at);
+  if(completed.length){
+    const avgMs = completed.reduce((s,d)=>
+      s + (new Date(d.updated_at) - new Date(d.created_at)), 0) / completed.length;
+    const avgDays = Math.round(avgMs / 86400000 * 10) / 10;
+    document.getElementById('kpiAvgDays').textContent = avgDays + '일';
+  } else {
+    document.getElementById('kpiAvgDays').textContent = '–';
+  }
+
+  // 처리기한 임박 건수
+  const alertDays = Number(APP_SETTINGS['deadline_alert_days'] || 3);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const limitDate = new Date(today); limitDate.setDate(limitDate.getDate() + alertDays);
+  const deadlineSoon = DEFECTS.filter(d=>{
+    if(d.status==='완료' || d.status==='보류') return false;
+    if(!d.due_date) return false;
+    const sd = new Date(d.due_date); sd.setHours(0,0,0,0);
+    return sd >= today && sd <= limitDate;
+  }).length;
+  document.getElementById('kpiDeadlineSoon').textContent = deadlineSoon;
 }
 
 // ---------- 객실별 테이블 ----------
+function resetFilters(){
+  const el = (id) => document.getElementById(id);
+  if(el('filterRoom'))    el('filterRoom').value = '';
+  if(el('filterSymptom')) el('filterSymptom').value = '';
+  if(el('filterStatus'))  el('filterStatus').value = '';
+  if(el('searchBox'))     el('searchBox').value = '';
+  renderDefectsTable();
+}
+
 function getFilteredDefects(){
   const roomId = document.getElementById('filterRoom').value;
   const symptomFilter = document.getElementById('filterSymptom').value;
@@ -3214,9 +3417,9 @@ function renderDefectsTable(){
   body.innerHTML = rows.map(d=>{
     const date = new Date(d.created_at).toLocaleDateString('ko-KR');
     return `
-    <tr>
+    <tr style="cursor:pointer;" onclick="openDetailPanel(${d.id})">
       <td>
-        <b>${escapeHtml(d.rooms?.room_number||'-')}</b> <span style="color:#9ca3af;font-size:12px;">${escapeHtml(d.rooms?.floor||'')}</span>
+        <b>${escapeHtml(d.rooms?.room_number||'-')}</b>
         ${d.is_repeated? '<div><span class="badge" style="background:#fef9c3;color:#854d0e;">🔁 반복하자</span></div>':''}
       </td>
       <td>${escapeHtml(d.symptom||'-')}</td>
@@ -3224,7 +3427,7 @@ function renderDefectsTable(){
       <td>${escapeHtml(d.title)}</td>
       <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
       <td class="col-hide-mobile"><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <select class="status-select s-${d.status}" onchange="changeStatus(${d.id}, this.value)">
           ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
         </select>
@@ -3235,7 +3438,7 @@ function renderDefectsTable(){
       <td class="col-hide-mobile">${Number(d.total_cost||0).toLocaleString()}원</td>
       <td class="col-hide-mobile">${date}</td>
       <td class="col-hide-mobile">${escapeHtml(d.assigned_to||'-')}</td>
-      <td><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
+      <td onclick="event.stopPropagation()"><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
     </tr>`;
   }).join('');
 }
@@ -3246,8 +3449,23 @@ document.getElementById('filterStatus').addEventListener('change', renderDefects
 document.getElementById('searchBox').addEventListener('input', renderDefectsTable);
 
 async function changeStatus(id, newStatus){
+  // 변경 전 상태 확인
+  const prev = DEFECTS.find(d=>d.id===id);
+  const fromStatus = prev?.status || null;
+
   const {error} = await sb.from('defects').update({status:newStatus}).eq('id', id);
   if(error){ showToast('상태 변경 실패: '+error.message); return; }
+
+  // 상태 변경 이력 기록
+  const displayName = CURRENT_USER?.user_metadata?.display_name || CURRENT_USER?.email || '알 수 없음';
+  await sb.from('defect_status_logs').insert({
+    defect_id: id,
+    from_status: fromStatus,
+    to_status: newStatus,
+    changed_by: CURRENT_USER?.id || null,
+    changed_by_name: displayName
+  });
+
   showToast('상태가 변경되었습니다.');
   await loadDefects();
 }
@@ -3589,7 +3807,7 @@ function toggleDefectExtraFields(forceOpen){
   const open   = forceOpen !== undefined ? forceOpen : !isOpen;
   el.style.display    = open ? '' : 'none';
   icon.textContent    = open ? '－' : '＋';
-  label.textContent   = open ? '추가 정보 접기' : '추가 정보 입력';
+  label.textContent   = open ? '추가 정보 접기' : '추가 정보 펼치기';
 }
 
 function openNewDefectModal(){
@@ -4881,6 +5099,152 @@ async function renderCostStat(){
 }
 
 // ---------- 유틸 ----------
+// ============================================================
+// 하자 상세 패널
+// ============================================================
+let DETAIL_DEFECT_ID = null;
+
+async function openDetailPanel(id){
+  DETAIL_DEFECT_ID = id;
+  const defect = DEFECTS.find(d=>d.id===id);
+  if(!defect) return;
+
+  // 기본 정보 채우기
+  const set = (elId, val) => {
+    const el = document.getElementById(elId);
+    if(el) el.textContent = val || '-';
+  };
+
+  document.getElementById('detailTitle').textContent =
+    `${defect.rooms?.room_number || ''} — ${defect.title || '하자 상세'}`;
+
+  set('detailRoom',        defect.rooms?.room_number);
+  set('detailSymptom',     defect.symptom);
+  set('detailLocation',    defect.defect_locations?.name);
+  set('detailContent',     defect.title);
+  set('detailPriority',    defect.priority);
+  set('detailProcessType', defect.process_type || '자체');
+  set('detailAssignee',    defect.assigned_to);
+  set('detailDueDate',     defect.due_date ? new Date(defect.due_date).toLocaleDateString('ko-KR') : '-');
+  set('detailScheduled',   defect.due_date ? new Date(defect.due_date).toLocaleDateString('ko-KR') : '-');
+  set('detailBlocked',     defect.is_vacant ? `방막중 (${defect.vacant_days||0}일)` : '없음');
+  set('detailCreatedAt',   new Date(defect.created_at).toLocaleString('ko-KR'));
+  set('detailStatus',      defect.status);
+
+  // 비용
+  const cost = Number(defect.outsource_cost||0) + Number(defect.labor_cost||0) + Number(defect.material_cost||0);
+  set('detailCost', cost > 0 ? cost.toLocaleString() + '원' : '-');
+
+  // 경과일
+  const days = Math.floor((new Date() - new Date(defect.created_at)) / 86400000);
+  set('detailElapsed', defect.status === '완료' ? `완료됨` : `등록 후 ${days}일 경과`);
+
+  // 패널 오픈
+  document.getElementById('detailBackdrop').classList.add('active');
+  document.getElementById('detailPanel').classList.add('active');
+
+  // 비동기: 이력 + 부품 + 코멘트 로드
+  loadDetailTimeline(id);
+  loadDetailParts(id);
+  loadDetailComments(id);
+}
+
+function closeDetailPanel(){
+  document.getElementById('detailBackdrop').classList.remove('active');
+  document.getElementById('detailPanel').classList.remove('active');
+  DETAIL_DEFECT_ID = null;
+}
+
+function openEditFromDetail(){
+  const id = DETAIL_DEFECT_ID;
+  closeDetailPanel();
+  openEditModal(id);
+}
+
+async function loadDetailTimeline(defectId){
+  const el = document.getElementById('detailTimeline');
+  el.innerHTML = '<div style="color:var(--muted);font-size:13px;">불러오는 중...</div>';
+
+  const {data, error} = await sb.from('defect_status_logs')
+    .select('*').eq('defect_id', defectId).order('changed_at', {ascending:true});
+
+  if(error || !data?.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;">이력이 없습니다. 이후 상태 변경부터 기록됩니다.</div>';
+    return;
+  }
+
+  el.innerHTML = data.map((log,i)=>{
+    const arrow = log.from_status ? `${log.from_status} → ${log.to_status}` : `최초 등록 (${log.to_status})`;
+    const who = log.changed_by_name || '알 수 없음';
+    const when = new Date(log.changed_at).toLocaleString('ko-KR');
+    return `<div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-content">
+        <div class="timeline-label">${escapeHtml(arrow)}</div>
+        <div class="timeline-meta">${escapeHtml(who)} · ${when}${log.note ? ' · ' + escapeHtml(log.note) : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadDetailParts(defectId){
+  const el = document.getElementById('detailPartsList');
+  const {data, error} = await sb.from('defect_parts_used')
+    .select('quantity, defect_parts(name, unit, unit_price)')
+    .eq('defect_id', defectId);
+
+  if(error || !data?.length){
+    el.textContent = '투입 부품 없음';
+    return;
+  }
+  el.innerHTML = data.map(r=>{
+    const p = r.defect_parts;
+    const total = (Number(p?.unit_price)||0) * r.quantity;
+    return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${escapeHtml(p?.name||'-')} × ${r.quantity}${escapeHtml(p?.unit||'')}</span>
+      <span style="color:var(--sub);">${total.toLocaleString()}원</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadDetailComments(defectId){
+  const el = document.getElementById('detailComments');
+  const {data, error} = await sb.from('defect_comments')
+    .select('*').eq('defect_id', defectId).order('created_at', {ascending:true});
+
+  if(error || !data?.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;">메모가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = data.map(c=>`
+    <div class="comment-item">
+      <div class="comment-author">${escapeHtml(c.author_name||'알 수 없음')}</div>
+      <div class="comment-body">${escapeHtml(c.body)}</div>
+      <div class="comment-time">${new Date(c.created_at).toLocaleString('ko-KR')}</div>
+    </div>`).join('');
+}
+
+async function submitComment(){
+  if(!DETAIL_DEFECT_ID) return;
+  const input = document.getElementById('commentInput');
+  const body = input.value.trim();
+  if(!body){ showToast('메모 내용을 입력해주세요.'); return; }
+
+  const displayName = CURRENT_USER?.user_metadata?.display_name || CURRENT_USER?.email || '알 수 없음';
+  const {error} = await sb.from('defect_comments').insert({
+    defect_id: DETAIL_DEFECT_ID,
+    author_id: CURRENT_USER?.id || null,
+    author_name: displayName,
+    body
+  });
+  if(error){ showToast('메모 등록 실패: ' + error.message); return; }
+  input.value = '';
+  showToast('메모가 등록되었습니다.');
+  loadDetailComments(DETAIL_DEFECT_ID);
+}
+
+// ============================================================
+
 function escapeHtml(s){
   if(!s) return '';
   return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4901,6 +5265,71 @@ try{
 
 <!-- PDF 출력 전용 영역 (화면에서는 숨김, 인쇄 시에만 표시) -->
 <div id="printReport"></div>
+
+<!-- ===================== 하자 상세 슬라이드 패널 ===================== -->
+<div class="detail-panel-backdrop" id="detailBackdrop" onclick="closeDetailPanel()"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <h3 id="detailTitle">하자 상세</h3>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn small" id="detailEditBtn" onclick="openEditFromDetail()">✏️ 수정</button>
+      <button class="btn secondary small" onclick="closeDetailPanel()">✕ 닫기</button>
+    </div>
+  </div>
+  <div class="detail-panel-body">
+
+    <!-- 기본 정보 -->
+    <div class="detail-section">
+      <div class="detail-section-title">기본 정보</div>
+      <div class="detail-row"><span class="dl">객실</span><span class="dv" id="detailRoom">-</span></div>
+      <div class="detail-row"><span class="dl">증상</span><span class="dv" id="detailSymptom">-</span></div>
+      <div class="detail-row"><span class="dl">부위</span><span class="dv" id="detailLocation">-</span></div>
+      <div class="detail-row"><span class="dl">하자내용</span><span class="dv" id="detailContent">-</span></div>
+      <div class="detail-row"><span class="dl">우선순위</span><span class="dv" id="detailPriority">-</span></div>
+      <div class="detail-row"><span class="dl">처리방식</span><span class="dv" id="detailProcessType">-</span></div>
+      <div class="detail-row"><span class="dl">담당자</span><span class="dv" id="detailAssignee">-</span></div>
+      <div class="detail-row"><span class="dl">처리기한</span><span class="dv" id="detailDueDate">-</span></div>
+      <div class="detail-row"><span class="dl">예정일</span><span class="dv" id="detailScheduled">-</span></div>
+      <div class="detail-row"><span class="dl">방막</span><span class="dv" id="detailBlocked">-</span></div>
+      <div class="detail-row"><span class="dl">등록일</span><span class="dv" id="detailCreatedAt">-</span></div>
+    </div>
+
+    <!-- 현재 상태 + 비용 -->
+    <div class="detail-section">
+      <div class="detail-section-title">처리 현황</div>
+      <div class="detail-row"><span class="dl">현재 상태</span><span class="dv" id="detailStatus">-</span></div>
+      <div class="detail-row"><span class="dl">발생비용</span><span class="dv" id="detailCost">-</span></div>
+      <div class="detail-row"><span class="dl">평균 처리일</span><span class="dv" id="detailElapsed">-</span></div>
+    </div>
+
+    <!-- 상태 변경 이력 -->
+    <div class="detail-section">
+      <div class="detail-section-title">상태 변경 이력</div>
+      <div id="detailTimeline" class="status-timeline">
+        <div style="color:var(--muted);font-size:13px;">이력을 불러오는 중...</div>
+      </div>
+    </div>
+
+    <!-- 투입 부품 -->
+    <div class="detail-section" id="detailPartsSection">
+      <div class="detail-section-title">투입 부품</div>
+      <div id="detailPartsList" style="font-size:13.5px;color:var(--sub);">-</div>
+    </div>
+
+    <!-- 메모 / 코멘트 -->
+    <div class="detail-section">
+      <div class="detail-section-title">처리 메모</div>
+      <div class="comment-list" id="detailComments">
+        <div style="color:var(--muted);font-size:13px;">메모가 없습니다.</div>
+      </div>
+      <div class="comment-input-row">
+        <textarea id="commentInput" placeholder="처리 경과, 현장 확인 내용 등을 남기세요..."></textarea>
+        <button class="btn small" onclick="submitComment()" style="align-self:flex-end;height:36px;">등록</button>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 </body>
 </html>
