@@ -833,6 +833,12 @@
           <input type="date" id="noticeEndsAt" />
         </div>
       </div>
+      <div id="noticeImportantRow" style="display:none;margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;font-weight:600;">
+          <input type="checkbox" id="noticeIsImportant" style="width:16px;height:16px;cursor:pointer;" />
+          중요 공지로 설정 (상단 배너에 표시됩니다)
+        </label>
+      </div>
       <div class="form-actions">
         <button class="btn secondary" onclick="document.getElementById('noticeModal').classList.remove('active')">취소</button>
         <button class="btn" onclick="saveNotice()">저장</button>
@@ -886,6 +892,58 @@
           <button class="btn" onclick="adminResetPassword()">초기화</button>
         </div>
         <div id="resetMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+      </div>
+
+      <!-- ── 이메일 초대 (Edge Function) ── -->
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:4px;">✉️ 새 계정 초대 (이메일 발송)</h3>
+        <p style="font-size:12.5px;color:var(--sub);margin:0 0 14px;">
+          입력한 이메일로 초대 링크를 발송합니다. 수신자가 링크를 클릭하면 비밀번호를 설정하고 바로 로그인할 수 있습니다.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div class="form-row" style="margin:0;flex:1;min-width:200px;">
+            <label>이메일 <span style="color:#e11d48;">*</span></label>
+            <input id="inviteEmail" type="email" placeholder="staff@example.com" />
+          </div>
+          <div class="form-row" style="margin:0;flex:1;min-width:160px;">
+            <label>이름 <span style="color:#e11d48;">*</span></label>
+            <input id="inviteDisplayName" type="text" placeholder="홍길동" />
+          </div>
+          <div class="form-row" style="margin:0;width:130px;">
+            <label>권한 <span style="color:#e11d48;">*</span></label>
+            <select id="inviteRole" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;background:var(--card);color:var(--text);">
+              <option value="staff">직원 (staff)</option>
+              <option value="admin">관리자 (admin)</option>
+            </select>
+          </div>
+          <button class="btn" onclick="sendInvite()" style="white-space:nowrap;">초대 발송</button>
+        </div>
+        <div id="inviteMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--sub);line-height:1.8;">
+          <b>사전 설정 필요</b><br/>
+          이 기능은 Supabase Edge Function을 통해 작동합니다.<br/>
+          아직 설정하지 않았다면 아래 <b>Edge Function 배포 가이드</b>를 참고하세요.
+        </div>
+      </div>
+
+      <!-- Edge Function 배포 가이드 -->
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:4px;">🛠️ Edge Function 배포 가이드</h3>
+        <p style="font-size:12.5px;color:var(--sub);margin:0 0 12px;">최초 1회만 진행하면 됩니다.</p>
+        <div style="font-size:13px;line-height:2;color:var(--text);">
+          <div style="margin-bottom:4px;"><b>1단계</b> &nbsp;Supabase CLI 설치</div>
+          <pre style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px;overflow-x:auto;margin:0 0 12px;color:var(--text);">npm install -g supabase</pre>
+          <div style="margin-bottom:4px;"><b>2단계</b> &nbsp;로그인 및 프로젝트 연결</div>
+          <pre style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px;overflow-x:auto;margin:0 0 12px;color:var(--text);">supabase login
+supabase link --project-ref 여기에-프로젝트-ID</pre>
+          <div style="margin-bottom:4px;"><b>3단계</b> &nbsp;Function 파일 배포 (함께 전달받은 폴더 기준)</div>
+          <pre style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px;overflow-x:auto;margin:0 0 12px;color:var(--text);">supabase functions deploy invite-user --no-verify-jwt</pre>
+          <div style="margin-bottom:4px;"><b>4단계</b> &nbsp;환경변수 설정 (Supabase 대시보드)</div>
+          <div style="font-size:12px;color:var(--sub);margin-bottom:6px;">app.supabase.com → 프로젝트 → Edge Functions → invite-user → Secrets 탭</div>
+          <pre style="background:var(--bg);padding:10px 14px;border-radius:8px;font-size:12px;overflow-x:auto;margin:0 0 12px;color:var(--text);">SUPABASE_SERVICE_ROLE_KEY = (Project Settings > API > service_role key)
+SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
+          <div style="font-size:12.5px;color:var(--sub);">5단계 완료 후 "초대 발송" 버튼이 정상 작동합니다.</div>
+        </div>
       </div>
     </div>
 
@@ -2583,6 +2641,55 @@ async function doChangePw(){
 
 // ============================================================
 // 비밀번호 초기화 (admin → 다른 사용자)
+// ── 이메일 초대 (Edge Function) ──────────────────────────────
+async function sendInvite(){
+  if(CURRENT_ROLE !== 'admin'){ showToast('관리자만 사용 가능합니다.'); return; }
+  const email       = document.getElementById('inviteEmail').value.trim();
+  const displayName = document.getElementById('inviteDisplayName').value.trim();
+  const role        = document.getElementById('inviteRole').value;
+  const msg         = document.getElementById('inviteMsg');
+
+  if(!email){       msg.style.color='var(--danger)'; msg.textContent='이메일을 입력해주세요.'; return; }
+  if(!displayName){ msg.style.color='var(--danger)'; msg.textContent='이름을 입력해주세요.'; return; }
+
+  msg.style.color='var(--sub)'; msg.textContent='발송 중…';
+
+  try {
+    // Supabase 프로젝트 URL에서 Edge Function URL 자동 생성
+    const supabaseUrl = localStorage.getItem('sb_url') || '';
+    if(!supabaseUrl){ msg.style.color='var(--danger)'; msg.textContent='Supabase URL이 설정되지 않았습니다. 연결 설정을 먼저 완료해주세요.'; return; }
+
+    const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/invite-user';
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session){ msg.style.color='var(--danger)'; msg.textContent='세션이 만료됐습니다. 다시 로그인해주세요.'; return; }
+
+    const res = await fetch(funcUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({ email, displayName, role }),
+    });
+    const json = await res.json();
+
+    if(!res.ok || json.error){
+      msg.style.color='var(--danger)';
+      msg.textContent='실패: ' + (json.error || res.statusText);
+    } else {
+      msg.style.color='var(--ok)';
+      msg.textContent=`초대 발송 완료! ${email} 로 초대 링크가 전송됐습니다.`;
+      document.getElementById('inviteEmail').value='';
+      document.getElementById('inviteDisplayName').value='';
+      // 사용자 목록 새로고침
+      setTimeout(()=>loadAdminUsers(), 1000);
+    }
+  } catch(e){
+    msg.style.color='var(--danger)';
+    msg.textContent='오류: ' + e.message;
+  }
+}
+
 // Supabase admin API는 anon key로 직접 호출 불가 → SQL로 우회
 // ============================================================
 async function adminResetPassword(){
@@ -2804,7 +2911,10 @@ function renderNoticeList(){
       : (today > n.ends_at ? `<span class="notice-expired">종료</span>` : `<span class="notice-period">예정</span>`);
     const canEdit = CURRENT_USER && (n.created_by === CURRENT_USER.id || CURRENT_ROLE === 'admin');
     return `<div class="notice-card">
-      <div class="notice-content">${escapeHtml(n.content)} ${statusBadge}</div>
+      <div class="notice-content">
+        ${n.is_important ? '<span style="display:inline-block;font-size:11px;background:#fee2e2;color:#b91c1c;padding:1px 7px;border-radius:10px;margin-right:6px;font-weight:700;">중요</span>' : ''}
+        ${escapeHtml(n.content)} ${statusBadge}
+      </div>
       ${n.url ? `<div class="notice-url"><a href="${escapeHtml(n.url)}" target="_blank">🔗 ${escapeHtml(n.url)}</a></div>` : ''}
       <div class="notice-meta" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
         <span>📅 ${n.starts_at} ~ ${n.ends_at} &nbsp;|&nbsp; ✍️ ${escapeHtml(n.created_by_email||'')}</span>
@@ -2928,8 +3038,30 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v1.6';
+const APP_VERSION = 'v1.8';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v1.8',
+    date: '2026-06-29',
+    category: '기능 추가',
+    title: '전 직원 공지 작성 가능',
+    notes: [
+      '일반 직원도 공지사항 탭에서 공지 등록·수정·삭제 가능',
+      '중요 공지(상단 배너) 설정은 관리자만 가능',
+      '본인이 작성한 공지만 수정·삭제 가능 (관리자는 전체)',
+    ]
+  },
+  {
+    version: 'v1.7',
+    date: '2026-06-29',
+    category: '기능 추가',
+    title: '이메일 초대로 계정 생성',
+    notes: [
+      '관리자 설정에서 이메일·이름·권한 입력 후 초대 링크 발송 가능',
+      'Supabase Edge Function 기반 — Service Role Key 서버에서만 보관',
+      '수신자가 링크 클릭 시 비밀번호 직접 설정 후 바로 로그인',
+    ]
+  },
   {
     version: 'v1.6',
     date: '2026-06-29',
@@ -3035,6 +3167,8 @@ function openNoticeModal(id){
   document.getElementById('noticeUrl').value = '';
   document.getElementById('noticeStartsAt').value = today;
   document.getElementById('noticeEndsAt').value = nextWeek;
+  document.getElementById('noticeIsImportant').checked = false;
+  document.getElementById('noticeImportantRow').style.display = CURRENT_ROLE === 'admin' ? 'block' : 'none';
   document.getElementById('noticeModalTitle').textContent = '공지 등록';
   document.getElementById('noticeModal').classList.add('active');
 }
@@ -3047,6 +3181,8 @@ function editNotice(id){
   document.getElementById('noticeUrl').value = n.url || '';
   document.getElementById('noticeStartsAt').value = n.starts_at;
   document.getElementById('noticeEndsAt').value = n.ends_at;
+  document.getElementById('noticeIsImportant').checked = !!n.is_important;
+  document.getElementById('noticeImportantRow').style.display = CURRENT_ROLE === 'admin' ? 'block' : 'none';
   document.getElementById('noticeModalTitle').textContent = '공지 수정';
   document.getElementById('noticeModal').classList.add('active');
 }
@@ -3060,8 +3196,13 @@ async function saveNotice(){
   if(!content){ showToast('내용을 입력해주세요.'); return; }
   if(starts > ends){ showToast('종료일이 시작일보다 빠릅니다.'); return; }
 
+  const isImportant = CURRENT_ROLE === 'admin'
+    ? document.getElementById('noticeIsImportant').checked
+    : false;
+
   const payload = {
     content, url: url||null, starts_at: starts, ends_at: ends,
+    is_important: isImportant,
     created_by: CURRENT_USER?.id,
     created_by_email: CURRENT_USER?.email
   };
