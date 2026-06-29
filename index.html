@@ -1308,21 +1308,21 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
     <div class="grid2">
       <div class="card">
         <h3>월별 하자 발생 추이</h3>
-        <canvas id="chartMonthly" height="220"></canvas>
+        <canvas id="chartMonthly" style="height:220px;max-height:220px;"></canvas>
       </div>
       <div class="card">
         <h3>외주 vs 자체 수리비용</h3>
-        <canvas id="chartCostCompare" height="220"></canvas>
+        <canvas id="chartCostCompare" style="height:220px;max-height:220px;"></canvas>
       </div>
     </div>
     <div class="grid2">
       <div class="card">
         <h3>처리 현황 (상태별)</h3>
-        <canvas id="chartStatusMain" height="220"></canvas>
+        <canvas id="chartStatusMain" style="height:220px;max-height:220px;"></canvas>
       </div>
       <div class="card">
         <h3>반복하자 비율</h3>
-        <canvas id="chartRepeatRatio" height="220"></canvas>
+        <canvas id="chartRepeatRatio" style="height:220px;max-height:220px;"></canvas>
       </div>
     </div>
 
@@ -3892,7 +3892,7 @@ async function renderMainDashboard(){
     chartMonthly = new Chart(monthlyCanvas, {
       type:'bar',
       data:{ labels:Object.keys(monthMap), datasets:[{label:'발생 건수', data:Object.values(monthMap), backgroundColor:'#2563eb'}]},
-      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{stepSize:1}}} }
     });
   }
 
@@ -3904,7 +3904,7 @@ async function renderMainDashboard(){
     chartStatusMain = new Chart(statusCanvas, {
       type:'doughnut',
       data:{ labels:['접수','확인','조치중','완료'], datasets:[{data:statusCounts, backgroundColor:['#dc2626','#d97706','#2563eb','#16a34a']}]},
-      options:{ responsive:true }
+      options:{ responsive:true, maintainAspectRatio:false }
     });
   }
 
@@ -3917,7 +3917,7 @@ async function renderMainDashboard(){
     chartCostCompare = new Chart(costCanvas, {
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
-      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
     });
   }
 
@@ -3930,7 +3930,7 @@ async function renderMainDashboard(){
     chartRepeatRatio = new Chart(repeatCanvas, {
       type:'pie',
       data:{ labels:['반복하자', '일반하자'], datasets:[{data:[repeatedCount, normalCount], backgroundColor:['#d97706','#94a3b8']}]},
-      options:{ responsive:true }
+      options:{ responsive:true, maintainAspectRatio:false }
     });
   }
 
