@@ -3577,6 +3577,9 @@ async function loadDefects(){
     .order('created_at', {ascending:false});
   if(error){ console.error(error); showToast('하자 목록 로드 실패: '+error.message); return; }
   DEFECTS = data||[];
+  // 임시 진단
+  const _selfSum = DEFECTS.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
+  showToast('[진단] 자체처리 합계: '+_selfSum+'원 / '+DEFECTS.filter(d=>!d.is_outsourced).length+'건');
   renderKpis();
   renderDefectsTable();
   renderCategoryDashboard();
