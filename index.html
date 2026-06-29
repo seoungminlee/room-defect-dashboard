@@ -3577,9 +3577,6 @@ async function loadDefects(){
     .order('created_at', {ascending:false});
   if(error){ console.error(error); showToast('하자 목록 로드 실패: '+error.message); return; }
   DEFECTS = data||[];
-  // 임시 진단
-  const _selfSum = DEFECTS.filter(d=>!d.is_outsourced).reduce((s,d)=>s+Number(d.total_cost||0),0);
-  showToast('[진단] 자체처리 합계: '+_selfSum+'원 / '+DEFECTS.filter(d=>!d.is_outsourced).length+'건');
   renderKpis();
   renderDefectsTable();
   renderCategoryDashboard();
@@ -3878,7 +3875,7 @@ async function renderMainDashboard(){
     chartCostCompare = new Chart(costCanvas, {
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{type:'logarithmic', min:1, ticks:{callback:v=>{if([1,10,100,1000,10000,100000,1000000,10000000].includes(v))return v.toLocaleString()+'원'; return null;}}}} }
     });
   }
 
