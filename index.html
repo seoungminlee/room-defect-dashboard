@@ -905,6 +905,7 @@
             <select id="inviteRole" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;background:var(--card);color:var(--text);">
               <option value="staff">직원 (staff)</option>
               <option value="admin">관리자 (admin)</option>
+              <option value="viewer">조회전용 (viewer)</option>
             </select>
           </div>
           <button class="btn" onclick="sendInvite()" style="white-space:nowrap;">초대 발송</button>
@@ -1884,7 +1885,8 @@ async function doLogin(){
 
 function onLoginSuccess(user){
   CURRENT_USER = user;
-  CURRENT_ROLE = user?.user_metadata?.role === 'admin' ? 'admin' : 'staff';
+  const _r = user?.user_metadata?.role;
+  CURRENT_ROLE = _r === 'admin' ? 'admin' : _r === 'viewer' ? 'viewer' : 'staff';
 
   // 로그인 화면 숨기기
   document.getElementById('loginScreen').style.display = 'none';
@@ -1893,6 +1895,12 @@ function onLoginSuccess(user){
   document.getElementById('userChip').style.display = 'flex';
 
   // admin 전용 요소 표시 (connStatus 포함)
+  if(CURRENT_ROLE === 'viewer'){
+    // viewer: 편집 버튼 전체 숨김
+    const style = document.createElement('style');
+    style.textContent = '.btn:not(.secondary):not([onclick*="switch"]):not([onclick*="filter"]):not([onclick*="export"]):not([onclick*="download"]):not([onclick*="report"]):not([onclick*="logout"]):not([onclick*="openDefect"]):not([onclick*="changeStatus"]):not([onclick*="switchTab"]):not([onclick*="switchAdminSubtab"]):not([onclick*="showDetail"]), .inline-save-btn { display: none !important; } #fab { display: none !important; }';
+    document.head.appendChild(style);
+  }
   if(CURRENT_ROLE === 'admin'){
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
   }
@@ -4249,6 +4257,7 @@ document.getElementById('formVacant').addEventListener('change', e=>{
 });
 
 async function saveDefect(){
+  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
   const id = document.getElementById('editDefectId').value;
   let roomId = document.getElementById('formRoom').value;
   const symptom = document.getElementById('formSymptom').value;
@@ -5008,6 +5017,7 @@ async function renderInventoryPanel(){
 }
 
 async function submitStockIn(){
+  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
   const partId = document.getElementById('stockInPart').value;
   const qty = Number(document.getElementById('stockInQty').value || 0);
   if(!partId || qty<=0){ alert('부속과 입고수량을 확인해주세요.'); return; }
@@ -5030,6 +5040,7 @@ async function submitStockIn(){
 }
 
 async function submitStockOut(){
+  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
   const partId = document.getElementById('stockOutPart').value;
   const qty = Number(document.getElementById('stockOutQty').value || 0);
   if(!partId || qty<=0){ alert('부속과 출고수량을 확인해주세요.'); return; }
