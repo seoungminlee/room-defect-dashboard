@@ -2653,14 +2653,14 @@ async function sendInvite(){
     const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/invite-user';
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ msg.style.color='var(--danger)'; msg.textContent='세션이 만료됐습니다. 다시 로그인해주세요.'; return; }
-    alert('token type: ' + typeof session.access_token + ' / len: ' + session.access_token.length + ' / first10: ' + session.access_token.substring(0,10));
 
-    const headers = new Headers();
-    headers.append('Content-Type', 'application/json');
-    headers.append('Authorization', 'Bearer ' + session.access_token.trim());
+    const token = String(session.access_token).replace(/[\r\n]/g, '');
     const res = await fetch(funcUrl, {
       method: 'POST',
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
       body: JSON.stringify({ email, displayName, role }),
     });
     const json = await res.json();
