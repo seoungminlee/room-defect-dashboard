@@ -2654,7 +2654,7 @@ async function sendInvite(){
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ msg.style.color='var(--danger)'; msg.textContent='세션이 만료됐습니다. 다시 로그인해주세요.'; return; }
 
-    const token = String(session.access_token).replace(/[\r\n\t]/g, '');
+    const token = String(session.access_token).replace(/[^\x20-\x7E]/g, '');
     const cleanUrl = funcUrl.replace(/[\r\n\t]/g, '');
     const json = await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
