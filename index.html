@@ -2658,7 +2658,7 @@ async function sendInvite(){
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + session.access_token,
+        'Authorization': 'Bearer ' + session.access_token.trim(),
       },
       body: JSON.stringify({ email, displayName, role }),
     });
