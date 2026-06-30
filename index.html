@@ -2654,12 +2654,12 @@ async function sendInvite(){
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ msg.style.color='var(--danger)'; msg.textContent='세션이 만료됐습니다. 다시 로그인해주세요.'; return; }
 
+    const headers = new Headers();
+    headers.append('Content-Type', 'application/json');
+    headers.append('Authorization', 'Bearer ' + session.access_token.trim());
     const res = await fetch(funcUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + session.access_token.trim(),
-      },
+      headers,
       body: JSON.stringify({ email, displayName, role }),
     });
     const json = await res.json();
