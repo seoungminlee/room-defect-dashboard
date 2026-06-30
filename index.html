@@ -3315,15 +3315,8 @@ async function executeDataReset(){
   ];
 
   const errors = [];
-  for(const table of tables){
-    // created_at 기준 전체 삭제 (id 타입 무관)
-    const { error } = await sb.from(table).delete().lte('created_at', new Date().toISOString());
-    if(error) errors.push(`${table}: ${error.message}`);
-  }
-
-  // 부품 재고 수량 0으로 리셋
-  const { error: stockError } = await sb.from('defect_parts').update({ current_stock: 0 }).lte('created_at', new Date().toISOString());
-  if(stockError) errors.push(`defect_parts(stock reset): ${stockError.message}`);
+  const { error: rpcError } = await sb.rpc('reset_operation_data');
+  if(rpcError) errors.push(rpcError.message);
 
   if(errors.length){
     msg.style.color = 'var(--danger)';
