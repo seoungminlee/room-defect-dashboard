@@ -2656,25 +2656,24 @@ async function sendInvite(){
 
     const token = String(session.access_token).replace(/[\r\n\t]/g, '');
     const cleanUrl = funcUrl.replace(/[\r\n\t]/g, '');
-    const res = await fetch(cleanUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + token,
-      },
-      body: JSON.stringify({ email, displayName, role }),
+    const json = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', cleanUrl);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+      xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); } };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(JSON.stringify({ email, displayName, role }));
     });
-    const json = await res.json();
 
-    if(!res.ok || json.error){
+    if(json.error){
       msg.style.color='var(--danger)';
-      msg.textContent='실패: ' + (json.error || res.statusText);
+      msg.textContent='실패: ' + json.error;
     } else {
       msg.style.color='var(--ok)';
       msg.textContent=`초대 발송 완료! ${email} 로 초대 링크가 전송됐습니다.`;
       document.getElementById('inviteEmail').value='';
       document.getElementById('inviteDisplayName').value='';
-      // 사용자 목록 새로고침
       setTimeout(()=>loadAdminUsers(), 1000);
     }
   } catch(e){
