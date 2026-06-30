@@ -3321,6 +3321,10 @@ async function executeDataReset(){
     if(error) errors.push(`${table}: ${error.message}`);
   }
 
+  // 부품 재고 수량 0으로 리셋
+  const { error: stockError } = await sb.from('defect_parts').update({ current_stock: 0 }).gte('id', 0);
+  if(stockError) errors.push(`defect_parts(stock reset): ${stockError.message}`);
+
   if(errors.length){
     msg.style.color = 'var(--danger)';
     msg.textContent = '일부 실패: ' + errors.join(' / ');
