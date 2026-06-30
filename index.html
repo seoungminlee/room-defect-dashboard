@@ -2678,6 +2678,7 @@ async function sendInvite(){
     }
   } catch(e){
     msg.style.color='var(--danger)';
+    alert('에러스택: ' + (e.stack || e.message));
     msg.textContent='오류: ' + e.message;
   }
 }
