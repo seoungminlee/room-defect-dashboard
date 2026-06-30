@@ -2647,7 +2647,7 @@ async function sendInvite(){
 
   try {
     // Supabase 프로젝트 URL에서 Edge Function URL 자동 생성
-    const supabaseUrl = localStorage.getItem('sb_url') || '';
+    const supabaseUrl = SUPABASE_URL || localStorage.getItem('sb_url') || '';
     if(!supabaseUrl){ msg.style.color='var(--danger)'; msg.textContent='Supabase URL이 설정되지 않았습니다. 연결 설정을 먼저 완료해주세요.'; return; }
 
     const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/invite-user';
