@@ -4503,7 +4503,7 @@ async function deleteRoom(id){
   const {data, error} = await sb.from('rooms').delete().eq('id', id).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
   if(!data || !data.length){
-    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    alert('권한이 없습니다. 관리자에게 문의하십시오.');
     return;
   }
   showToast('객실이 삭제되었습니다.');
@@ -4909,7 +4909,7 @@ async function deleteSelectedRooms(){
   const {data, error} = await sb.from('rooms').delete().in('id', ids).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
   if(!data || !data.length){
-    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    alert('권한이 없습니다. 관리자에게 문의하십시오.');
     return;
   }
   showToast(`객실 ${data.length}건이 삭제되었습니다.`);
