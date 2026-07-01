@@ -1885,8 +1885,9 @@ async function doLogin(){
 
 function onLoginSuccess(user){
   CURRENT_USER = user;
-  const _r = user?.user_metadata?.role;
-  CURRENT_ROLE = _r === 'admin' ? 'admin' : _r === 'viewer' ? 'viewer' : 'staff';
+  // v19: role은 app_metadata가 유일한 출처 (user_metadata는 위조 가능하므로 사용 금지)
+  const _r = user?.app_metadata?.role;
+  CURRENT_ROLE = _r === 'admin' ? 'admin' : _r === 'staff' ? 'staff' : 'viewer';
 
   // 로그인 화면 숨기기
   document.getElementById('loginScreen').style.display = 'none';
@@ -2840,26 +2841,33 @@ function renderAdminUsers(){
   empty.style.display = 'none';
   tbody.innerHTML = ADMIN_USERS.map(u => {
     const isMe = u.email === CURRENT_USER?.email;
-    const roleLabel = u.role === 'admin' ? '<span class="badge" style="background:#fef3c7;color:#92400e;">관리자</span>' : '<span class="badge" style="background:#e0f2fe;color:#0369a1;">일반</span>';
+    const ROLE_META = {
+      admin:  { label: '관리자',   style: 'background:#fef3c7;color:#92400e;' },
+      staff:  { label: '일반',     style: 'background:#e0f2fe;color:#0369a1;' },
+      viewer: { label: '조회전용', style: 'background:#f1f5f9;color:#475569;' },
+    };
+    const rm = ROLE_META[u.role] || ROLE_META.viewer;
+    const roleLabel = `<span class="badge" style="${rm.style}">${rm.label}</span>`;
     const lastLogin = u.last_sign_in ? new Date(u.last_sign_in).toLocaleString('ko-KR') : '미로그인';
     const createdAt = new Date(u.created_at).toLocaleDateString('ko-KR');
-    const otherRole = u.role === 'admin' ? 'staff' : 'admin';
-    const otherRoleLabel = u.role === 'admin' ? '일반으로 변경' : '관리자로 변경';
+    const roleSelect = `<select class="role-select" data-email="${escapeHtml(u.email)}" onchange="adminChangeRoleFromSelect(this)" style="padding:4px 6px;border-radius:6px;border:1px solid var(--line);">
+        ${['admin','staff','viewer'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_META[r].label}</option>`).join('')}
+      </select>`;
     return `<tr>
       <td>${escapeHtml(u.email)}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
       <td>${roleLabel}</td>
       <td style="font-size:12.5px;color:var(--sub);">${lastLogin}</td>
       <td style="font-size:12.5px;color:var(--sub);">${createdAt}</td>
-      <td>${isMe ? '–' : `<button class="btn secondary small" data-email="${escapeHtml(u.email)}" data-role="${escapeHtml(otherRole)}" onclick="adminChangeRoleFromBtn(this)">${otherRoleLabel}</button>`}</td>
+      <td>${isMe ? '–' : roleSelect}</td>
       <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" data-email="${escapeHtml(u.email)}" onclick="adminResetPasswordQuickFromBtn(this)">초기화</button>`}</td>
       <td>${isMe ? '–' : `<button class="btn small" style="background:var(--danger);" data-userid="${escapeHtml(u.id)}" data-email="${escapeHtml(u.email)}" onclick="deleteUserFromBtn(this)">삭제</button>`}</td>
     </tr>`;
   }).join('');
 }
 
-function adminChangeRoleFromBtn(btn){
-  const email = btn.dataset.email;
-  const newRole = btn.dataset.role;
+function adminChangeRoleFromSelect(sel){
+  const email = sel.dataset.email;
+  const newRole = sel.value;
   adminChangeRole(email, newRole);
 }
 function deleteUserFromBtn(btn){
@@ -2868,7 +2876,7 @@ function deleteUserFromBtn(btn){
 
 async function deleteUser(userId, email){
   if(!confirm(`⚠️ ${email} 계정을 완전히 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.`)) return;
-  const supabaseUrl = localStorage.getItem('sb_url') || '';
+  const supabaseUrl = (SUPABASE_URL || localStorage.getItem('sb_url') || '').replace(/[\r\n\t]/g, '').trim();
   if(!supabaseUrl){ showToast('Supabase URL이 설정되지 않았습니다.'); return; }
   const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/delete-user';
   const { data:{ session } } = await sb.auth.getSession();
@@ -2896,10 +2904,11 @@ function adminResetPasswordQuickFromBtn(btn){
 }
 
 async function adminChangeRole(email, newRole){
-  if(!confirm(`${email} 의 권한을 "${newRole === 'admin' ? '관리자' : '일반'}"으로 변경하시겠습니까?`)) return;
+  const roleLabels = { admin: '관리자', staff: '일반', viewer: '조회전용' };
+  if(!confirm(`${email} 의 권한을 "${roleLabels[newRole] || newRole}"으로 변경하시겠습니까?`)){ loadAdminUsers(); return; }
   const { error } = await sb.rpc('admin_set_user_role', { target_email: email, new_role: newRole });
-  if(error){ showToast('권한 변경 실패: ' + error.message); return; }
-  showToast('✅ 권한이 변경되었습니다.');
+  if(error){ showToast('권한 변경 실패: ' + error.message); loadAdminUsers(); return; }
+  showToast('✅ 권한이 변경되었습니다. 대상자는 재로그인해야 적용됩니다.');
   loadAdminUsers();
 }
 
@@ -4053,7 +4062,7 @@ function renderCategoryDashboard(){
   // 표
   document.getElementById('categorySummaryBody').innerHTML = summary.map(s=>`
     <tr>
-      <td><b>${s.name}</b></td>
+      <td><b>${escapeHtml(s.name)}</b></td>
       <td>${s.접수}</td><td>${s.확인}</td><td>${s.조치중}</td><td>${s.완료}</td>
       <td>${s.outsourcedPct}%</td>
       <td><b>${s.total}</b></td>
