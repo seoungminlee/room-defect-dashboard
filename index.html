@@ -1441,18 +1441,30 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
         <div class="card">
           <h3>📥 입고 등록</h3>
           <div class="form-row"><label>부속</label><select id="stockInPart"></select></div>
-          <div class="form-row"><label>입고수량</label><input id="stockInQty" type="number" placeholder="예: 10" /></div>
+          <div class="form-row"><label>입고수량</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" onclick="stepQty('stockInQty',-1)" style="width:36px;height:36px;border:1px solid var(--border);border-radius:7px;background:var(--card);font-size:16px;cursor:pointer;">−</button>
+              <input id="stockInQty" type="number" value="1" min="1" style="text-align:center;flex:1;" />
+              <button type="button" onclick="stepQty('stockInQty',1)" style="width:36px;height:36px;border:1px solid var(--border);border-radius:7px;background:var(--card);font-size:16px;cursor:pointer;">＋</button>
+            </div>
+          </div>
           <div class="form-row"><label>입고단가(원)</label><input id="stockInPrice" type="number" placeholder="비워두면 현재 마스터 단가 적용" /></div>
-          <div class="form-row"><label>입고자</label><input id="stockInBy" placeholder="예: 이성민" /></div>
+          <div class="form-row"><label>입고자</label><select id="stockInBy" onchange="handleManualEmployeeInput(this)"></select></div>
           <div class="form-row"><label>비고</label><input id="stockInNote" placeholder="선택" /></div>
           <button class="btn" onclick="submitStockIn()">입고 등록</button>
         </div>
         <div class="card">
           <h3>📤 일반 출고 등록 <span style="color:#9ca3af;font-weight:400;font-size:12px;">(하자수리 외 — 폐기, 분실 등)</span></h3>
           <div class="form-row"><label>부속</label><select id="stockOutPart"></select></div>
-          <div class="form-row"><label>출고수량</label><input id="stockOutQty" type="number" placeholder="예: 1" /></div>
+          <div class="form-row"><label>출고수량</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" onclick="stepQty('stockOutQty',-1)" style="width:36px;height:36px;border:1px solid var(--border);border-radius:7px;background:var(--card);font-size:16px;cursor:pointer;">−</button>
+              <input id="stockOutQty" type="number" value="1" min="1" style="text-align:center;flex:1;" />
+              <button type="button" onclick="stepQty('stockOutQty',1)" style="width:36px;height:36px;border:1px solid var(--border);border-radius:7px;background:var(--card);font-size:16px;cursor:pointer;">＋</button>
+            </div>
+          </div>
           <div class="form-row"><label>출고 사유</label><input id="stockOutReason" placeholder="예: 파손 폐기" /></div>
-          <div class="form-row"><label>출고자</label><input id="stockOutBy" placeholder="예: 이성민" /></div>
+          <div class="form-row"><label>출고자</label><select id="stockOutBy" onchange="handleManualEmployeeInput(this)"></select></div>
           <div class="form-row"><label>비고</label><input id="stockOutNote" placeholder="선택" /></div>
           <button class="btn" onclick="submitStockOut()">출고 등록</button>
         </div>
@@ -3097,8 +3109,21 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.0';
+const APP_VERSION = 'v2.1';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.1',
+    date: '2026-07-02',
+    category: 'UI 개선',
+    title: '입출고 입력 편의 개선 · 재고 검증',
+    adminOnly: false,
+    notes: [
+      '입고자·출고자·등록자가 로그인한 본인으로 자동 선택 (직원 목록에서 변경 가능)',
+      '수량 입력에 +/− 버튼 추가, 기본값 1',
+      '연속 입·출고 시 처리자 선택 유지',
+      '현재고보다 많은 출고는 차단 (재고 부족 안내)',
+    ]
+  },
   {
     version: 'v2.0',
     date: '2026-07-02',
@@ -3748,6 +3773,30 @@ function populateFormSelects(){
     const el = document.getElementById(id);
     if(el) el.innerHTML = empOptions;
   });
+
+  // 입고자·출고자: 직원 드롭다운 + 로그인 사용자 기본 선택 (v2.1)
+  ['stockInBy','stockOutBy'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){
+      const cur = el.value;  // 기존 선택 유지 (연속 등록 시)
+      el.innerHTML = empOptions;
+      setSelectValueWithFallback(id, cur || currentUserName());
+    }
+  });
+}
+
+// 로그인 사용자 표시 이름
+function currentUserName(){
+  return CURRENT_USER?.user_metadata?.display_name
+      || CURRENT_USER?.user_metadata?.full_name
+      || CURRENT_USER?.email || '';
+}
+
+// 수량 스텝퍼 (v2.1)
+function stepQty(inputId, delta){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  el.value = Math.max(1, Number(el.value || 0) + delta);
 }
 
 function setSelectValueWithFallback(selectId, value){
@@ -4272,7 +4321,8 @@ function openNewDefectModal(){
   document.getElementById('formVendor').value = '';
   document.getElementById('formOutsourcedCost').value = '';
   document.getElementById('formAssigned').value = '';
-  document.getElementById('formReporter').value = '';
+  // v2.1: 등록자 기본값 = 로그인 사용자
+  setSelectValueWithFallback('formReporter', currentUserName());
   applyProcessTypeUI(false);
   document.getElementById('formVacant').checked = false;
   document.getElementById('formVacantDays').value = '';
@@ -4381,7 +4431,7 @@ document.getElementById('formVacant').addEventListener('change', e=>{
 });
 
 async function saveDefect(){
-  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
+  if(CURRENT_ROLE === 'viewer'){ showToast('권한이 없습니다. 관리자에게 문의하십시오.'); return; }
   const id = document.getElementById('editDefectId').value;
   let roomId = document.getElementById('formRoom').value;
   const symptom = document.getElementById('formSymptom').value;
@@ -5141,7 +5191,7 @@ async function renderInventoryPanel(){
 }
 
 async function submitStockIn(){
-  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
+  if(CURRENT_ROLE === 'viewer'){ showToast('권한이 없습니다. 관리자에게 문의하십시오.'); return; }
   const partId = document.getElementById('stockInPart').value;
   const qty = Number(document.getElementById('stockInQty').value || 0);
   if(!partId || qty<=0){ alert('부속과 입고수량을 확인해주세요.'); return; }
@@ -5154,9 +5204,9 @@ async function submitStockIn(){
     note: document.getElementById('stockInNote').value.trim() || null
   });
   if(error){ alert('입고 등록 실패: '+error.message); return; }
-  document.getElementById('stockInQty').value='';
+  // 입고자는 유지 (연속 입고 편의), 수량은 1로 리셋
+  document.getElementById('stockInQty').value='1';
   document.getElementById('stockInPrice').value='';
-  document.getElementById('stockInBy').value='';
   document.getElementById('stockInNote').value='';
   showToast('입고가 등록되었습니다.');
   await reloadMasterData();
@@ -5164,10 +5214,17 @@ async function submitStockIn(){
 }
 
 async function submitStockOut(){
-  if(CURRENT_ROLE === 'viewer'){ showToast('조회 전용 계정입니다.'); return; }
+  if(CURRENT_ROLE === 'viewer'){ showToast('권한이 없습니다. 관리자에게 문의하십시오.'); return; }
   const partId = document.getElementById('stockOutPart').value;
   const qty = Number(document.getElementById('stockOutQty').value || 0);
   if(!partId || qty<=0){ alert('부속과 출고수량을 확인해주세요.'); return; }
+  // v2.1: 재고 초과 출고 차단
+  const outPart = PARTS.find(p=>String(p.id)===String(partId));
+  const curStock = Number(outPart?.current_stock||0);
+  if(qty > curStock){
+    alert(`재고가 부족합니다.\n현재고 ${curStock}개, 출고 요청 ${qty}개\n\n실물 재고가 더 있다면 입고 등록(또는 재고 조정)을 먼저 해주세요.`);
+    return;
+  }
   const {error} = await sb.from('part_stock_out').insert({
     part_id: Number(partId), quantity: qty,
     reason: document.getElementById('stockOutReason').value.trim() || null,
@@ -5175,9 +5232,9 @@ async function submitStockOut(){
     note: document.getElementById('stockOutNote').value.trim() || null
   });
   if(error){ alert('출고 등록 실패: '+error.message); return; }
-  document.getElementById('stockOutQty').value='';
+  // 출고자는 유지 (연속 출고 편의), 수량은 1로 리셋
+  document.getElementById('stockOutQty').value='1';
   document.getElementById('stockOutReason').value='';
-  document.getElementById('stockOutBy').value='';
   document.getElementById('stockOutNote').value='';
   showToast('출고가 등록되었습니다.');
   await reloadMasterData();
