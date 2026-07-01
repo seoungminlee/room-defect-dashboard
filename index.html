@@ -5112,9 +5112,9 @@ function renderVendors(){
   }
   area.innerHTML = list.map(v=>{
     const docLinks = [];
-    if(v.doc_biz_reg)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_biz_reg)}" target="_blank">📄 사업자등록증</a>`);
-    if(v.doc_account)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_account)}" target="_blank">🏦 계좌사본</a>`);
-    if(v.doc_contract) docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_contract)}" target="_blank">📋 계약서</a>`);
+    if(v.doc_biz_reg)  docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_biz_reg)}" onclick="openVendorDoc(this);return false;">📄 사업자등록증</a>`);
+    if(v.doc_account)  docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_account)}" onclick="openVendorDoc(this);return false;">🏦 계좌사본</a>`);
+    if(v.doc_contract) docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_contract)}" onclick="openVendorDoc(this);return false;">📋 계약서</a>`);
 
     // 이 업체로 처리된 하자 집계
     const vendorDefects = DEFECTS.filter(d=>d.is_outsourced && d.vendor_name && d.vendor_name===v.name);
@@ -5257,10 +5257,21 @@ async function uploadVendorDoc(inputEl, targetFieldId){
     inputEl.value = '';
     return;
   }
-  const { data: urlData } = sb.storage.from('vendor-docs').getPublicUrl(data.path);
-  document.getElementById(targetFieldId).value = urlData.publicUrl;
+  // v20: 공개 URL 대신 파일 경로만 저장 (열람은 서명 URL로)
+  document.getElementById(targetFieldId).value = data.path;
   if(statusEl){ statusEl.style.display=''; statusEl.textContent='✅ 업로드 완료'; }
   inputEl.value = '';
+}
+
+// v20: 업체 서류 열람 — 비공개 버킷에서 서명 URL 생성 후 열기 (10분 유효)
+async function openVendorDoc(el){
+  let docPath = el.dataset.doc || '';
+  if(!docPath) return;
+  // 구버전 데이터(전체 URL 저장분) 호환: 경로만 추출
+  docPath = docPath.replace(/^.*\/object\/(?:public\/)?vendor-docs\//, '');
+  const { data, error } = await sb.storage.from('vendor-docs').createSignedUrl(docPath, 600);
+  if(error){ showToast('문서 열람 실패: ' + error.message); return; }
+  window.open(data.signedUrl, '_blank');
 }
 
 // ============================================================
