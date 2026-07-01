@@ -1841,9 +1841,11 @@ function initSupabase(url, key){
     const cs = document.getElementById('connStatus');
     if(cs){ cs.textContent = '✅ Supabase 연결됨'; cs.style.color = 'var(--ok)'; }
     // 연결 후 기존 세션 확인 → 있으면 바로 로그인 처리
-    sb.auth.getSession().then(({ data: { session } }) => {
+    // v19: 저장된 토큰의 role이 오래됐을 수 있어 서버에서 최신 사용자 정보를 다시 가져옴
+    sb.auth.getSession().then(async ({ data: { session } }) => {
       if(session){
-        onLoginSuccess(session.user);
+        const { data: userData } = await sb.auth.getUser();
+        onLoginSuccess(userData?.user || session.user);
       }
       // 세션 없으면 로그인 화면 유지 (기본 상태)
     });
@@ -1885,8 +1887,9 @@ async function doLogin(){
 
 function onLoginSuccess(user){
   CURRENT_USER = user;
-  const _r = user?.user_metadata?.role;
-  CURRENT_ROLE = _r === 'admin' ? 'admin' : _r === 'viewer' ? 'viewer' : 'staff';
+  // v19: role은 app_metadata가 유일한 출처 (user_metadata는 위조 가능하므로 사용 금지)
+  const _r = user?.app_metadata?.role;
+  CURRENT_ROLE = _r === 'admin' ? 'admin' : _r === 'staff' ? 'staff' : 'viewer';
 
   // 로그인 화면 숨기기
   document.getElementById('loginScreen').style.display = 'none';
@@ -1895,9 +1898,12 @@ function onLoginSuccess(user){
   document.getElementById('userChip').style.display = 'flex';
 
   // admin 전용 요소 표시 (connStatus 포함)
+  // 이전 로그인에서 주입된 viewer 스타일 제거 (재로그인 시 잔존 방지)
+  document.getElementById('viewerStyleBlock')?.remove();
   if(CURRENT_ROLE === 'viewer'){
     // viewer: 편집 버튼 전체 숨김
     const style = document.createElement('style');
+    style.id = 'viewerStyleBlock';
     style.textContent = '.btn:not(.secondary):not([onclick*="switch"]):not([onclick*="filter"]):not([onclick*="export"]):not([onclick*="download"]):not([onclick*="report"]):not([onclick*="logout"]):not([onclick*="openDefect"]):not([onclick*="changeStatus"]):not([onclick*="switchTab"]):not([onclick*="switchAdminSubtab"]):not([onclick*="showDetail"]), .inline-save-btn { display: none !important; } #fab { display: none !important; }';
     document.head.appendChild(style);
   }
@@ -2840,26 +2846,33 @@ function renderAdminUsers(){
   empty.style.display = 'none';
   tbody.innerHTML = ADMIN_USERS.map(u => {
     const isMe = u.email === CURRENT_USER?.email;
-    const roleLabel = u.role === 'admin' ? '<span class="badge" style="background:#fef3c7;color:#92400e;">관리자</span>' : '<span class="badge" style="background:#e0f2fe;color:#0369a1;">일반</span>';
+    const ROLE_META = {
+      admin:  { label: '관리자',   style: 'background:#fef3c7;color:#92400e;' },
+      staff:  { label: '일반',     style: 'background:#e0f2fe;color:#0369a1;' },
+      viewer: { label: '조회전용', style: 'background:#f1f5f9;color:#475569;' },
+    };
+    const rm = ROLE_META[u.role] || ROLE_META.viewer;
+    const roleLabel = `<span class="badge" style="${rm.style}">${rm.label}</span>`;
     const lastLogin = u.last_sign_in ? new Date(u.last_sign_in).toLocaleString('ko-KR') : '미로그인';
     const createdAt = new Date(u.created_at).toLocaleDateString('ko-KR');
-    const otherRole = u.role === 'admin' ? 'staff' : 'admin';
-    const otherRoleLabel = u.role === 'admin' ? '일반으로 변경' : '관리자로 변경';
+    const roleSelect = `<select class="role-select" data-email="${escapeHtml(u.email)}" onchange="adminChangeRoleFromSelect(this)" style="padding:4px 6px;border-radius:6px;border:1px solid var(--line);">
+        ${['admin','staff','viewer'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_META[r].label}</option>`).join('')}
+      </select>`;
     return `<tr>
       <td>${escapeHtml(u.email)}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
       <td>${roleLabel}</td>
       <td style="font-size:12.5px;color:var(--sub);">${lastLogin}</td>
       <td style="font-size:12.5px;color:var(--sub);">${createdAt}</td>
-      <td>${isMe ? '–' : `<button class="btn secondary small" data-email="${escapeHtml(u.email)}" data-role="${escapeHtml(otherRole)}" onclick="adminChangeRoleFromBtn(this)">${otherRoleLabel}</button>`}</td>
+      <td>${isMe ? '–' : roleSelect}</td>
       <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" data-email="${escapeHtml(u.email)}" onclick="adminResetPasswordQuickFromBtn(this)">초기화</button>`}</td>
       <td>${isMe ? '–' : `<button class="btn small" style="background:var(--danger);" data-userid="${escapeHtml(u.id)}" data-email="${escapeHtml(u.email)}" onclick="deleteUserFromBtn(this)">삭제</button>`}</td>
     </tr>`;
   }).join('');
 }
 
-function adminChangeRoleFromBtn(btn){
-  const email = btn.dataset.email;
-  const newRole = btn.dataset.role;
+function adminChangeRoleFromSelect(sel){
+  const email = sel.dataset.email;
+  const newRole = sel.value;
   adminChangeRole(email, newRole);
 }
 function deleteUserFromBtn(btn){
@@ -2868,7 +2881,7 @@ function deleteUserFromBtn(btn){
 
 async function deleteUser(userId, email){
   if(!confirm(`⚠️ ${email} 계정을 완전히 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.`)) return;
-  const supabaseUrl = localStorage.getItem('sb_url') || '';
+  const supabaseUrl = (SUPABASE_URL || localStorage.getItem('sb_url') || '').replace(/[\r\n\t]/g, '').trim();
   if(!supabaseUrl){ showToast('Supabase URL이 설정되지 않았습니다.'); return; }
   const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/delete-user';
   const { data:{ session } } = await sb.auth.getSession();
@@ -2896,10 +2909,11 @@ function adminResetPasswordQuickFromBtn(btn){
 }
 
 async function adminChangeRole(email, newRole){
-  if(!confirm(`${email} 의 권한을 "${newRole === 'admin' ? '관리자' : '일반'}"으로 변경하시겠습니까?`)) return;
+  const roleLabels = { admin: '관리자', staff: '일반', viewer: '조회전용' };
+  if(!confirm(`${email} 의 권한을 "${roleLabels[newRole] || newRole}"으로 변경하시겠습니까?`)){ loadAdminUsers(); return; }
   const { error } = await sb.rpc('admin_set_user_role', { target_email: email, new_role: newRole });
-  if(error){ showToast('권한 변경 실패: ' + error.message); return; }
-  showToast('✅ 권한이 변경되었습니다.');
+  if(error){ showToast('권한 변경 실패: ' + error.message); loadAdminUsers(); return; }
+  showToast('✅ 권한이 변경되었습니다. 대상자는 재로그인해야 적용됩니다.');
   loadAdminUsers();
 }
 
@@ -4053,7 +4067,7 @@ function renderCategoryDashboard(){
   // 표
   document.getElementById('categorySummaryBody').innerHTML = summary.map(s=>`
     <tr>
-      <td><b>${s.name}</b></td>
+      <td><b>${escapeHtml(s.name)}</b></td>
       <td>${s.접수}</td><td>${s.확인}</td><td>${s.조치중}</td><td>${s.완료}</td>
       <td>${s.outsourcedPct}%</td>
       <td><b>${s.total}</b></td>
@@ -4489,7 +4503,7 @@ async function deleteRoom(id){
   const {data, error} = await sb.from('rooms').delete().eq('id', id).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
   if(!data || !data.length){
-    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    alert('권한이 없습니다. 관리자에게 문의하십시오.');
     return;
   }
   showToast('객실이 삭제되었습니다.');
@@ -4895,7 +4909,7 @@ async function deleteSelectedRooms(){
   const {data, error} = await sb.from('rooms').delete().in('id', ids).select();
   if(error){ alert('삭제 실패: '+error.message); return; }
   if(!data || !data.length){
-    alert('삭제가 반영되지 않았습니다. Supabase에 rooms 테이블의 DELETE 권한(RLS 정책)이 없을 수 있습니다. supabase_schema_v7_fix_rooms_delete.sql을 실행해주세요.');
+    alert('권한이 없습니다. 관리자에게 문의하십시오.');
     return;
   }
   showToast(`객실 ${data.length}건이 삭제되었습니다.`);
@@ -5103,9 +5117,9 @@ function renderVendors(){
   }
   area.innerHTML = list.map(v=>{
     const docLinks = [];
-    if(v.doc_biz_reg)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_biz_reg)}" target="_blank">📄 사업자등록증</a>`);
-    if(v.doc_account)  docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_account)}" target="_blank">🏦 계좌사본</a>`);
-    if(v.doc_contract) docLinks.push(`<a class="vendor-doc-link" href="${escapeHtml(v.doc_contract)}" target="_blank">📋 계약서</a>`);
+    if(v.doc_biz_reg)  docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_biz_reg)}" onclick="openVendorDoc(this);return false;">📄 사업자등록증</a>`);
+    if(v.doc_account)  docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_account)}" onclick="openVendorDoc(this);return false;">🏦 계좌사본</a>`);
+    if(v.doc_contract) docLinks.push(`<a class="vendor-doc-link" href="#" data-doc="${escapeHtml(v.doc_contract)}" onclick="openVendorDoc(this);return false;">📋 계약서</a>`);
 
     // 이 업체로 처리된 하자 집계
     const vendorDefects = DEFECTS.filter(d=>d.is_outsourced && d.vendor_name && d.vendor_name===v.name);
@@ -5248,10 +5262,21 @@ async function uploadVendorDoc(inputEl, targetFieldId){
     inputEl.value = '';
     return;
   }
-  const { data: urlData } = sb.storage.from('vendor-docs').getPublicUrl(data.path);
-  document.getElementById(targetFieldId).value = urlData.publicUrl;
+  // v20: 공개 URL 대신 파일 경로만 저장 (열람은 서명 URL로)
+  document.getElementById(targetFieldId).value = data.path;
   if(statusEl){ statusEl.style.display=''; statusEl.textContent='✅ 업로드 완료'; }
   inputEl.value = '';
+}
+
+// v20: 업체 서류 열람 — 비공개 버킷에서 서명 URL 생성 후 열기 (10분 유효)
+async function openVendorDoc(el){
+  let docPath = el.dataset.doc || '';
+  if(!docPath) return;
+  // 구버전 데이터(전체 URL 저장분) 호환: 경로만 추출
+  docPath = docPath.replace(/^.*\/object\/(?:public\/)?vendor-docs\//, '');
+  const { data, error } = await sb.storage.from('vendor-docs').createSignedUrl(docPath, 600);
+  if(error){ showToast('문서 열람 실패: ' + error.message); return; }
+  window.open(data.signedUrl, '_blank');
 }
 
 // ============================================================
