@@ -64,7 +64,8 @@ serve(async (req: Request) => {
       },
       body: JSON.stringify({
         email,
-        data: { display_name: displayName },
+        // must_change_pw: 비밀번호를 설정할 때까지 로그인마다 설정 창 강제 (v2.4)
+        data: { display_name: displayName, must_change_pw: true },
         redirect_to: Deno.env.get("SITE_URL") ?? undefined,
       }),
     });
