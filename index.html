@@ -605,17 +605,28 @@
   </button>
 
   <!-- 보조 메뉴 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:24px;">
     <button onclick="switchTab('rooms')" style="
-      padding:14px;font-size:14px;font-weight:600;background:#fff;
+      padding:14px 8px;font-size:13.5px;font-weight:600;background:#fff;
       color:var(--text);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
-      📋 전체 하자 목록
+      📋 하자 목록
+    </button>
+    <button onclick="switchTab('inventory')" style="
+      padding:14px 8px;font-size:13.5px;font-weight:600;background:#fff;
+      color:var(--text);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
+      📦 입출고
     </button>
     <button onclick="switchTab('notice')" style="
-      padding:14px;font-size:14px;font-weight:600;background:#fff;
+      padding:14px 8px;font-size:13.5px;font-weight:600;background:#fff;
       color:var(--text);border:1px solid var(--border);border-radius:12px;cursor:pointer;">
-      📢 공지사항
+      📢 공지
     </button>
+  </div>
+
+  <!-- 조치 필요 (v2.3: 긴급·기한초과) -->
+  <div id="mobileTodoSection" style="display:none;margin-bottom:24px;">
+    <div style="font-size:12px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">🚨 조치 필요 <span id="mobileTodoCount"></span></div>
+    <div id="mobileTodoList"></div>
   </div>
 
   <!-- 내 하자 목록 -->
@@ -2564,8 +2575,14 @@ function renderMobileMyDefects(){
   if(!container) return;
   if(!CURRENT_USER){ container.innerHTML = '<div class="empty">로그인 필요</div>'; return; }
 
+  // v2.3: 담당자 매칭 — display_name/full_name/이메일 어느 것으로 지정돼도 인식
+  const myNames = [
+    CURRENT_USER.user_metadata?.display_name,
+    CURRENT_USER.user_metadata?.full_name,
+    CURRENT_USER.email,
+  ].filter(Boolean);
   const myDefects = DEFECTS
-    .filter(d => d.created_by === CURRENT_USER.id || d.assigned_to === (CURRENT_USER.user_metadata?.full_name || CURRENT_USER.email))
+    .filter(d => d.created_by === CURRENT_USER.id || myNames.includes(d.assigned_to))
     .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 20);
 
@@ -2583,14 +2600,14 @@ function renderMobileMyDefects(){
     const sc = statusColor[d.status] || '#f1f5f9';
     const st = statusText[d.status]  || '#374151';
     return `
-    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;" onclick="openDetailPanel(${d.id})">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
         <span style="font-weight:700;font-size:15px;">${escapeHtml(room)}호</span>
-        <span style="background:${sc};color:${st};font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;">${escapeHtml(d.status)}</span>
+        <span style="background:${sc};color:${st};font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;">${statusIcon(d.status)} ${escapeHtml(d.status)}</span>
       </div>
       <div style="font-size:14px;color:var(--text);margin-bottom:4px;">${escapeHtml(d.title)}</div>
       <div style="font-size:12px;color:var(--sub);">${escapeHtml(d.symptom||'')} ${d.symptom&&d.defect_locations?.name?' · ':''}${escapeHtml(d.defect_locations?.name||'')} · ${date}</div>
-      <div style="margin-top:10px;display:flex;gap:8px;">
+      <div style="margin-top:10px;display:flex;gap:8px;" onclick="event.stopPropagation()">
         <select style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;background:#fff;"
                 onchange="changeMobileStatus(${d.id}, this.value)">
           ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
@@ -2607,6 +2624,33 @@ async function changeMobileStatus(id, newStatus){
   showToast('상태가 변경되었습니다.');
   await loadDefects();
   renderMobileMyDefects();
+}
+
+// v2.3: 모바일 홈 "조치 필요" — 긴급·처리기한 임박·초과 (탭하면 상세)
+function renderMobileTodo(){
+  const section = document.getElementById('mobileTodoSection');
+  const list = document.getElementById('mobileTodoList');
+  const count = document.getElementById('mobileTodoCount');
+  if(!section || !list) return;
+  const items = DEFECTS.filter(d=>d.status!=='완료')
+    .map(d=>({...d, sla:getSlaInfo(d), overdue:isOverdue(d)}))
+    .filter(d=> d.priority==='긴급' || (d.sla && d.sla.days>=3) || d.overdue)
+    .sort((a,b)=> (b.overdue - a.overdue) || ((b.sla?.days||0) - (a.sla?.days||0)))
+    .slice(0, 5);
+  if(!items.length){ section.style.display='none'; return; }
+  section.style.display = '';
+  if(count) count.textContent = `(${items.length}건)`;
+  list.innerHTML = items.map(d=>`
+    <div style="background:#fff;border:1.5px solid ${d.overdue?'#fca5a5':'#fde68a'};border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;" onclick="openDetailPanel(${d.id})">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:700;font-size:14.5px;">${escapeHtml(d.rooms?.room_number||'-')}호</span>
+        <span>
+          ${d.priority==='긴급'? '<span class="badge p-긴급">긴급</span>' : ''}
+          ${d.overdue? '<span class="badge sla-over">예정일 초과</span>' : (d.sla? `<span class="badge ${d.sla.level}">${d.sla.days}일 경과</span>`:'')}
+        </span>
+      </div>
+      <div style="font-size:13.5px;color:var(--text);">${escapeHtml(d.title)}</div>
+    </div>`).join('');
 }
 
 function renderMobileNoticeBanner(){
@@ -2780,11 +2824,11 @@ function switchTab(name){
 
   // 모바일: PC 전용 탭 차단, 허용 탭은 오버레이 방식으로 표시
   if(IS_MOBILE){
-    if(['dashboard','categories','coststat','vendors','inventory','master','admin'].includes(name)){
+    if(['dashboard','categories','coststat','vendors','master','admin'].includes(name)){
       showToast('PC에서 확인해주세요.');
       return;
     }
-    // 공지/하자목록은 모바일 홈 위에 컨테이너를 임시 표시
+    // 공지/하자목록/입출고는 모바일 홈 위에 컨테이너를 임시 표시
     document.getElementById('mobileHome').style.display = 'none';
     document.querySelector('.container').style.display = 'block';
     document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
@@ -2793,6 +2837,11 @@ function switchTab(name){
     if(panel) panel.classList.add('active');
     if(name==='notice') loadNotices();
     if(name==='rooms')  renderDefectsTable();
+    if(name==='inventory'){
+      // v2.3: 모바일은 입출고 등록 화면으로 바로 진입 (통계·설정은 PC)
+      try{ renderInventoryPanel(); }catch(e){ console.error(e); }
+      switchSubtab('stockInOut');
+    }
     // 뒤로가기 버튼 표시
     showMobileBackBtn();
     return;
@@ -3113,8 +3162,21 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.2';
+const APP_VERSION = 'v2.3';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.3',
+    date: '2026-07-02',
+    category: 'UI 개선',
+    title: '모바일 사용성 개선',
+    adminOnly: false,
+    notes: [
+      '모바일에서 부품 입출고 등록 가능 (홈 → 📦 입출고)',
+      '모바일 홈에 "조치 필요" 목록 추가 — 긴급·기한초과 하자를 바로 확인',
+      '내 하자 카드를 탭하면 상세 화면이 열림',
+      '담당자로 지정된 하자가 홈에 안 보이던 문제 수정',
+    ]
+  },
   {
     version: 'v2.2',
     date: '2026-07-02',
@@ -3756,7 +3818,7 @@ async function loadDefects(){
   renderDefectsTable();
   renderCategoryDashboard();
   requestAnimationFrame(()=>{ try{ renderMainDashboard(); }catch(e){ console.error(e); } });
-  if(IS_MOBILE) renderMobileMyDefects();
+  if(IS_MOBILE){ renderMobileMyDefects(); renderMobileTodo(); }
   renderDeadlineAlertBanner();
 }
 
