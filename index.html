@@ -590,6 +590,15 @@
 <!-- 모바일 FAB 등록 버튼 (모바일에서만 표시) -->
 <button class="mobile-fab" id="mobileFab" onclick="openNewDefectModal()" title="하자 등록" style="display:none;">+</button>
 
+<!-- v2.3: 홈 화면 추가 안내 배너 (모바일, X로 영구 닫기) -->
+<div id="a2hsBanner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:89;
+     background:#1e293b;color:#fff;padding:11px 14px;
+     font-size:13px;line-height:1.45;align-items:center;gap:10px;">
+  <span style="font-size:18px;flex-shrink:0;">📲</span>
+  <span id="a2hsText" style="flex:1;"></span>
+  <button onclick="dismissA2hs()" style="flex-shrink:0;background:none;border:none;color:#94a3b8;font-size:20px;line-height:1;padding:4px 6px;cursor:pointer;" title="다시 보지 않기">✕</button>
+</div>
+
 <div id="mobileHome" style="display:none;padding:20px 14px 100px;">
   <!-- 공지 배너 (모바일 홈용) -->
   <div id="mobileNoticeBanner" style="margin-bottom:16px;"></div>
@@ -1955,6 +1964,7 @@ function onLoginSuccess(user){
   if(mobile){
     // 모바일: pc-only 탭 숨기기 (admin-only.pc-only 포함), 탭바 숨기기
     document.querySelectorAll('.pc-only').forEach(el => el.style.display = 'none');
+    maybeShowA2hsBanner();
     document.querySelector('.tabs').style.display = 'none';
     document.querySelector('.container').style.display = 'none';
     document.getElementById('mobileHome').style.display = 'block';
@@ -2624,6 +2634,27 @@ async function changeMobileStatus(id, newStatus){
   showToast('상태가 변경되었습니다.');
   await loadDefects();
   renderMobileMyDefects();
+}
+
+// v2.3: 홈 화면 추가 안내 배너
+function maybeShowA2hsBanner(){
+  if(!IS_MOBILE) return;
+  if(localStorage.getItem('a2hsDismissed') === '1') return;
+  // 이미 홈 화면 앱으로 실행 중이면 표시 안 함
+  if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) return;
+  const banner = document.getElementById('a2hsBanner');
+  const text = document.getElementById('a2hsText');
+  if(!banner || !text) return;
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  text.innerHTML = isIOS
+    ? '앱처럼 쓰려면: 하단 <b>공유 버튼(⬆)</b> → <b>홈 화면에 추가</b>'
+    : '앱처럼 쓰려면: 브라우저 <b>메뉴(⋮)</b> → <b>홈 화면에 추가</b>';
+  banner.style.display = 'flex';
+}
+function dismissA2hs(){
+  localStorage.setItem('a2hsDismissed', '1');
+  const banner = document.getElementById('a2hsBanner');
+  if(banner) banner.style.display = 'none';
 }
 
 // v2.3: 모바일 홈 "조치 필요" — 긴급·처리기한 임박·초과 (탭하면 상세)
