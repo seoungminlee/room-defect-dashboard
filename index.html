@@ -3236,8 +3236,21 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.4';
+const APP_VERSION = 'v2.5';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.5',
+    date: '2026-07-02',
+    category: '버그 수정',
+    title: '직원 권한 저장 오류 수정',
+    adminOnly: false,
+    notes: [
+      '직원 계정에서 수리부속 단가·기준정보 수정이 저장되지 않던 문제 해결',
+      '직원의 입출고 시 재고 수량이 갱신되지 않을 수 있던 문제 해결 (재고 자동 재계산 포함)',
+      '권한이 없는 작업은 이제 명확한 안내 메시지 표시',
+      '기준정보(객실타입·부위·수리부속·발주설정) 등록·수정을 직원에게 허용, 삭제는 관리자 전용 유지',
+    ]
+  },
   {
     version: 'v2.4',
     date: '2026-07-02',
@@ -3964,6 +3977,13 @@ function stepQty(inputId, delta){
   const el = document.getElementById(inputId);
   if(!el) return;
   el.value = Math.max(1, Number(el.value || 0) + delta);
+}
+
+// v2.5: RLS가 조용히 거부한 수정/삭제 감지 — 0건 반영이면 권한 문제
+function rlsBlocked(rows){
+  if(rows && rows.length) return false;
+  alert('권한이 없습니다. 관리자에게 문의하십시오.');
+  return true;
 }
 
 // v2.2: 비밀번호 정책 검증 (서버 정책과 동일: 8자 이상, 영문+숫자)
@@ -4775,8 +4795,9 @@ async function addEmployee(){
 }
 
 async function toggleEmployeeActive(id, newVal){
-  const {error} = await sb.from('employees').update({is_active:newVal}).eq('id', id);
+  const {data:_r, error} = await sb.from('employees').update({is_active:newVal}).eq('id', id).select('id');
   if(error){ alert('변경 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   const {data} = await sb.from('employees').select('*').order('name');
   EMPLOYEES = data||[];
   populateFormSelects();
@@ -4937,10 +4958,11 @@ async function saveInlineEditPart(id){
   const price   = Number(document.getElementById('iep-price-'+id)?.value || 0);
   const vendor  = document.getElementById('iep-vendor-'+id)?.value.trim() || null;
   if(!name){ alert('부속명을 입력해주세요.'); return; }
-  const {error} = await sb.from('defect_parts').update({
+  const {data:_r, error} = await sb.from('defect_parts').update({
     name, part_number: partNo, unit, unit_price: price, vendor_name: vendor||null
-  }).eq('id', id);
+  }).eq('id', id).select('id');
   if(error){ alert('수정 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
@@ -4970,8 +4992,9 @@ async function addPart(){
 
 async function deletePart(id){
   if(!confirm('이 부속을 삭제하시겠습니까? 재고 및 사용 이력은 유지됩니다.')) return;
-  const {error} = await sb.from('defect_parts').delete().eq('id', id);
+  const {data:_r, error} = await sb.from('defect_parts').delete().eq('id', id).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast('삭제되었습니다.');
   await reloadMasterData();
 }
@@ -5008,8 +5031,9 @@ function startInlineEditLocation(id){
 async function saveInlineEditLocation(id){
   const name = document.getElementById('iel-name-'+id)?.value.trim();
   if(!name){ alert('부위명을 입력해주세요.'); return; }
-  const {error} = await sb.from('defect_locations').update({name}).eq('id', id);
+  const {data:_r, error} = await sb.from('defect_locations').update({name}).eq('id', id).select('id');
   if(error){ alert('수정 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
@@ -5026,8 +5050,9 @@ async function deleteSelectedLocations(){
   const checked = [...document.querySelectorAll('.locs-row-check:checked')].map(c=>Number(c.value));
   if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
   if(!confirm(`선택한 하자부위 ${checked.length}개를 삭제하시겠습니까?`)) return;
-  const {error} = await sb.from('defect_locations').delete().in('id', checked);
+  const {data:_r, error} = await sb.from('defect_locations').delete().in('id', checked).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast(`${checked.length}개 삭제되었습니다.`);
   document.getElementById('locsSelectAll').checked = false;
   document.getElementById('locsSelectedCount').textContent = '0';
@@ -5035,8 +5060,9 @@ async function deleteSelectedLocations(){
 }
 async function deleteLocation(id){
   if(!confirm('이 하자부위를 삭제하시겠습니까?')) return;
-  const {error} = await sb.from('defect_locations').delete().eq('id', id);
+  const {data:_r, error} = await sb.from('defect_locations').delete().eq('id', id).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   await reloadMasterData();
 }
 
@@ -5079,8 +5105,9 @@ async function saveInlineEditRoomType(id){
   const code = document.getElementById('iert-code-'+id)?.value.trim().toUpperCase() || null;
   const desc = document.getElementById('iert-desc-'+id)?.value.trim() || null;
   if(!name){ alert('타입명을 입력해주세요.'); return; }
-  const {error} = await sb.from('room_types').update({name, type_code: code, description: desc}).eq('id', id);
+  const {data:_r, error} = await sb.from('room_types').update({name, type_code: code, description: desc}).eq('id', id).select('id');
   if(error){ alert('수정 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast('수정되었습니다.');
   await reloadMasterData();
 }
@@ -5101,8 +5128,9 @@ async function deleteSelectedRoomTypes(){
   const checked = [...document.querySelectorAll('.rt-row-check:checked')].map(c=>Number(c.value));
   if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
   if(!confirm(`선택한 객실타입 ${checked.length}개를 삭제하시겠습니까?`)) return;
-  const {error} = await sb.from('room_types').delete().in('id', checked);
+  const {data:_r, error} = await sb.from('room_types').delete().in('id', checked).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast(`${checked.length}개 삭제되었습니다.`);
   document.getElementById('rtSelectAll').checked = false;
   document.getElementById('rtSelectedCount').textContent = '0';
@@ -5110,8 +5138,9 @@ async function deleteSelectedRoomTypes(){
 }
 async function deleteRoomType(id){
   if(!confirm('이 객실타입을 삭제하시겠습니까?')) return;
-  const {error} = await sb.from('room_types').delete().eq('id', id);
+  const {data:_r, error} = await sb.from('room_types').delete().eq('id', id).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   await reloadMasterData();
 }
 
@@ -5253,8 +5282,9 @@ async function deleteSelectedParts(){
   const checked = [...document.querySelectorAll('.parts-row-check:checked')].map(c=>Number(c.value));
   if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
   if(!confirm(`선택한 수리부속 ${checked.length}개를 삭제하시겠습니까?`)) return;
-  const {error} = await sb.from('defect_parts').delete().in('id', checked);
+  const {data:_r, error} = await sb.from('defect_parts').delete().in('id', checked).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast(`${checked.length}개 삭제되었습니다.`);
   document.getElementById('partsSelectAll').checked = false;
   document.getElementById('partsSelectedCount').textContent = '0';
@@ -5469,8 +5499,9 @@ async function submitStockAdjustment(){
 
 async function saveSafetyFactor(){
   const val = Number(document.getElementById('safetyFactorInput').value || 1.5);
-  const {error} = await sb.from('system_settings').update({value: String(val)}).eq('key','parts_safety_factor');
+  const {data:_r, error} = await sb.from('system_settings').update({value: String(val)}).eq('key','parts_safety_factor').select('key');
   if(error){ alert('저장 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   SAFETY_FACTOR = val;
   showToast('안전계수가 저장되었습니다.');
   await renderInventoryPanel();
@@ -5582,21 +5613,24 @@ async function saveVendor(){
     is_registered:  document.getElementById('vendorIsRegistered')?.checked || false
   };
 
-  let error;
+  let error, _vr;
   if(id){
-    ({error} = await sb.from('vendors').update(payload).eq('id', id));
+    ({data:_vr, error} = await sb.from('vendors').update(payload).eq('id', id).select('id'));
   } else {
     ({error} = await sb.from('vendors').insert(payload));
+    _vr = error ? [] : [true];
   }
   if(error){ alert('저장 실패: '+error.message); return; }
+  if(rlsBlocked(_vr)) return;
   document.getElementById('vendorModal').classList.remove('active');
   showToast('✅ 업체 정보가 저장되었습니다.');
   await reloadVendors();
 }
 
 async function toggleVendorActive(id, newVal){
-  const {error} = await sb.from('vendors').update({is_active: newVal}).eq('id', id);
+  const {data:_r, error} = await sb.from('vendors').update({is_active: newVal}).eq('id', id).select('id');
   if(error){ alert('변경 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast(newVal? '업체가 활성화되었습니다.' : '업체가 비활성화되었습니다.');
   await reloadVendors();
 }
@@ -5604,8 +5638,9 @@ async function toggleVendorActive(id, newVal){
 async function deleteVendor(id){
   const v = VENDORS.find(x=>x.id===id);
   if(!confirm(`"${v?.name}" 업체를 삭제하시겠습니까?\n처리된 하자 이력의 업체명은 유지됩니다.`)) return;
-  const {error} = await sb.from('vendors').delete().eq('id', id);
+  const {data:_r, error} = await sb.from('vendors').delete().eq('id', id).select('id');
   if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
   showToast('삭제되었습니다.');
   await reloadVendors();
 }
