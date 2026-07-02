@@ -1129,9 +1129,13 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
           </div>
         </div>
         <div class="form-row" style="margin-bottom:10px;">
+          <label style="color:var(--danger);font-weight:700;">초기화 사유 <span style="font-weight:400;">(필수 — 이력에 실행자·일시와 함께 기록됩니다)</span></label>
+          <input id="resetReasonInput" placeholder="예: 시범운영 종료, 정식 오픈 전 데이터 정리" oninput="checkResetInput()" />
+        </div>
+        <div class="form-row" style="margin-bottom:10px;">
           <label style="color:var(--danger);font-weight:700;">확인 문구 입력</label>
           <input id="resetConfirmInput" placeholder="데이터 초기화" style="border-color:var(--danger);" oninput="checkResetInput()" />
-          <div style="font-size:12px;color:var(--sub);margin-top:4px;"><b>데이터 초기화</b> 를 그대로 입력해야 버튼이 활성화됩니다.</div>
+          <div style="font-size:12px;color:var(--sub);margin-top:4px;"><b>데이터 초기화</b> 를 그대로 입력하고 사유를 채워야 버튼이 활성화됩니다.</div>
         </div>
         <button id="resetDataBtn" class="btn" onclick="executeDataReset()"
           style="background:var(--danger);border-color:var(--danger);opacity:0.4;cursor:not-allowed;"
@@ -3555,9 +3559,10 @@ async function closeNotice(id){
 // ============================================================
 function checkResetInput(){
   const val = document.getElementById('resetConfirmInput')?.value || '';
+  const reason = (document.getElementById('resetReasonInput')?.value || '').trim();
   const btn = document.getElementById('resetDataBtn');
   if(!btn) return;
-  const ok = val === '데이터 초기화';
+  const ok = val === '데이터 초기화' && reason.length > 0;
   btn.disabled = !ok;
   btn.style.opacity = ok ? '1' : '0.4';
   btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
@@ -3568,9 +3573,10 @@ async function executeDataReset(){
   const val = document.getElementById('resetConfirmInput')?.value || '';
   if(val !== '데이터 초기화'){ alert('확인 문구가 올바르지 않습니다.'); return; }
 
-  // v2.6: 초기화 사유 필수 입력 (감사 로그에 실행자·일시와 함께 기록)
-  const resetReason = prompt('초기화 사유를 입력해주세요 (필수).\n예: 시범운영 종료, 정식 오픈 전 데이터 정리');
-  if(!resetReason || !resetReason.trim()){ alert('사유를 입력해야 초기화할 수 있습니다.'); return; }
+  // v2.6: 초기화 사유 필수 (화면 입력칸 — 감사 로그에 실행자·일시와 함께 기록)
+  const resetReason = (document.getElementById('resetReasonInput')?.value || '').trim();
+  if(!resetReason){ alert('초기화 사유를 입력해주세요.'); return; }
+  if(!confirm(`정말 초기화하시겠습니까?\n\n사유: ${resetReason}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
 
   const msg = document.getElementById('resetDataMsg');
   const btn = document.getElementById('resetDataBtn');
