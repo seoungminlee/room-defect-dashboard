@@ -3242,8 +3242,18 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.6';
+const APP_VERSION = 'v2.6.1';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.6.1',
+    date: '2026-07-03',
+    category: 'UI 개선',
+    title: '초기화 사유 입력칸 표시',
+    adminOnly: true,
+    notes: [
+      '데이터 초기화 카드에 사유 입력칸 상시 표시 (사유+확인 문구를 모두 채워야 실행 가능)',
+    ]
+  },
   {
     version: 'v2.6',
     date: '2026-07-02',
