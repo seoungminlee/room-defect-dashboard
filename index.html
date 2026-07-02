@@ -2759,12 +2759,13 @@ async function saveDisplayName(){
   const msg  = document.getElementById('displayNameMsg');
   if(!name){ msg.style.color='var(--danger)'; msg.textContent='이름을 입력해주세요.'; return; }
   msg.style.color='var(--sub)'; msg.textContent='저장 중…';
-  const { error } = await sb.auth.updateUser({ data: { full_name: name } });
+  // display_name·full_name 동시 기록 (초대 흐름과 필드 통일)
+  const { error } = await sb.auth.updateUser({ data: { full_name: name, display_name: name } });
   if(error){
     msg.style.color='var(--danger)'; msg.textContent='저장 실패: '+error.message;
   } else {
     // 로컬 CURRENT_USER 캐시 업데이트
-    if(CURRENT_USER) CURRENT_USER.user_metadata = { ...CURRENT_USER.user_metadata, full_name: name };
+    if(CURRENT_USER) CURRENT_USER.user_metadata = { ...CURRENT_USER.user_metadata, full_name: name, display_name: name };
     msg.style.color='var(--ok)'; msg.textContent='✅ 이름이 저장되었습니다.';
   }
 }
@@ -2876,7 +2877,7 @@ async function adminResetPassword(){
 
 function onLogout(){
   CURRENT_USER = null;
-  CURRENT_ROLE = 'staff';
+  CURRENT_ROLE = 'viewer';  // 보안 기본값 (로그인 전 최소 권한)
   ROOMS = []; DEFECTS = []; ROOM_TYPES = [];
   LOCATIONS = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
   PARTS_USED_ALL = [];
@@ -3576,18 +3577,6 @@ async function executeDataReset(){
   btn.style.opacity = '0.4';
   msg.style.color = 'var(--sub)';
   msg.textContent = '초기화 중…';
-
-  const tables = [
-    'defect_status_logs',
-    'defect_comments',
-    'defect_parts_used',
-    'defect_photos',
-    'part_stock_adjustments',
-    'part_stock_in',
-    'part_stock_out',
-    'defects',
-    'announcements',
-  ];
 
   const errors = [];
   const { error: rpcError } = await sb.rpc('reset_operation_data', { reset_reason: resetReason.trim() });
