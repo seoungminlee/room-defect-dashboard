@@ -997,6 +997,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
               <th style="text-align:right;">금액</th>
               <th>사유/비고</th>
               <th>처리자</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="stockLogTableBody"></tbody>
@@ -1510,7 +1511,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
           <select id="adjustPart"></select>
           <input id="adjustActual" type="number" placeholder="실사 확인 수량" />
           <input id="adjustReason" placeholder="조정 사유 (선택)" />
-          <input id="adjustBy" placeholder="실사자" />
+          <select id="adjustBy" onchange="handleManualEmployeeInput(this)"></select>
           <button class="btn small" onclick="submitStockAdjustment()">조정 반영</button>
         </div>
         <div class="table-scroll"><table>
@@ -3634,13 +3635,13 @@ async function loadStockLog(){
 
   const rows = [
     ...(insRes.data||[]).map(r=>({
-      type:'입고', at:r.received_at,
+      type:'입고', at:r.received_at, id:r.id,
       name:r.defect_parts?.name||'-', unit:r.defect_parts?.unit||'',
       qty:r.quantity, unitPrice:r.unit_price||0, amount:r.total_cost||0,
       info:r.note||'-', by:r.received_by||'-'
     })),
     ...(outsRes.data||[]).map(r=>({
-      type:'출고', at:r.released_at,
+      type:'출고', at:r.released_at, id:r.id,
       name:r.defect_parts?.name||'-', unit:r.defect_parts?.unit||'',
       qty:r.quantity, unitPrice:null, amount:null,
       info:r.reason||r.note||'-', by:r.released_by||'-'
@@ -3699,8 +3700,22 @@ function renderStockLog(){
       <td style="text-align:right;font-size:12px;font-weight:600;">${r.amount!=null ? Number(r.amount).toLocaleString()+'원' : '-'}</td>
       <td style="font-size:12px;color:var(--sub);">${escapeHtml(r.info)}</td>
       <td style="font-size:12px;">${escapeHtml(r.by)}</td>
+      <td>${(CURRENT_ROLE==='admin' && r.id && (r.type==='입고'||r.type==='출고'))? `<button class="btn small" style="background:var(--danger);" onclick="deleteStockLogRow('${r.type}', ${r.id})">삭제</button>` : ''}</td>
     </tr>`).join('') ||
-    '<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:20px;">해당 기간 이력이 없습니다.</td></tr>';
+    '<tr><td colspan="9" style="text-align:center;color:var(--sub);padding:20px;">해당 기간 이력이 없습니다.</td></tr>';
+}
+
+// v2.5: 잘못 등록한 입고/출고 이력 삭제 (admin) — v26 트리거가 재고를 자동 원복
+async function deleteStockLogRow(type, id){
+  if(CURRENT_ROLE !== 'admin'){ showToast('권한이 없습니다. 관리자에게 문의하십시오.'); return; }
+  if(!confirm(`이 ${type} 이력을 삭제하시겠습니까?\n재고 수량이 자동으로 원복됩니다.`)) return;
+  const table = type === '입고' ? 'part_stock_in' : 'part_stock_out';
+  const {data:_r, error} = await sb.from(table).delete().eq('id', id).select('id');
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
+  showToast('삭제되었습니다. 재고 수량이 원복되었습니다.');
+  await reloadMasterData();
+  await loadStockLog();
 }
 
 // v21: 범용 감사 로그 (audit_logs)
@@ -3954,8 +3969,8 @@ function populateFormSelects(){
     if(el) el.innerHTML = empOptions;
   });
 
-  // 입고자·출고자: 직원 드롭다운 + 로그인 사용자 기본 선택 (v2.1)
-  ['stockInBy','stockOutBy'].forEach(id=>{
+  // 입고자·출고자·실사자: 직원 드롭다운 + 로그인 사용자 기본 선택 (v2.1, v2.5 실사자 추가)
+  ['stockInBy','stockOutBy','adjustBy'].forEach(id=>{
     const el = document.getElementById(id);
     if(el){
       const cur = el.value;  // 기존 선택 유지 (연속 등록 시)
@@ -5388,18 +5403,21 @@ async function renderInventoryPanel(){
       <td>${(Number(r.current_stock||0)*Number(r.unit_price||0)).toLocaleString()}원</td>
     </tr>`).join('');
 
-  // 최근 입출고 이력 (입고 + 출고 + 사용 통합, 최근 20건)
+  // 최근 입출고 이력 (입고 + 출고 + 조정 통합, 최근 20건) — v2.5: 조정도 표시
   const {data: ins} = await sb.from('part_stock_in').select('*, defect_parts(name)').order('received_at',{ascending:false}).limit(10);
   const {data: outs} = await sb.from('part_stock_out').select('*, defect_parts(name)').order('released_at',{ascending:false}).limit(10);
+  const {data: adjs} = await sb.from('part_stock_adjustments').select('*, defect_parts(name)').order('adjusted_at',{ascending:false}).limit(10);
   const merged = [
     ...(ins||[]).map(r=>({type:'입고', at:r.received_at, name:r.defect_parts?.name, qty:r.quantity, info:r.total_cost.toLocaleString()+'원', by:r.received_by})),
-    ...(outs||[]).map(r=>({type:'출고', at:r.released_at, name:r.defect_parts?.name, qty:r.quantity, info:r.reason||'-', by:r.released_by}))
+    ...(outs||[]).map(r=>({type:'출고', at:r.released_at, name:r.defect_parts?.name, qty:r.quantity, info:r.reason||'-', by:r.released_by})),
+    ...(adjs||[]).map(r=>({type:'조정', at:r.adjusted_at, name:r.defect_parts?.name, qty:(r.diff>0?'+':'')+r.diff, info:(r.reason||'실사 조정')+` (${r.before_stock}→${r.actual_stock})`, by:r.adjusted_by}))
   ].sort((a,b)=> new Date(b.at)-new Date(a.at)).slice(0,20);
   const histBody = document.getElementById('stockHistoryTableBody');
   if(histBody){
+    const typeStyles = {'입고':'background:#dcfce7;color:#166534;','출고':'background:#fee2e2;color:#b91c1c;','조정':'background:#fef3c7;color:#92400e;'};
     histBody.innerHTML = merged.map(m=>`
       <tr>
-        <td><span class="badge ${m.type==='입고'?'ok-badge':''}" style="${m.type==='입고'?'background:#dcfce7;color:#166534;':'background:#fee2e2;color:#b91c1c;'}">${m.type}</span></td>
+        <td><span class="badge" style="${typeStyles[m.type]||''}">${m.type}</span></td>
         <td>${new Date(m.at).toLocaleString('ko-KR')}</td>
         <td>${escapeHtml(m.name||'-')}</td>
         <td>${m.qty}</td>
@@ -5491,7 +5509,7 @@ async function submitStockAdjustment(){
   if(error){ alert('조정 반영 실패: '+error.message); return; }
   document.getElementById('adjustActual').value='';
   document.getElementById('adjustReason').value='';
-  document.getElementById('adjustBy').value='';
+  // 실사자는 유지 (연속 조정 편의)
   showToast('재고가 조정되었습니다.');
   await reloadMasterData();
   await renderInventoryPanel();
