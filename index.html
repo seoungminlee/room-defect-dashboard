@@ -1374,7 +1374,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
         <option value="조치중">조치중</option>
         <option value="완료">완료</option>
       </select>
-      <input id="searchBox" placeholder="객실번호/제목 검색" style="min-width:180px;"/>
+      <input id="searchBox" placeholder="객실·증상·부위·내용·담당자 검색" style="min-width:200px;"/>
       <div class="spacer"></div>
       <button class="btn secondary" onclick="resetFilters()" style="white-space:nowrap;">필터 초기화</button>
       <button class="btn" onclick="openNewDefectModal()">+ 하자 등록</button>
@@ -4135,7 +4135,12 @@ function getFilteredDefects(){
     if(status === '__open__'){ if(d.status==='완료') return false; }
     else if(status && d.status!==status) return false;
     if(q){
-      const hay = `${d.rooms?.room_number||''} ${d.title||''}`.toLowerCase();
+      // v2.6: 검색 대상 확장 — 객실번호·제목·증상·하자부위·상세설명·담당자·등록자·외주업체
+      const hay = [
+        d.rooms?.room_number, d.title, d.symptom,
+        d.defect_locations?.name, d.description,
+        d.assigned_to, d.reported_by, d.vendor_name,
+      ].filter(Boolean).join(' ').toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
