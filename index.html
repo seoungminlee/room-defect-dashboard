@@ -1673,7 +1673,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
 <!-- ===================== 내 정보 / 비밀번호 변경 모달 ===================== -->
 <div class="overlay" id="changePwModal">
   <div class="modal" style="position:relative;width:380px;">
-    <button onclick="document.getElementById('changePwModal').classList.remove('active')" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+    <button id="changePwCloseBtn" onclick="closeChangePwModal()" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
     <h3>👤 내 정보 설정</h3>
 
     <!-- v2.4: 최초 설정/강제 변경 안내 -->
@@ -1702,7 +1702,8 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
     </div>
     <div id="changePwMsg" style="font-size:13px;min-height:18px;margin-bottom:8px;"></div>
     <div class="form-actions">
-      <button class="btn secondary" onclick="document.getElementById('changePwModal').classList.remove('active')">닫기</button>
+      <button class="btn secondary" id="changePwFooterCloseBtn" onclick="closeChangePwModal()">닫기</button>
+      <button class="btn secondary" id="changePwLogoutBtn" onclick="sb.auth.signOut()" style="display:none;">로그아웃</button>
       <button class="btn" onclick="doChangePw()">비밀번호 변경</button>
     </div>
     <!-- 모바일에서만 표시되는 로그아웃 버튼 -->
@@ -1996,11 +1997,11 @@ function onLoginSuccess(user){
   // v2.4: 비밀번호 설정 유도 (초대 링크·재설정 링크·관리자 초기화 직후)
   setTimeout(()=>{
     if(AUTH_ENTRY_TYPE === 'invite'){
-      openChangePwModal('환영합니다! 계정 초대가 완료되었습니다. 아래에서 이름과 앞으로 사용할 비밀번호를 설정해주세요 (8자 이상, 영문+숫자 포함).');
+      openChangePwModal('환영합니다! 계정 초대가 완료되었습니다. 아래에서 이름과 앞으로 사용할 비밀번호를 설정해주세요 (8자 이상, 영문+숫자 포함). 설정을 완료해야 시스템을 사용할 수 있습니다.', true);
     } else if(AUTH_ENTRY_TYPE === 'recovery'){
-      openChangePwModal('비밀번호 재설정 링크로 로그인했습니다. 새 비밀번호를 설정해주세요 (8자 이상, 영문+숫자 포함).');
+      openChangePwModal('비밀번호 재설정 링크로 로그인했습니다. 새 비밀번호를 설정해주세요 (8자 이상, 영문+숫자 포함).', true);
     } else if(CURRENT_USER?.user_metadata?.must_change_pw){
-      openChangePwModal('임시 비밀번호로 로그인한 상태입니다. 보안을 위해 지금 새 비밀번호로 변경해주세요 (8자 이상, 영문+숫자 포함).');
+      openChangePwModal('새 비밀번호를 설정해야 시스템을 사용할 수 있습니다 (8자 이상, 영문+숫자 포함).', true);
     }
   }, 400);
 }
@@ -2721,7 +2722,9 @@ function renderMobileNoticeBanner(){
 // ============================================================
 // 비밀번호 변경 (본인)
 // ============================================================
-async function openChangePwModal(noticeText){
+let FORCE_PW_MODE = false;  // v2.4: 비밀번호 설정 전까지 모달을 닫을 수 없음
+
+async function openChangePwModal(noticeText, forced){
   document.getElementById('newPw1').value = '';
   document.getElementById('newPw2').value = '';
   document.getElementById('changePwMsg').textContent = '';
@@ -2732,10 +2735,22 @@ async function openChangePwModal(noticeText){
     if(noticeText && typeof noticeText === 'string'){ notice.textContent = noticeText; notice.style.display = ''; }
     else { notice.style.display = 'none'; }
   }
+  // v2.4: 강제 모드 — 닫기 숨김 + 뒷화면 완전 가림 + 로그아웃만 허용
+  FORCE_PW_MODE = !!forced;
+  const modal = document.getElementById('changePwModal');
+  document.getElementById('changePwCloseBtn').style.display = forced ? 'none' : '';
+  document.getElementById('changePwFooterCloseBtn').style.display = forced ? 'none' : '';
+  document.getElementById('changePwLogoutBtn').style.display = forced ? '' : 'none';
+  modal.style.background = forced ? 'var(--bg)' : '';
   // 현재 저장된 이름 자동 로드
   const currentName = CURRENT_USER?.user_metadata?.display_name || CURRENT_USER?.user_metadata?.full_name || '';
   document.getElementById('myDisplayName').value = currentName;
-  document.getElementById('changePwModal').classList.add('active');
+  modal.classList.add('active');
+}
+
+function closeChangePwModal(){
+  if(FORCE_PW_MODE){ showToast('비밀번호를 먼저 설정해주세요.'); return; }
+  document.getElementById('changePwModal').classList.remove('active');
 }
 
 async function saveDisplayName(){
@@ -2768,6 +2783,10 @@ async function doChangePw(){
   } else {
     msg.style.color='var(--ok)';
     msg.textContent='✅ 비밀번호가 변경되었습니다.';
+    // v2.4: 강제 모드 해제 후 닫기
+    if(CURRENT_USER) CURRENT_USER.user_metadata = { ...CURRENT_USER.user_metadata, must_change_pw: false };
+    FORCE_PW_MODE = false;
+    document.getElementById('changePwModal').style.background = '';
     setTimeout(() => document.getElementById('changePwModal').classList.remove('active'), 1500);
   }
 }
