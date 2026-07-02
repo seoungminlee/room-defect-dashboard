@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// v2.2: CORS를 사이트 도메인으로 제한 (SITE_URL 미설정 시에만 전체 허용)
+const ALLOWED_ORIGIN = (() => {
+  try { return new URL(Deno.env.get("SITE_URL") ?? "").origin; } catch { return "*"; }
+})();
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 

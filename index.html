@@ -6,6 +6,8 @@
 
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+<!-- v2.2: CSP — 외부 악성 스크립트 로드·데이터 유출 경로 차단 (인라인 스크립트는 구조상 허용) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'self' data: blob: https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self';">
 <title>시흥 웨이브파크 하자관리</title>
 <script src="chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.0/dist/umd/supabase.min.js"></script>
@@ -672,7 +674,7 @@
         </thead>
         <tbody id="monthlyCostTableBody"></tbody>
       </table></div>
-      <div class="empty" id="monthlyCostEmpty" style="display:none;">집계할 데이터가 없습니다.</div>
+      <div class="empty" id="monthlyCostEmpty" style="display:none;">집계할 데이터가 없습니다.<br><span style="font-size:13px;color:var(--sub);">하자에 처리 비용을 입력하면 여기에 월별로 집계됩니다.</span></div>
     </div>
 
     <!-- 부품 사용 상세 -->
@@ -796,7 +798,7 @@
       <h2 style="margin:0;font-size:17px;font-weight:700;">📢 공지사항</h2>
       <button class="btn" onclick="openNoticeModal()">+ 공지 등록</button>
     </div>
-    <div id="noticeList"><div class="empty">등록된 공지사항이 없습니다.</div></div>
+    <div id="noticeList"><div class="empty">등록된 공지사항이 없습니다.<br><span style="font-size:13px;color:var(--sub);">상단 "+ 공지 등록" 버튼으로 팀에 알릴 내용을 공유하세요.</span></div></div>
   </div>
 
   <!-- 공지 등록/수정 모달 -->
@@ -1228,8 +1230,8 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
   <div class="panel active" id="panel-dashboard">
 
     <div class="kpi-row">
-      <div class="kpi danger"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중)</div></div>
-      <div class="kpi warn"><div class="num" id="kpiUrgent">–</div><div class="label">긴급 우선순위</div></div>
+      <div class="kpi danger" style="cursor:pointer;" onclick="goDefectsFiltered('__open__')" title="클릭하면 미완료 하자 목록으로 이동"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중) →</div></div>
+      <div class="kpi warn" style="cursor:pointer;" onclick="goDefectsFiltered('__open__')" title="클릭하면 미완료 하자 목록으로 이동"><div class="num" id="kpiUrgent">–</div><div class="label">긴급 우선순위 →</div></div>
       <div class="kpi"><div class="num" id="kpiOutsourced">–</div><div class="label">외주 처리중</div></div>
       <div class="kpi ok"><div class="num" id="kpiDoneMonth">–</div><div class="label">이번달 완료</div></div>
     </div>
@@ -1252,7 +1254,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
           <thead><tr><th>객실</th><th>하자 내용</th><th>우선순위</th><th>상태</th><th>경과일</th><th>처리기한</th></tr></thead>
           <tbody id="todoTableBody"></tbody>
         </table></div>
-        <div class="empty" id="todoEmpty" style="display:none;">긴급하거나 임박한 항목이 없습니다.</div>
+        <div class="empty" id="todoEmpty" style="display:none;">👍 지금 조치가 필요한 항목이 없습니다.</div>
       </div>
       <div class="card">
         <h3>🔧 부품 재고 경고</h3>
@@ -1345,6 +1347,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       </select>
       <select id="filterStatus">
         <option value="">전체 상태</option>
+        <option value="__open__">미완료 전체</option>
         <option value="접수">접수</option>
         <option value="확인">확인</option>
         <option value="조치중">조치중</option>
@@ -2214,7 +2217,7 @@ function renderReportPending(defects){
       <td>${escapeHtml(d.symptom||'-')}</td>
       <td>${escapeHtml(d.title)}</td>
       <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
-      <td><span class="badge s-${d.status}">${escapeHtml(d.status)}</span></td>
+      <td><span class="badge s-${d.status}">${statusIcon(d.status)} ${escapeHtml(d.status)}</span></td>
       <td>${days}일</td>
       <td>${escapeHtml(d.due_date||'-')}</td>
     </tr>`;
@@ -3109,8 +3112,23 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.1';
+const APP_VERSION = 'v2.2';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.2',
+    date: '2026-07-02',
+    category: 'UI 개선',
+    title: '대시보드 바로가기 · 시인성 개선',
+    adminOnly: false,
+    notes: [
+      '대시보드 미완료·긴급 카드 클릭 시 해당 하자 목록으로 바로 이동',
+      '"오늘 처리할 항목" 행 클릭 시 상세 보기',
+      '하자 필터에 "미완료 전체" 추가',
+      '상태 표시에 아이콘 병행 (📥접수 🔍확인 🔧조치중 ✅완료)',
+      '비용 비교 차트에 금액 직접 표시',
+      '보안 강화: 외부 스크립트 차단 정책(CSP) 적용',
+    ]
+  },
   {
     version: 'v2.1',
     date: '2026-07-02',
@@ -3799,6 +3817,19 @@ function stepQty(inputId, delta){
   el.value = Math.max(1, Number(el.value || 0) + delta);
 }
 
+// v2.2: 상태 아이콘 (색각 이상·흑백 인쇄 대응 — 색상만으로 구분하지 않음)
+function statusIcon(s){
+  return { '접수':'📥', '확인':'🔍', '조치중':'🔧', '완료':'✅' }[s] || '';
+}
+
+// v2.2: KPI 카드 클릭 → 하자 목록으로 이동 + 필터 적용
+function goDefectsFiltered(status){
+  switchTab('defects');
+  const fs = document.getElementById('filterStatus');
+  if(fs){ fs.value = status; }
+  renderDefectsTable();
+}
+
 function setSelectValueWithFallback(selectId, value){
   const sel = document.getElementById(selectId);
   if(!sel) return;
@@ -3895,7 +3926,8 @@ function getFilteredDefects(){
   return DEFECTS.filter(d=>{
     if(roomId && String(d.room_id)!==roomId) return false;
     if(symptomFilter && d.symptom!==symptomFilter) return false;
-    if(status && d.status!==status) return false;
+    if(status === '__open__'){ if(d.status==='완료') return false; }
+    else if(status && d.status!==status) return false;
     if(q){
       const hay = `${d.rooms?.room_number||''} ${d.title||''}`.toLowerCase();
       if(!hay.includes(q)) return false;
@@ -3923,7 +3955,7 @@ function renderDefectsTable(){
       <td class="col-hide-mobile"><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
       <td onclick="event.stopPropagation()">
         <select class="status-select s-${d.status}" onchange="changeStatus(${d.id}, this.value)">
-          ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${s}</option>`).join('')}
+          ${['접수','확인','조치중','완료'].map(s=>`<option value="${s}" ${s===d.status?'selected':''}>${statusIcon(s)} ${s}</option>`).join('')}
         </select>
       </td>
       <td>${(()=>{ const sla=getSlaInfo(d); return sla? `<span class="badge ${sla.level}">${sla.days}일</span>` : '<span class="badge sla-ok">완료</span>'; })()}</td>
@@ -3993,11 +4025,11 @@ function renderTodoList(){
   document.getElementById('todoEmpty').style.display = items.length? 'none':'block';
   if(body){
     body.innerHTML = items.map(d=>`
-      <tr>
+      <tr style="cursor:pointer;" onclick="openDetailPanel(${d.id})" title="클릭하면 상세 보기">
         <td><b>${escapeHtml(d.rooms?.room_number||'-')}</b></td>
         <td>${escapeHtml(d.title)}</td>
         <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
-        <td>${escapeHtml(d.status)}</td>
+        <td><span class="badge s-${d.status}">${statusIcon(d.status)} ${escapeHtml(d.status)}</span></td>
         <td>${d.sla? d.sla.days+'일' : '-'}</td>
         <td>
           ${d.sla? `<span class="badge ${d.sla.level}">${d.sla.label}</span>` : ''}
@@ -4052,7 +4084,28 @@ async function renderMainDashboard(){
   if(chartCostCompare) chartCostCompare.destroy();
   const costCanvas = document.getElementById('chartCostCompare');
   if(costCanvas && typeof Chart!=='undefined'){
+    // v2.2: 막대 위에 금액 직접 표시 — 로그 스케일 착시 보완
+    const valueLabelPlugin = {
+      id: 'valueLabel',
+      afterDatasetsDraw(chart){
+        const { ctx } = chart;
+        chart.data.datasets.forEach((ds, di)=>{
+          const meta = chart.getDatasetMeta(di);
+          meta.data.forEach((bar, i)=>{
+            const v = Number(ds.data[i]);
+            if(!v) return;
+            ctx.save();
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillStyle = '#334155';
+            ctx.textAlign = 'center';
+            ctx.fillText(v.toLocaleString()+'원', bar.x, bar.y - 6);
+            ctx.restore();
+          });
+        });
+      }
+    };
     chartCostCompare = new Chart(costCanvas, {
+      plugins: [valueLabelPlugin],
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{type:'logarithmic', min:1, ticks:{callback:v=>{if([1,10,100,1000,10000,100000,1000000,10000000].includes(v))return v.toLocaleString()+'원'; return null;}}}} }
