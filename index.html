@@ -3237,8 +3237,21 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.5';
+const APP_VERSION = 'v2.6';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.6',
+    date: '2026-07-02',
+    category: '기능 추가',
+    title: '재고 정정 도구 · 초기화 이력 강화',
+    adminOnly: true,
+    notes: [
+      '재고 실사자를 직원 목록에서 선택 (본인 자동 선택)',
+      '최근 입출고 이력에 재고 조정 내역도 표시',
+      '잘못 등록한 입고·출고 이력 삭제 시 재고 자동 원복 (관리자)',
+      '데이터 초기화 시 사유 필수 입력 — 실행자·일시·사유가 이력에 기록',
+    ]
+  },
   {
     version: 'v2.5',
     date: '2026-07-02',
@@ -3553,6 +3566,10 @@ async function executeDataReset(){
   const val = document.getElementById('resetConfirmInput')?.value || '';
   if(val !== '데이터 초기화'){ alert('확인 문구가 올바르지 않습니다.'); return; }
 
+  // v2.6: 초기화 사유 필수 입력 (감사 로그에 실행자·일시와 함께 기록)
+  const resetReason = prompt('초기화 사유를 입력해주세요 (필수).\n예: 시범운영 종료, 정식 오픈 전 데이터 정리');
+  if(!resetReason || !resetReason.trim()){ alert('사유를 입력해야 초기화할 수 있습니다.'); return; }
+
   const msg = document.getElementById('resetDataMsg');
   const btn = document.getElementById('resetDataBtn');
   btn.disabled = true;
@@ -3573,7 +3590,7 @@ async function executeDataReset(){
   ];
 
   const errors = [];
-  const { error: rpcError } = await sb.rpc('reset_operation_data');
+  const { error: rpcError } = await sb.rpc('reset_operation_data', { reset_reason: resetReason.trim() });
   if(rpcError) errors.push(rpcError.message);
 
   if(errors.length){
@@ -3794,7 +3811,7 @@ function renderAuditLog(){
       const d = r.old_data;
       summary = '삭제됨 — ' + (escapeHtml(d.name || d.room_number || d.symptom || d.title || d.status || '') || '');
     } else if(r.action === 'RESET'){
-      summary = '운영 데이터 전체 초기화 실행';
+      summary = '운영 데이터 전체 초기화 실행' + (r.new_data?.reason ? ' — 사유: ' + escapeHtml(r.new_data.reason) : '');
     }
     return `<tr>
       <td style="white-space:nowrap;font-size:12.5px;">${dt}</td>
