@@ -811,6 +811,18 @@
     </div>
   </div>
 
+  <!-- v2.7: 하자 등록 폼에서 외주업체 선택하는 모달 (기준정보 등록/수정 모달과 별개) -->
+  <div class="overlay" id="vendorPickModal">
+    <div class="modal" style="position:relative;width:420px;">
+      <button onclick="document.getElementById('vendorPickModal').classList.remove('active')"
+              style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 6px;border-radius:4px;">✕</button>
+      <h3>외주업체 선택</h3>
+      <input id="vendorPickSearch" placeholder="업체명 검색" style="width:100%;margin-bottom:10px;" oninput="renderVendorPickList()" />
+      <div id="vendorPickList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+      <div class="empty" id="vendorPickEmpty" style="display:none;">등록된 외주업체가 없습니다.<br><span style="font-size:13px;color:var(--sub);">먼저 좌측 메뉴의 "외주업체" 탭에서 등록해주세요.</span></div>
+    </div>
+  </div>
+
   <!-- ===================== 설정 패널 ===================== -->
   <!-- ===================== 공지사항 패널 ===================== -->
   <div class="panel" id="panel-notice">
@@ -1363,12 +1375,6 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       <select id="filterRoom"><option value="">전체 객실</option></select>
       <select id="filterSymptom">
         <option value="">전체 증상</option>
-        <option value="누수·누전">누수·누전</option>
-        <option value="파손·균열">파손·균열</option>
-        <option value="오염·변색">오염·변색</option>
-        <option value="작동불량">작동불량</option>
-        <option value="소음·냄새">소음·냄새</option>
-        <option value="기타">기타</option>
       </select>
       <select id="filterStatus">
         <option value="">전체 상태</option>
@@ -1548,6 +1554,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       <div class="subtab active" data-subtab="roomsinfo" onclick="switchSubtab('roomsinfo')">객실정보</div>
       <div class="subtab" data-subtab="parts" onclick="switchSubtab('parts')">수리부속·단가</div>
       <div class="subtab" data-subtab="locations" onclick="switchSubtab('locations')">하자부위</div>
+      <div class="subtab" data-subtab="symptoms" onclick="switchSubtab('symptoms')">하자증상</div>
       <div class="subtab" data-subtab="roomtypes" onclick="switchSubtab('roomtypes')">객실타입</div>
       <div class="subtab" data-subtab="employees" onclick="switchSubtab('employees')">직원</div>
     </div>
@@ -1629,6 +1636,29 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
         <div class="table-scroll"><table>
           <thead><tr><th style="width:32px;"></th><th>부위명</th><th></th><th></th></tr></thead>
           <tbody id="locationsTableBody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- 하자증상 -->
+    <div class="subpanel" id="subpanel-symptoms">
+      <div class="card">
+        <h3>하자증상 등록</h3>
+        <div class="masterform">
+          <input id="symptomName" placeholder="증상명 (예: 누수·누전)" />
+          <button class="btn small" onclick="addSymptom()">+ 추가</button>
+        </div>
+        <div class="bulk-toolbar">
+          <input type="checkbox" id="symptomsSelectAll" onchange="toggleSelectAll('symptoms-row-check','symptomsSelectAll','symptomsSelectedCount')" />
+          <label for="symptomsSelectAll" style="font-size:13px;">전체 선택</label>
+          <button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSelectedSymptoms()">선택 삭제 (<span id="symptomsSelectedCount">0</span>개)</button>
+        </div>
+        <div style="font-size:12px;color:var(--sub);margin:8px 0;">
+          삭제해도 기존에 이미 등록된 하자 기록의 증상 값은 그대로 유지됩니다. 목록에서만 사라져 새 하자 등록 시 선택할 수 없게 됩니다.
+        </div>
+        <div class="table-scroll"><table>
+          <thead><tr><th style="width:32px;"></th><th>증상명</th><th></th><th></th></tr></thead>
+          <tbody id="symptomsTableBody"></tbody>
         </table></div>
       </div>
     </div>
@@ -1737,12 +1767,6 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       <label>하자증상 <span style="color:var(--danger)">*</span></label>
       <select id="formSymptom">
         <option value="">— 선택하세요 —</option>
-        <option value="누수·누전">누수·누전</option>
-        <option value="파손·균열">파손·균열</option>
-        <option value="오염·변색">오염·변색</option>
-        <option value="작동불량">작동불량</option>
-        <option value="소음·냄새">소음·냄새</option>
-        <option value="기타">기타</option>
       </select>
     </div>
     <div class="form-row">
@@ -1804,7 +1828,11 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       </div>
       <div class="form-row" id="vendorRow" style="display:none;">
         <label>외주업체명</label>
-        <input id="formVendor" placeholder="예: OO인테리어" />
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="formVendor" placeholder="업체를 선택하세요" readonly style="flex:1;cursor:pointer;background:#f9fafb;" onclick="openVendorPickModal()" />
+          <button type="button" class="btn secondary small" style="white-space:nowrap;" onclick="openVendorPickModal()">🏢 선택</button>
+        </div>
+        <div style="font-size:12px;color:var(--sub);margin-top:4px;">외주업체 기준정보에 등록된 업체 중에서 선택합니다. 목록에 없으면 먼저 외주업체 탭에서 등록해주세요.</div>
       </div>
       <div class="form-row" id="outsourcedCostRow" style="display:none;">
         <label>외주 처리비(원)</label>
@@ -1864,6 +1892,7 @@ let ROOMS = [];
 let DEFECTS = [];
 let ROOM_TYPES = [];
 let LOCATIONS = [];
+let SYMPTOMS_MASTER = [];
 let PARTS = [];
 let EMPLOYEES = [];
 let VENDORS = [];             // 외주업체 목록
@@ -2883,7 +2912,7 @@ function onLogout(){
   CURRENT_USER = null;
   CURRENT_ROLE = 'viewer';  // 보안 기본값 (로그인 전 최소 권한)
   ROOMS = []; DEFECTS = []; ROOM_TYPES = [];
-  LOCATIONS = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
+  LOCATIONS = []; SYMPTOMS_MASTER = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
   PARTS_USED_ALL = [];
 
   // UI 초기화
@@ -3242,8 +3271,20 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.6.1';
+const APP_VERSION = 'v2.7';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7',
+    date: '2026-07-06',
+    category: '기능 추가',
+    title: '하자증상 기준정보 관리 · 외주업체명 선택 방식 변경',
+    adminOnly: false,
+    notes: [
+      '기준정보 탭에 "하자증상" 메뉴 신설 — 추가·수정·삭제 가능 (기존 6종 고정값은 초기 데이터로 이관됨)',
+      '하자 등록 폼의 하자증상 드롭다운이 기준정보 등록 내용을 그대로 반영',
+      '하자 등록 폼의 외주업체명을 자유 입력 대신 등록된 외주업체 목록에서 선택하는 방식으로 변경 (오타로 인한 업체별 통계 누락 방지)',
+    ]
+  },
   {
     version: 'v2.6.1',
     date: '2026-07-03',
@@ -3841,7 +3882,7 @@ function switchSubtab(name){
 // v21: 전체 데이터 백업 (JSON 다운로드, admin 전용)
 // ============================================================
 const BACKUP_TABLES = [
-  'rooms','room_types','defect_categories','defect_locations','defect_parts',
+  'rooms','room_types','defect_categories','defect_locations','defect_symptoms','defect_parts',
   'defects','defect_parts_used','defect_photos','defect_status_history',
   'defect_status_logs','defect_comments',
   'part_stock_in','part_stock_out','part_stock_adjustments',
@@ -3910,10 +3951,11 @@ let SAFETY_FACTOR = 1.5;
 
 async function loadAll(){
   if(!sb) return;
-  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}, {data:vendors, error:e8}, {data:appCfg, error:e9}] = await Promise.all([
+  const [{data:rooms, error:e1}, {data:rtypes, error:e3}, {data:locs, error:e4}, {data:syms, error:e4b}, {data:parts, error:e5}, {data:settings, error:e6}, {data:emps, error:e7}, {data:vendors, error:e8}, {data:appCfg, error:e9}] = await Promise.all([
     sb.from('rooms').select('*').order('room_number'),
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*').order('sort_order'),
+    sb.from('defect_symptoms').select('*').order('sort_order'),
     sb.from('defect_parts').select('*').order('name'),
     sb.from('system_settings').select('*'),
     sb.from('employees').select('*').order('name'),
@@ -3923,6 +3965,7 @@ async function loadAll(){
   if(e1) console.error(e1);
   if(e3) console.error('room_types 로드 실패:', e3);
   if(e4) console.error('defect_locations 로드 실패:', e4);
+  if(e4b) console.error('defect_symptoms 로드 실패:', e4b);
   if(e5) console.error('defect_parts 로드 실패:', e5);
   if(e6) console.error('system_settings 로드 실패:', e6);
   if(e7) console.error('employees 로드 실패:', e7);
@@ -3931,6 +3974,7 @@ async function loadAll(){
   ROOMS = sortRoomsNumerically(rooms||[]);
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
+  SYMPTOMS_MASTER = syms||[];
   PARTS = parts||[];
   EMPLOYEES = emps||[];
   VENDORS = vendors||[];
@@ -3970,6 +4014,21 @@ function populateFormSelects(){
   if(locSel){
     locSel.innerHTML = '<option value="">— 선택 안함 —</option>' +
       LOCATIONS.map(l=>`<option value="${l.id}">${escapeHtml(l.name)}</option>`).join('');
+  }
+  // v2.7: 하자증상 — 기준정보 마스터(defect_symptoms) 기준 동적 렌더링
+  const symSel = document.getElementById('formSymptom');
+  if(symSel){
+    const cur = symSel.value;
+    symSel.innerHTML = '<option value="">— 선택하세요 —</option>' +
+      SYMPTOMS_MASTER.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+    if(cur) symSel.value = cur;
+  }
+  const filterSymSel = document.getElementById('filterSymptom');
+  if(filterSymSel){
+    const cur2 = filterSymSel.value;
+    filterSymSel.innerHTML = '<option value="">전체 증상</option>' +
+      SYMPTOMS_MASTER.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+    if(cur2) filterSymSel.value = cur2;
   }
   const partSel = document.getElementById('useePartSelect');
   if(partSel){
@@ -4476,10 +4535,16 @@ function renderRepeatAlertTable(){
 }
 
 // ---------- 증상별 통계 ----------
-const SYMPTOMS = ['누수·누전','파손·균열','오염·변색','작동불량','소음·냄새','기타'];
+// v2.7: 하자증상은 기준정보(defect_symptoms) 마스터 기준으로 동적 산출.
+// 마스터 데이터가 아직 로드되지 않았을 때(초기 로딩 등)를 위한 안전값으로만 하드코딩 유지.
+const SYMPTOM_CHART_PALETTE = ['#2563eb','#dc2626','#d97706','#16a34a','#7c3aed','#9ca3af','#0891b2','#db2777','#65a30d','#ea580c'];
+function getSymptomNames(){
+  if(SYMPTOMS_MASTER && SYMPTOMS_MASTER.length) return SYMPTOMS_MASTER.map(s=>s.name);
+  return ['누수·누전','파손·균열','오염·변색','작동불량','소음·냄새','기타'];
+}
 let chart1=null, chart2=null;
 function renderCategoryDashboard(){
-  const summary = SYMPTOMS.map(sym=>{
+  const summary = getSymptomNames().map(sym=>{
     const items = DEFECTS.filter(d=>d.symptom===sym);
     const byStatus = s=>items.filter(d=>d.status===s).length;
     const outsourcedCount = items.filter(d=>d.is_outsourced).length;
@@ -4804,6 +4869,7 @@ async function removePartUsage(idx){
 function renderAllMasterTables(){
   renderPartsTable();
   renderLocationsTable();
+  renderSymptomsTable();
   renderRoomTypesTable();
   renderRoomsInfoTable();
   populateRoomTypeSelectForRoom();
@@ -5109,6 +5175,74 @@ async function deleteLocation(id){
   await reloadMasterData();
 }
 
+// 하자증상
+function renderSymptomsTable(){
+  const body = document.getElementById('symptomsTableBody');
+  if(!body) return;
+  body.innerHTML = SYMPTOMS_MASTER.map(s=>`
+    <tr id="sym-row-${s.id}">
+      <td><input type="checkbox" class="symptoms-row-check" value="${s.id}" onchange="updateSelectedCount('symptoms-row-check','symptomsSelectedCount','symptomsSelectAll')" /></td>
+      <td>${escapeHtml(s.name)}</td>
+      <td><button class="btn small secondary" onclick="startInlineEditSymptom(${s.id})">수정</button></td>
+      <td><button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteSymptom(${s.id})">삭제</button></td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--sub);padding:20px;">등록된 하자증상이 없습니다.</td></tr>';
+}
+
+function startInlineEditSymptom(id){
+  const sym = SYMPTOMS_MASTER.find(s=>s.id===id);
+  if(!sym) return;
+  const tr = document.getElementById('sym-row-'+id);
+  if(!tr) return;
+  tr.classList.add('inline-editing');
+  tr.innerHTML = `
+    <td><input type="checkbox" class="symptoms-row-check" value="${id}" onchange="updateSelectedCount('symptoms-row-check','symptomsSelectedCount','symptomsSelectAll')" /></td>
+    <td><input type="text" id="ies-name-${id}" value="${escapeHtml(sym.name||'')}" placeholder="증상명" /></td>
+    <td style="white-space:nowrap;">
+      <button class="inline-save-btn" onclick="saveInlineEditSymptom(${id})">저장</button>
+      <button class="inline-cancel-btn" onclick="renderSymptomsTable()" style="margin-left:4px;">취소</button>
+    </td>
+    <td></td>`;
+  document.getElementById('ies-name-'+id).focus();
+}
+
+async function saveInlineEditSymptom(id){
+  const name = document.getElementById('ies-name-'+id)?.value.trim();
+  if(!name){ alert('증상명을 입력해주세요.'); return; }
+  const {data:_r, error} = await sb.from('defect_symptoms').update({name}).eq('id', id).select('id');
+  if(error){ alert('수정 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
+  showToast('수정되었습니다.');
+  await reloadMasterData();
+}
+async function addSymptom(){
+  const name = document.getElementById('symptomName').value.trim();
+  if(!name){ alert('증상명을 입력해주세요.'); return; }
+  const {error} = await sb.from('defect_symptoms').insert({name});
+  if(error){ alert('등록 실패: '+error.message); return; }
+  document.getElementById('symptomName').value='';
+  showToast('하자증상이 등록되었습니다.');
+  await reloadMasterData();
+}
+async function deleteSelectedSymptoms(){
+  const checked = [...document.querySelectorAll('.symptoms-row-check:checked')].map(c=>Number(c.value));
+  if(!checked.length){ alert('선택된 항목이 없습니다.'); return; }
+  if(!confirm(`선택한 하자증상 ${checked.length}개를 삭제하시겠습니까?`)) return;
+  const {data:_r, error} = await sb.from('defect_symptoms').delete().in('id', checked).select('id');
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
+  showToast(`${checked.length}개 삭제되었습니다.`);
+  document.getElementById('symptomsSelectAll').checked = false;
+  document.getElementById('symptomsSelectedCount').textContent = '0';
+  await reloadMasterData();
+}
+async function deleteSymptom(id){
+  if(!confirm('이 하자증상을 삭제하시겠습니까?')) return;
+  const {data:_r, error} = await sb.from('defect_symptoms').delete().eq('id', id).select('id');
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
+  await reloadMasterData();
+}
+
 // 객실타입
 function renderRoomTypesTable(){
   const body = document.getElementById('roomTypesTableBody');
@@ -5358,16 +5492,19 @@ async function deleteSelectedRooms(){
 }
 
 async function reloadMasterData(){
-  const [{data:rtypes}, {data:locs}, {data:parts}] = await Promise.all([
+  const [{data:rtypes}, {data:locs}, {data:syms}, {data:parts}] = await Promise.all([
     sb.from('room_types').select('*').order('sort_order'),
     sb.from('defect_locations').select('*').order('sort_order'),
+    sb.from('defect_symptoms').select('*').order('sort_order'),
     sb.from('defect_parts').select('*').order('name')
   ]);
   ROOM_TYPES = rtypes||[];
   LOCATIONS = locs||[];
+  SYMPTOMS_MASTER = syms||[];
   PARTS = parts||[];
   populateFormSelects();
   renderAllMasterTables();
+  renderCategoryDashboard();
 }
 
 // ---------- 부품 재고관리 ----------
@@ -5698,6 +5835,42 @@ async function reloadVendors(){
   renderVendors();
 }
 
+// v2.7: 하자 등록 폼 — 외주업체명 선택 모달 (자유입력 대신 등록된 업체 중에서만 선택)
+function openVendorPickModal(){
+  document.getElementById('vendorPickSearch').value = '';
+  renderVendorPickList();
+  document.getElementById('vendorPickModal').classList.add('active');
+}
+function renderVendorPickList(){
+  const kw = (document.getElementById('vendorPickSearch').value||'').trim().toLowerCase();
+  const list = VENDORS.filter(v=>v.is_active!==false)
+    .filter(v=> !kw || v.name.toLowerCase().includes(kw));
+  const box = document.getElementById('vendorPickList');
+  const empty = document.getElementById('vendorPickEmpty');
+  if(!list.length){
+    box.innerHTML = '';
+    empty.style.display = VENDORS.length? 'none':'block';
+    if(VENDORS.length && kw){
+      box.innerHTML = '<div style="text-align:center;color:var(--sub);font-size:13px;padding:16px;">검색 결과가 없습니다.</div>';
+    }
+    return;
+  }
+  empty.style.display = 'none';
+  box.innerHTML = list.map(v=>`
+    <div onclick="selectVendorFromPick(${v.id})"
+         style="padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13.5px;"
+         onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+      <b>${escapeHtml(v.name)}</b>
+      ${v.scope? `<span style="color:var(--sub);font-size:12px;"> · ${escapeHtml(v.scope)}</span>`:''}
+    </div>`).join('');
+}
+function selectVendorFromPick(id){
+  const v = VENDORS.find(x=>x.id===id);
+  if(!v) return;
+  document.getElementById('formVendor').value = v.name;
+  document.getElementById('vendorPickModal').classList.remove('active');
+}
+
 // 업체 서류 파일 업로드 (Supabase Storage: vendor-docs 버킷)
 async function uploadVendorDoc(inputEl, targetFieldId){
   const file = inputEl.files[0];
@@ -5834,7 +6007,8 @@ async function renderCostStat(){
   }
 
   // ── 증상별 비용 ──
-  const symCosts = SYMPTOMS.map(sym=>{
+  const symNames = getSymptomNames();
+  const symCosts = symNames.map(sym=>{
     return defectsInPeriod.filter(d=>d.symptom===sym).reduce((s,d)=>s+Number(d.total_cost||0),0);
   });
   if(chartCostBySymptom) chartCostBySymptom.destroy();
@@ -5842,7 +6016,7 @@ async function renderCostStat(){
   if(symCanvas && typeof Chart!=='undefined'){
     chartCostBySymptom = new Chart(symCanvas, {
       type:'bar',
-      data:{ labels:SYMPTOMS, datasets:[{label:'발생비용(원)', data:symCosts, backgroundColor:['#2563eb','#dc2626','#d97706','#16a34a','#7c3aed','#9ca3af']}]},
+      data:{ labels:symNames, datasets:[{label:'발생비용(원)', data:symCosts, backgroundColor:symNames.map((_,i)=>SYMPTOM_CHART_PALETTE[i % SYMPTOM_CHART_PALETTE.length])}]},
       options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{callback:v=>v.toLocaleString()+'원'}}} }
     });
   }
