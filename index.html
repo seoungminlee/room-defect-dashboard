@@ -3271,8 +3271,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.1';
+const APP_VERSION = 'v2.7.2';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.2',
+    date: '2026-07-09',
+    category: '버그 수정',
+    title: '사용 부속/발생비용 저장 실패가 화면에 안 보이던 문제 수정',
+    adminOnly: false,
+    notes: [
+      '하자 수정 시 사용 부속/발생비용 저장에 실패해도 "저장되었습니다"로 뜨고 조용히 사라지던 문제 수정 — 실패 시 정확한 원인을 화면에 표시하고 모달을 닫지 않아 재시도 가능',
+      'defects.total_cost 자동 재계산 트리거를 security definer로 전환 (재고 트리거와 동일 기준으로 하드닝, supabase_schema_v31 SQL 실행 필요)',
+    ]
+  },
   {
     version: 'v2.7.1',
     date: '2026-07-06',
@@ -4816,14 +4827,28 @@ async function saveDefect(){
   if(error){ alert('저장 실패: '+error.message); return; }
 
   // 새로 추가된(아직 DB에 없는) 사용부품들을 저장
+  // v2.7.2: 이 저장이 실패해도(RLS·트리거 오류 등) 조용히 넘어가던 문제를 수정.
+  //   실패 시 화면에 에러를 명시하고, 하자 본문 저장은 유지하되 모달은 닫지 않아
+  //   입력한 부속 내역을 잃지 않도록 함 (재시도 가능).
   const newParts = CURRENT_PARTS_USED.filter(p=>!p.id);
   if(savedId && newParts.length){
     const rows = newParts.map(p=>({
       defect_id: savedId, part_id: p.part_id, quantity: p.quantity,
       unit_price: p.unit_price, labor_cost: p.labor_cost||0
     }));
-    const {error: peErr} = await sb.from('defect_parts_used').insert(rows);
-    if(peErr) console.error('부품 사용 저장 실패:', peErr);
+    const {data: peData, error: peErr} = await sb.from('defect_parts_used').insert(rows).select('id');
+    if(peErr){
+      alert('하자 기본 정보는 저장되었지만, 사용 부속/비용 저장에 실패했습니다.\n\n오류: ' + peErr.message + '\n\n부속 목록은 그대로 남아있으니 다시 "저장"을 눌러 재시도해주세요.');
+      if(!id) document.getElementById('editDefectId').value = savedId; // 신규 등록이었다면 이후 재시도가 "수정"으로 동작하도록
+      await loadDefects();
+      return;
+    }
+    if(!peData || !peData.length){
+      alert('하자 기본 정보는 저장되었지만, 사용 부속/비용이 권한 문제로 저장되지 않았습니다. 관리자에게 문의하십시오.\n\n부속 목록은 그대로 남아있으니 다시 "저장"을 눌러 재시도해주세요.');
+      if(!id) document.getElementById('editDefectId').value = savedId;
+      await loadDefects();
+      return;
+    }
   }
 
   closeDefectModal();
