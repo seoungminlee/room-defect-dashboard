@@ -1289,7 +1289,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
 
     <div class="kpi-row">
       <div class="kpi danger" style="cursor:pointer;" onclick="goDefectsFiltered('__open__')" title="클릭하면 미완료 하자 목록으로 이동"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중) →</div></div>
-      <div class="kpi warn" style="cursor:pointer;" onclick="goDefectsFiltered('__open__')" title="클릭하면 미완료 하자 목록으로 이동"><div class="num" id="kpiUrgent">–</div><div class="label">긴급 우선순위 →</div></div>
+      <div class="kpi warn" style="cursor:pointer;" onclick="goDefectsFiltered('__open__','긴급')" title="클릭하면 미완료·긴급 하자 목록으로 이동"><div class="num" id="kpiUrgent">–</div><div class="label">긴급 우선순위 →</div></div>
       <div class="kpi"><div class="num" id="kpiOutsourced">–</div><div class="label">외주 처리중</div></div>
       <div class="kpi ok"><div class="num" id="kpiDoneMonth">–</div><div class="label">이번달 완료</div></div>
     </div>
@@ -1405,6 +1405,19 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
         <option value="조치중">조치중</option>
         <option value="완료">완료</option>
       </select>
+      <select id="filterPriority">
+        <option value="">전체 우선순위</option>
+        <option value="긴급">긴급</option>
+        <option value="높음">높음</option>
+        <option value="보통">보통</option>
+        <option value="낮음">낮음</option>
+      </select>
+      <select id="filterAssigned">
+        <option value="">전체 담당자</option>
+      </select>
+      <input id="filterDateFrom" type="date" title="등록일 시작" style="width:140px;" />
+      <span style="color:var(--sub);font-size:13px;">~</span>
+      <input id="filterDateTo" type="date" title="등록일 끝" style="width:140px;" />
       <input id="searchBox" placeholder="객실·증상·부위·내용·담당자 검색" style="min-width:200px;"/>
       <div class="spacer"></div>
       <button class="btn secondary" onclick="resetFilters()" style="white-space:nowrap;">필터 초기화</button>
@@ -3294,8 +3307,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.3';
+const APP_VERSION = 'v2.7.4';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.4',
+    date: '2026-07-09',
+    category: '기능 추가 · 버그 수정',
+    title: '하자 목록 담당자·기간·우선순위 필터 추가',
+    adminOnly: false,
+    notes: [
+      '하자 목록에 담당자 필터, 등록일 기간 필터, 우선순위 필터 신설',
+      '"긴급 우선순위" KPI 카드가 실제로는 우선순위를 걸러주지 않고 미완료 전체만 보여주던 문제 수정 — 이제 긴급 건만 정확히 필터링됨',
+    ]
+  },
   {
     version: 'v2.7.3',
     date: '2026-07-09',
@@ -4086,6 +4110,14 @@ function populateFormSelects(){
       SYMPTOMS_MASTER.map(s=>`<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
     if(cur2) filterSymSel.value = cur2;
   }
+  // v2.7.4: 하자 목록 담당자 필터 — 직원 목록 기준 동적 렌더링
+  const filterAssignedSel = document.getElementById('filterAssigned');
+  if(filterAssignedSel){
+    const cur3 = filterAssignedSel.value;
+    filterAssignedSel.innerHTML = '<option value="">전체 담당자</option>' +
+      EMPLOYEES.filter(e=>e.is_active).map(e=>`<option value="${escapeHtml(e.name)}">${escapeHtml(e.name)}</option>`).join('');
+    if(cur3) filterAssignedSel.value = cur3;
+  }
   const partSel = document.getElementById('useePartSelect');
   if(partSel){
     partSel.innerHTML = PARTS.filter(p=>p.is_active).map(p=>{
@@ -4150,10 +4182,13 @@ function statusIcon(s){
 }
 
 // v2.2: KPI 카드 클릭 → 하자 목록으로 이동 + 필터 적용
-function goDefectsFiltered(status){
+function goDefectsFiltered(status, priority){
   switchTab('rooms'); // v2.7.3: 'defects'는 존재하지 않는 탭 id라 화면이 안 뜨던 버그 수정
   const fs = document.getElementById('filterStatus');
   if(fs){ fs.value = status; }
+  // v2.7.4: "긴급 우선순위" 카드가 실제로는 우선순위를 걸러주지 않던 문제 수정
+  const fp = document.getElementById('filterPriority');
+  if(fp){ fp.value = priority || ''; }
   renderDefectsTable();
 }
 
@@ -4238,10 +4273,14 @@ function renderKpis(){
 // ---------- 객실별 테이블 ----------
 function resetFilters(){
   const el = (id) => document.getElementById(id);
-  if(el('filterRoom'))    el('filterRoom').value = '';
-  if(el('filterSymptom')) el('filterSymptom').value = '';
-  if(el('filterStatus'))  el('filterStatus').value = '';
-  if(el('searchBox'))     el('searchBox').value = '';
+  if(el('filterRoom'))     el('filterRoom').value = '';
+  if(el('filterSymptom'))  el('filterSymptom').value = '';
+  if(el('filterStatus'))   el('filterStatus').value = '';
+  if(el('filterPriority')) el('filterPriority').value = '';
+  if(el('filterAssigned')) el('filterAssigned').value = '';
+  if(el('filterDateFrom')) el('filterDateFrom').value = '';
+  if(el('filterDateTo'))   el('filterDateTo').value = '';
+  if(el('searchBox'))      el('searchBox').value = '';
   renderDefectsTable();
 }
 
@@ -4249,12 +4288,23 @@ function getFilteredDefects(){
   const roomId = document.getElementById('filterRoom').value;
   const symptomFilter = document.getElementById('filterSymptom').value;
   const status = document.getElementById('filterStatus').value;
+  const priority = document.getElementById('filterPriority')?.value || '';
+  const assigned = document.getElementById('filterAssigned')?.value || '';
+  const dateFrom = document.getElementById('filterDateFrom')?.value || '';
+  const dateTo = document.getElementById('filterDateTo')?.value || '';
   const q = document.getElementById('searchBox').value.trim().toLowerCase();
   return DEFECTS.filter(d=>{
     if(roomId && String(d.room_id)!==roomId) return false;
     if(symptomFilter && d.symptom!==symptomFilter) return false;
     if(status === '__open__'){ if(d.status==='완료') return false; }
     else if(status && d.status!==status) return false;
+    if(priority && d.priority!==priority) return false;
+    if(assigned && d.assigned_to!==assigned) return false;
+    if(dateFrom || dateTo){
+      const created = d.created_at ? d.created_at.slice(0,10) : '';
+      if(dateFrom && created < dateFrom) return false;
+      if(dateTo && created > dateTo) return false;
+    }
     if(q){
       // v2.6: 검색 대상 확장 — 객실번호·제목·증상·하자부위·상세설명·담당자·등록자·외주업체
       const hay = [
@@ -4304,6 +4354,10 @@ function renderDefectsTable(){
 document.getElementById('filterRoom').addEventListener('change', renderDefectsTable);
 document.getElementById('filterSymptom').addEventListener('change', renderDefectsTable);
 document.getElementById('filterStatus').addEventListener('change', renderDefectsTable);
+document.getElementById('filterPriority').addEventListener('change', renderDefectsTable);
+document.getElementById('filterAssigned').addEventListener('change', renderDefectsTable);
+document.getElementById('filterDateFrom').addEventListener('change', renderDefectsTable);
+document.getElementById('filterDateTo').addEventListener('change', renderDefectsTable);
 document.getElementById('searchBox').addEventListener('input', renderDefectsTable);
 
 async function changeStatus(id, newStatus){
