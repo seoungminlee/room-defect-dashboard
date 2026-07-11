@@ -89,7 +89,7 @@
   td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
   tr:hover td{background:#f9fafb;}
 
-  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;}
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
   .badge.s-접수{background:#fee2e2;color:#b91c1c;}
   .badge.s-확인{background:#fef3c7;color:#92400e;}
   .badge.s-조치중{background:#dbeafe;color:#1e40af;}
@@ -600,6 +600,16 @@
 </div>
 
 <div id="mobileHome" style="display:none;padding:20px 14px 100px;">
+  <!-- v2.7.3: 로그인 시 본인 담당 처리기한 초과 하자 개인 알림 배너 (모바일) -->
+  <div id="myOverdueBannerM" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+      <div style="flex:1;">
+        <div style="font-weight:700;color:#b91c1c;font-size:13.5px;margin-bottom:6px;">⚠️ 내 담당 하자 중 처리기한 초과 <span id="myOverdueCountM">0</span>건</div>
+        <div id="myOverdueListM" style="display:flex;flex-direction:column;gap:4px;"></div>
+      </div>
+      <button onclick="document.getElementById('myOverdueBannerM').style.display='none'" style="background:none;border:none;font-size:18px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 4px;">✕</button>
+    </div>
+  </div>
   <!-- 공지 배너 (모바일 홈용) -->
   <div id="mobileNoticeBanner" style="margin-bottom:16px;"></div>
 
@@ -1265,6 +1275,17 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
 
 
   <div class="panel active" id="panel-dashboard">
+
+    <!-- v2.7.3: 로그인 시 본인 담당 처리기한 초과 하자 개인 알림 배너 -->
+    <div id="myOverdueBanner" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 16px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-weight:700;color:#b91c1c;font-size:14px;margin-bottom:6px;">⚠️ 내 담당 하자 중 처리기한이 지난 건이 <span id="myOverdueCount">0</span>건 있습니다</div>
+          <div id="myOverdueList" style="display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+        <button onclick="document.getElementById('myOverdueBanner').style.display='none'" style="background:none;border:none;font-size:18px;line-height:1;cursor:pointer;color:#9ca3af;padding:2px 4px;">✕</button>
+      </div>
+    </div>
 
     <div class="kpi-row">
       <div class="kpi danger" style="cursor:pointer;" onclick="goDefectsFiltered('__open__')" title="클릭하면 미완료 하자 목록으로 이동"><div class="num" id="kpiOpen">–</div><div class="label">미완료 하자 (접수+확인+조치중) →</div></div>
@@ -2016,12 +2037,14 @@ function onLoginSuccess(user){
       loadNotices();
       renderMobileMyDefects();
       renderMobileNoticeBanner();
+      renderMyOverdueBanner('M');
       initRealtimeSync();
       checkUpdateNotification();
     });
   } else {
     loadAll().then(() => {
       loadNotices();
+      renderMyOverdueBanner();
       initRealtimeSync();
       checkUpdateNotification();
     });
@@ -3271,8 +3294,20 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.2';
+const APP_VERSION = 'v2.7.3';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.3',
+    date: '2026-07-09',
+    category: '기능 추가 · 버그 수정',
+    title: '내 담당 처리기한 초과 개인 알림 · KPI 빈 화면 · 배지 줄바꿈 수정',
+    adminOnly: false,
+    notes: [
+      '로그인 시 본인 담당 하자 중 처리기한(예정일)이 지난 건을 개인 알림 배너로 표시 (전체 공지 아님, 본인에게만 보임)',
+      '"미완료 하자"·"긴급 우선순위" 카드 클릭 시 존재하지 않는 탭으로 이동 시도해 빈 화면이 뜨던 문제 수정 (하자 목록으로 정상 이동)',
+      '상태 배지("조치중" 등)가 좁은 표 안에서 두 줄로 줄바꿈되던 문제 수정',
+    ]
+  },
   {
     version: 'v2.7.2',
     date: '2026-07-09',
@@ -4116,7 +4151,7 @@ function statusIcon(s){
 
 // v2.2: KPI 카드 클릭 → 하자 목록으로 이동 + 필터 적용
 function goDefectsFiltered(status){
-  switchTab('defects');
+  switchTab('rooms'); // v2.7.3: 'defects'는 존재하지 않는 탭 id라 화면이 안 뜨던 버그 수정
   const fs = document.getElementById('filterStatus');
   if(fs){ fs.value = status; }
   renderDefectsTable();
@@ -4312,6 +4347,27 @@ function isOverdue(defect){
   if(!defect.due_date || defect.status==='완료') return false;
   const today = new Date(); today.setHours(0,0,0,0);
   return new Date(defect.due_date) < today;
+}
+
+// v2.7.3: 로그인 시 — 본인 담당 하자 중 처리기한(예정일) 초과 건을 개인 알림 배너로 표시
+// (전체공지가 아니라 담당자 본인에게만 보임. 로그인할 때마다 다시 체크되며,
+//  닫기는 이번 세션에서만 숨김 — 다음 로그인 시 여전히 미처리 상태면 다시 뜸)
+function renderMyOverdueBanner(suffix){
+  suffix = suffix || '';
+  const banner = document.getElementById('myOverdueBanner'+suffix);
+  if(!banner) return;
+  const me = currentUserName();
+  if(!me){ banner.style.display='none'; return; }
+  const mine = DEFECTS.filter(d=> d.assigned_to===me && isOverdue(d));
+  if(!mine.length){ banner.style.display='none'; return; }
+  document.getElementById('myOverdueCount'+suffix).textContent = mine.length;
+  document.getElementById('myOverdueList'+suffix).innerHTML = mine.slice(0,5).map(d=>{
+    const days = Math.floor((new Date().setHours(0,0,0,0) - new Date(d.due_date).setHours(0,0,0,0)) / (1000*60*60*24));
+    return `<div style="font-size:13px;color:#7f1d1d;cursor:pointer;" onclick="openDetailPanel(${d.id})">
+      · ${escapeHtml(d.rooms?.room_number||'-')}호 — ${escapeHtml(d.title)} <b>(예정일 ${days}일 초과)</b>
+    </div>`;
+  }).join('') + (mine.length>5? `<div style="font-size:12px;color:#9ca3af;">외 ${mine.length-5}건 더</div>` : '');
+  banner.style.display = 'block';
 }
 
 function renderTodoList(){
