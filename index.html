@@ -1449,7 +1449,7 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       <div class="table-scroll"><table>
         <thead>
           <tr>
-            <th>객실</th><th>증상</th><th class="col-hide-mobile">부위</th><th>하자 내용</th><th>우선순위</th><th class="col-hide-mobile">처리방식</th><th>상태</th><th>처리기한</th><th class="col-hide-mobile">예정일</th><th class="col-hide-mobile">방막</th><th class="col-hide-mobile">발생비용</th><th class="col-hide-mobile">등록일</th><th class="col-hide-mobile">담당자</th><th></th>
+            <th>객실</th><th>증상</th><th class="col-hide-mobile">부위</th><th>하자 내용</th><th>우선순위</th><th class="col-hide-mobile">처리방식</th><th>상태</th><th>처리기한</th><th class="col-hide-mobile">예정일</th><th class="col-hide-mobile">방막</th><th class="col-hide-mobile">발생비용</th><th class="col-hide-mobile">등록일</th><th class="col-hide-mobile">담당자</th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="defectsTableBody"></tbody>
@@ -3328,8 +3328,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.6';
+const APP_VERSION = 'v2.7.7';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.7',
+    date: '2026-07-17',
+    category: '기능 추가 · 버그 수정',
+    title: '하자 삭제 기능 추가 · 하자 저장 실패 시 화면 표시',
+    adminOnly: false,
+    notes: [
+      '잘못 등록·중복 등록된 하자를 삭제하는 기능 신설 (하자 목록·상세보기, 관리자 전용)',
+      '하자 수정 저장이 실패해도 조용히 "저장되었습니다"로 표시되던 문제 방지 — 실패 시 정확한 원인을 화면에 표시',
+    ]
+  },
   {
     version: 'v2.7.6',
     date: '2026-07-12',
@@ -4390,6 +4401,7 @@ function renderDefectsTable(){
       <td class="col-hide-mobile">${date}</td>
       <td class="col-hide-mobile">${escapeHtml(d.assigned_to||'-')}</td>
       <td onclick="event.stopPropagation()"><button class="btn small secondary" onclick="openEditModal(${d.id})">수정</button></td>
+      <td onclick="event.stopPropagation()">${CURRENT_ROLE==='admin' ? `<button class="btn small secondary" style="color:var(--danger);border-color:var(--danger);" onclick="deleteDefect(${d.id})">삭제</button>` : ''}</td>
     </tr>`;
   }).join('');
 }
@@ -4883,6 +4895,19 @@ function closeDefectModal(){
   document.getElementById('defectModal').classList.remove('active');
 }
 
+// v2.7.7: 잘못 등록·중복 등록된 하자 삭제 (admin 전용 — del_defects RLS와 일치)
+async function deleteDefect(id){
+  if(CURRENT_ROLE !== 'admin'){ showToast('권한이 없습니다. 관리자에게 문의하십시오.'); return; }
+  const d = DEFECTS.find(x=>x.id===id);
+  const label = d? `${d.rooms?.room_number||'-'}호 · ${d.title||''}` : '이 하자';
+  if(!confirm(`"${label}"를 삭제하시겠습니까?\n연결된 사용 부속·상태 이력·코멘트도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
+  const {data:_r, error} = await sb.from('defects').delete().eq('id', id).select('id');
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  if(rlsBlocked(_r)) return;
+  showToast('삭제되었습니다.');
+  await loadDefects();
+}
+
 // ---------- 객실 검색형 선택 (하자 등록 모달) ----------
 // 객실번호(숫자 일부 일치) 또는 타입명/타입코드로 검색해 매칭되는 객실만 목록으로 보여줍니다.
 // 기준정보에 등록되지 않은 객실은 검색 결과에 나타나지 않으므로 선택 자체가 불가능합니다.
@@ -4971,7 +4996,11 @@ async function saveDefect(){
 
   let error, savedId = id? Number(id) : null;
   if(id){
-    ({error} = await sb.from('defects').update(payload).eq('id', id));
+    // v2.7.7: .select()로 실제 반영 행을 확인 — RLS가 조용히 막아도(에러 없이 0건)
+    //   지금까지는 "저장되었습니다"로 표시되며 실제로는 저장이 안 됐음을 알 수 없었음
+    const {data:_ur, error:updErr} = await sb.from('defects').update(payload).eq('id', id).select('id');
+    error = updErr;
+    if(!error && rlsBlocked(_ur)) return;
   } else {
     const {data, error:insErr} = await sb.from('defects').insert(payload).select().single();
     error = insErr;
@@ -6327,6 +6356,13 @@ function openEditFromDetail(){
   openEditModal(id);
 }
 
+async function deleteDefectFromDetail(){
+  const id = DETAIL_DEFECT_ID;
+  if(!id) return;
+  closeDetailPanel();
+  await deleteDefect(id);
+}
+
 async function loadDetailTimeline(defectId){
   const el = document.getElementById('detailTimeline');
   el.innerHTML = '<div style="color:var(--muted);font-size:13px;">불러오는 중...</div>';
@@ -6439,6 +6475,7 @@ try{
     <h3 id="detailTitle">하자 상세</h3>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn small" id="detailEditBtn" onclick="openEditFromDetail()">✏️ 수정</button>
+      <button class="btn small admin-only" style="display:none;color:var(--danger);border-color:var(--danger);background:var(--card);" id="detailDeleteBtn" onclick="deleteDefectFromDetail()">🗑️ 삭제</button>
       <button class="btn secondary small" onclick="closeDetailPanel()">✕ 닫기</button>
     </div>
   </div>
