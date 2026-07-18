@@ -1968,13 +1968,14 @@ function onLoginSuccess(user){
       renderMyOverdueBanner();
       initRealtimeSync();
       checkUpdateNotification();
+      // 통합 대시보드 등 외부에서 #rooms, #coststat 등으로 딥링크 진입 시 해당 탭으로 바로 이동 (없으면 기본 dashboard)
+      // v2.7.6: loadAll() 완료 전에 먼저 탭을 전환해서 비용통계 등이 빈 값으로 렌더링되던 문제 수정 — 데이터 로드 완료 후로 이동
+      const _deepLinkTab = (() => {
+        const h = (location.hash || '').replace(/^#/, '').split('?')[0];
+        return ['rooms', 'coststat'].includes(h) ? h : 'dashboard';
+      })();
+      switchTab(_deepLinkTab);
     });
-    // 통합 대시보드 등 외부에서 #rooms, #coststat 등으로 딥링크 진입 시 해당 탭으로 바로 이동 (없으면 기본 dashboard)
-    const _deepLinkTab = (() => {
-      const h = (location.hash || '').replace(/^#/, '').split('?')[0];
-      return ['rooms', 'coststat'].includes(h) ? h : 'dashboard';
-    })();
-    switchTab(_deepLinkTab);
   }
 
   // v2.4: 비밀번호 설정 유도 (초대 링크·재설정 링크·관리자 초기화 직후)
@@ -3218,8 +3219,18 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.5';
+const APP_VERSION = 'v2.7.6';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.6',
+    date: '2026-07-18',
+    category: '버그 수정',
+    title: '딥링크로 비용통계 진입 시 값이 빈 화면으로 보이던 문제 수정',
+    adminOnly: false,
+    notes: [
+      '통합 대시보드에서 "이번 달 등록 비용" 클릭 시 데이터 로딩이 끝나기 전에 비용통계 탭으로 전환돼 빈 값이 표시되던 문제 수정 — 데이터 로딩 완료 후 탭 전환하도록 순서 변경',
+    ]
+  },
   {
     version: 'v2.7.5',
     date: '2026-07-18',
