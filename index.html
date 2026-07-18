@@ -1854,6 +1854,12 @@ const AUTH_ENTRY_TYPE = (()=>{ try{ return new URLSearchParams(location.hash.sli
 const SUPABASE_URL = 'https://lwcutgofpdtzcbyjszhc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx3Y3V0Z29mcGR0emNieWpzemhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMzg0ODAsImV4cCI6MjA5NzcxNDQ4MH0.g2eGcEiO8Ix0Cul9wqnNghbn5snCeqjwD9LiD_-mK6I';
 
+// ── 로그인 창구 일원화 (통합 대시보드) 관련 설정 ──
+// REQUIRE_HUB_LOGIN을 true로 바꾸면, 세션 없이 M3에 접속했을 때 자체 로그인 화면 대신
+// 통합 대시보드 로그인으로 이동시킴 (전 직원에게 영향 있는 전환 — 사전 공지 후 켤 것)
+const HUB_URL = 'https://seoungminlee.github.io/lecollective-hub/';
+const REQUIRE_HUB_LOGIN = true;
+
 function loadConfig(){
   initSupabase(SUPABASE_URL, SUPABASE_KEY);
 }
@@ -1878,8 +1884,11 @@ function initSupabase(url, key){
       if(session){
         const { data: userData } = await sb.auth.getUser();
         onLoginSuccess(userData?.user || session.user);
+      } else if(REQUIRE_HUB_LOGIN){
+        // 세션 없음 + 로그인 창구 일원화 켜짐 → 통합 대시보드 로그인으로 이동, 원래 보려던 화면 주소를 return으로 함께 전달
+        location.href = HUB_URL + '?return=' + encodeURIComponent(location.href);
       }
-      // 세션 없으면 로그인 화면 유지 (기본 상태)
+      // 세션 없고 REQUIRE_HUB_LOGIN=false면 기존처럼 M3 자체 로그인 화면 유지
     });
     // 세션 변경 감지 (탭 전환, 토큰 만료 등)
     sb.auth.onAuthStateChange((event, session) => {
@@ -3219,8 +3228,30 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.6';
+const APP_VERSION = 'v2.7.8';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.8',
+    date: '2026-07-18',
+    category: '기능 변경 (전 직원 영향)',
+    title: '로그인 창구 일원화 적용 — 이제부터 통합 대시보드에서 로그인',
+    adminOnly: false,
+    notes: [
+      'REQUIRE_HUB_LOGIN = true로 전환. 세션 없이 M3에 접속하면 통합 대시보드 로그인 화면으로 이동하고, 로그인하면 원래 보려던 화면(하자 목록·비용통계 등)으로 자동 복귀됨',
+      '기존 M3 자체 로그인 화면(이메일·비밀번호 입력)은 더 이상 노출되지 않음 — 로그인은 통합 대시보드에서만 진행',
+    ]
+  },
+  {
+    version: 'v2.7.7',
+    date: '2026-07-18',
+    category: '기능 추가 (기본 꺼짐)',
+    title: '로그인 창구 일원화 준비 — 통합 대시보드 로그인 연동 (REQUIRE_HUB_LOGIN)',
+    adminOnly: true,
+    notes: [
+      'REQUIRE_HUB_LOGIN 상수를 true로 바꾸면, 세션 없이 M3에 접속 시 자체 로그인 화면 대신 통합 대시보드 로그인으로 이동하고 로그인 후 원래 보려던 화면으로 자동 복귀됨 (return-url 방식)',
+      '기본값은 false — 켜기 전까지는 지금과 100% 동일하게 동작함. 직원 공지 이후 전환 권장',
+    ]
+  },
   {
     version: 'v2.7.6',
     date: '2026-07-18',
