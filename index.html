@@ -1878,6 +1878,12 @@ function initSupabase(url, key){
     sb = window.supabase.createClient(url, key);
     const cs = document.getElementById('connStatus');
     if(cs){ cs.textContent = '✅ Supabase 연결됨'; cs.style.color = 'var(--ok)'; }
+    // v2.7.9: 세션 확인 응답이 오기 전 사용자가 M3 자체 로그인 폼을 먼저 제출하는 걸 막기 위해
+    // REQUIRE_HUB_LOGIN이면 세션 확인 중에는 로그인 버튼을 즉시 비활성화
+    if(REQUIRE_HUB_LOGIN){
+      const btn = document.getElementById('loginBtn');
+      if(btn){ btn.disabled = true; btn.textContent = '통합 대시보드 확인 중…'; }
+    }
     // 연결 후 기존 세션 확인 → 있으면 바로 로그인 처리
     // v19: 저장된 토큰의 role이 오래됐을 수 있어 서버에서 최신 사용자 정보를 다시 가져옴
     sb.auth.getSession().then(async ({ data: { session } }) => {
@@ -1908,6 +1914,9 @@ function initSupabase(url, key){
 // 로그인 / 로그아웃
 // ============================================================
 async function doLogin(){
+  // v2.7.9: REQUIRE_HUB_LOGIN 켜진 상태에서 M3 자체 로그인 폼으로 직접 로그인되던 버그 수정
+  // (기존엔 페이지 로드 시 세션 체크에서만 리다이렉트했는데, 그 응답이 오기 전에 사용자가 먼저 로그인 폼을 제출하면 그대로 M3에 로그인돼버렸음)
+  if(REQUIRE_HUB_LOGIN){ location.href = HUB_URL + '?return=' + encodeURIComponent(location.href); return; }
   const email = document.getElementById('loginEmail').value.trim();
   const pw    = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginErr');
@@ -3228,8 +3237,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.8';
+const APP_VERSION = 'v2.7.9';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.9',
+    date: '2026-07-18',
+    category: '버그 수정',
+    title: '로그인 창구 일원화가 실제로는 우회되던 문제 수정',
+    adminOnly: true,
+    notes: [
+      'REQUIRE_HUB_LOGIN을 켰는데도 M3 자체 로그인 폼으로 직접 로그인이 되던 버그 수정 — 세션 확인 응답을 기다리는 동안에는 로그인 폼이 그대로 살아있어서, 그 사이 사용자가 이메일·비밀번호를 입력해 제출하면 통합 대시보드로 넘어가지 않고 M3에 바로 로그인돼버렸음',
+      '로그인 버튼 제출 자체를 막고(doLogin에서 즉시 재확인), 세션 확인 중에는 버튼을 비활성화해 원천 차단',
+    ]
+  },
   {
     version: 'v2.7.8',
     date: '2026-07-18',
