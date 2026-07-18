@@ -1040,22 +1040,10 @@
       </div>
 
       <div class="card">
-        <h3>Supabase 연결 설정</h3>
-        <div id="connStatus" style="margin-bottom:12px;font-size:13px;font-weight:600;color:var(--sub);">Supabase 연결 대기중…</div>
-        <div class="setup-box">
-          1. supabase.com 프로젝트 → <code>Project Settings → API</code>에서<br/>
-          <b>Project URL</b>과 <b>anon public key</b>를 복사해 아래에 붙여넣으세요.<br/>
-          2. 입력 후 "연결하기"를 누르면 이 브라우저에 저장됩니다.
-          <div class="form-row" style="margin-top:12px;">
-            <label>Project URL</label>
-            <input id="cfgUrl" placeholder="https://xxxxxxxx.supabase.co" />
-          </div>
-          <div class="form-row">
-            <label>anon public key</label>
-            <input id="cfgKey" placeholder="eyJhbGciOiJI..." />
-          </div>
-          <button onclick="saveConfig()">연결하기</button>
-        </div>
+        <h3>Supabase 연결 상태</h3>
+        <!-- v2.7.11: 사용자가 URL/key를 직접 입력해 연결을 바꾸는 레거시 UI(cfgUrl/cfgKey/saveConfig) 제거 —
+             실제로는 항상 코드 상수(SUPABASE_URL/SUPABASE_KEY)로만 연결되며 이 입력값은 어디서도 읽히지 않던 죽은 기능이었음 -->
+        <div id="connStatus" style="font-size:13px;font-weight:600;color:var(--sub);">Supabase 연결 대기중…</div>
       </div>
 
       <!-- 운영 데이터 초기화 -->
@@ -1870,15 +1858,6 @@ function hideBootSplash(){
 
 function loadConfig(){
   initSupabase(SUPABASE_URL, SUPABASE_KEY);
-}
-
-function saveConfig(){
-  const url = document.getElementById('cfgUrl').value.trim();
-  const key = document.getElementById('cfgKey').value.trim();
-  if(!url || !key){ alert('URL과 key를 모두 입력해주세요.'); return; }
-  localStorage.setItem('sb_url', url);
-  localStorage.setItem('sb_key', key);
-  initSupabase(url, key);
 }
 
 function initSupabase(url, key){
@@ -2806,94 +2785,19 @@ async function doChangePw(){
   }
 }
 
-// ============================================================
-// 비밀번호 초기화 (admin → 다른 사용자)
-// ── 이메일 초대 (Edge Function) ──────────────────────────────
-async function sendInvite(){
-  if(CURRENT_ROLE !== 'admin'){ showToast('관리자만 사용 가능합니다.'); return; }
-  const email       = document.getElementById('inviteEmail').value.trim();
-  const displayName = document.getElementById('inviteDisplayName').value.trim();
-  const role        = document.getElementById('inviteRole').value;
-  const msg         = document.getElementById('inviteMsg');
-
-  if(!email){       msg.style.color='var(--danger)'; msg.textContent='이메일을 입력해주세요.'; return; }
-  if(!displayName){ msg.style.color='var(--danger)'; msg.textContent='이름을 입력해주세요.'; return; }
-
-  msg.style.color='var(--sub)'; msg.textContent='발송 중…';
-
-  try {
-    // Supabase 프로젝트 URL에서 Edge Function URL 자동 생성
-    const supabaseUrl = (SUPABASE_URL || localStorage.getItem('sb_url') || '').replace(/[\r\n\t]/g, '').trim();
-    if(!supabaseUrl){ msg.style.color='var(--danger)'; msg.textContent='Supabase URL이 설정되지 않았습니다. 연결 설정을 먼저 완료해주세요.'; return; }
-
-    const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/invite-user';
-    const { data:{ session } } = await sb.auth.getSession();
-    if(!session){ msg.style.color='var(--danger)'; msg.textContent='세션이 만료됐습니다. 다시 로그인해주세요.'; return; }
-
-    const token = String(session.access_token).replace(/[^\x20-\x7E]/g, '');
-    const cleanUrl = funcUrl.replace(/[\r\n\t]/g, '');
-    const json = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', cleanUrl);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-      xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(e); } };
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(JSON.stringify({ email, displayName, role }));
-    });
-
-    if(json.error){
-      msg.style.color='var(--danger)';
-      msg.textContent='실패: ' + json.error;
-    } else {
-      msg.style.color='var(--ok)';
-      msg.textContent=`초대 발송 완료! ${email} 로 초대 링크가 전송됐습니다.`;
-      document.getElementById('inviteEmail').value='';
-      document.getElementById('inviteDisplayName').value='';
-      setTimeout(()=>loadAdminUsers(), 1000);
-    }
-  } catch(e){
-    msg.style.color='var(--danger)';
-    alert('에러스택: ' + (e.stack || e.message));
-    msg.textContent='오류: ' + e.message;
-  }
-}
-
-// Supabase admin API는 anon key로 직접 호출 불가 → SQL로 우회
-// ============================================================
-async function adminResetPassword(){
-  if(CURRENT_ROLE !== 'admin'){ showToast('관리자만 사용 가능합니다.'); return; }
-  const email = document.getElementById('resetTargetEmail').value.trim();
-  const tempPw = document.getElementById('resetTempPw').value.trim();
-  const msg = document.getElementById('resetMsg');
-  if(!email){ msg.style.color='var(--danger)'; msg.textContent='이메일을 입력해주세요.'; return; }
-  if(!tempPw){ msg.style.color='var(--danger)'; msg.textContent='임시 비밀번호를 입력해주세요.'; return; }
-  if(!isValidPassword(tempPw)){ msg.style.color='var(--danger)'; msg.textContent='임시 비밀번호도 정책을 따라야 합니다: 8자 이상, 영문+숫자 포함.'; return; }
-
-  msg.style.color='var(--sub)'; msg.textContent='처리 중…';
-
-  // Supabase Admin API: service_role key 없이는 직접 호출 불가
-  // → DB 함수(security definer)를 통해 우회
-  const { error } = await sb.rpc('admin_reset_user_password', {
-    target_email: email,
-    new_password: tempPw
-  });
-  if(error){
-    msg.style.color='var(--danger)';
-    msg.textContent='실패: ' + error.message;
-  } else {
-    msg.style.color='var(--ok)';
-    msg.textContent=`✅ ${email} 비밀번호가 초기화되었습니다. 상대방에게 임시 비밀번호를 전달하세요.`;
-    document.getElementById('resetTargetEmail').value = '';
-  }
-}
-
 function onLogout(){
   CURRENT_USER = null;
   CURRENT_ROLE = 'viewer';  // 보안 기본값 (로그인 전 최소 권한)
   ROOMS = []; DEFECTS = []; ROOM_TYPES = [];
   LOCATIONS = []; SYMPTOMS_MASTER = []; PARTS = []; EMPLOYEES = []; VENDORS = []; AUDIT_LOG = [];
   PARTS_USED_ALL = [];
+
+  // v2.7.11: 로그아웃(버튼 클릭·세션 만료 등 모든 경로)도 REQUIRE_HUB_LOGIN 대상 —
+  // 기존엔 페이지 최초 진입 시점만 막아놔서, 로그인 중 세션이 끊기면 M3 자체 로그인 화면으로 새 버려던 구멍이 있었음
+  if(REQUIRE_HUB_LOGIN){
+    location.href = HUB_URL + '?return=' + encodeURIComponent(location.href);
+    return;
+  }
 
   // UI 초기화
   document.getElementById('loginScreen').style.display = 'flex';
@@ -2985,109 +2889,8 @@ function switchAdminSubtab(name){
   if(name==='admin-audit') loadAuditLog();
   if(name==='admin-stock-log') loadStockLog();
   if(name==='admin-settings'){
-    document.getElementById('cfgUrl').value = localStorage.getItem('sb_url')||'';
-    document.getElementById('cfgKey').value = localStorage.getItem('sb_key')||'';
     loadAdminSettingsUI();
   }
-}
-
-// ============================================================
-// 사용자 관리 (admin 전용)
-// ============================================================
-let ADMIN_USERS = [];
-
-async function loadAdminUsers(){
-  if(!sb || CURRENT_ROLE !== 'admin') return;
-  const { data, error } = await sb.rpc('admin_list_users');
-  if(error){ showToast('사용자 목록 로드 실패: ' + error.message); return; }
-  ADMIN_USERS = data || [];
-  renderAdminUsers();
-}
-
-function renderAdminUsers(){
-  const tbody = document.getElementById('adminUsersTableBody');
-  const empty = document.getElementById('adminUsersEmpty');
-  if(!tbody) return;
-  if(!ADMIN_USERS.length){ tbody.innerHTML=''; empty.style.display=''; return; }
-  empty.style.display = 'none';
-  tbody.innerHTML = ADMIN_USERS.map(u => {
-    const isMe = u.email === CURRENT_USER?.email;
-    const ROLE_META = {
-      admin:  { label: '관리자',   style: 'background:#fef3c7;color:#92400e;' },
-      staff:  { label: '일반',     style: 'background:#e0f2fe;color:#0369a1;' },
-      viewer: { label: '조회전용', style: 'background:#f1f5f9;color:#475569;' },
-    };
-    const rm = ROLE_META[u.role] || ROLE_META.viewer;
-    const roleLabel = `<span class="badge" style="${rm.style}">${rm.label}</span>`;
-    const lastLogin = u.last_sign_in ? new Date(u.last_sign_in).toLocaleString('ko-KR') : '미로그인';
-    const createdAt = new Date(u.created_at).toLocaleDateString('ko-KR');
-    const roleSelect = `<select class="role-select" data-email="${escapeHtml(u.email)}" onchange="adminChangeRoleFromSelect(this)" style="padding:4px 6px;border-radius:6px;border:1px solid var(--line);">
-        ${['admin','staff','viewer'].map(r=>`<option value="${r}" ${u.role===r?'selected':''}>${ROLE_META[r].label}</option>`).join('')}
-      </select>`;
-    return `<tr>
-      <td>${escapeHtml(u.email)}${isMe ? ' <span style="font-size:11px;color:var(--sub);">(나)</span>' : ''}</td>
-      <td>${roleLabel}</td>
-      <td style="font-size:12.5px;color:var(--sub);">${lastLogin}</td>
-      <td style="font-size:12.5px;color:var(--sub);">${createdAt}</td>
-      <td>${isMe ? '–' : roleSelect}</td>
-      <td>${isMe ? '–' : `<button class="btn small" style="background:#f59e0b;" data-email="${escapeHtml(u.email)}" onclick="adminResetPasswordQuickFromBtn(this)">초기화</button>`}</td>
-      <td>${isMe ? '–' : `<button class="btn small" style="background:var(--danger);" data-userid="${escapeHtml(u.id)}" data-email="${escapeHtml(u.email)}" onclick="deleteUserFromBtn(this)">삭제</button>`}</td>
-    </tr>`;
-  }).join('');
-}
-
-function adminChangeRoleFromSelect(sel){
-  const email = sel.dataset.email;
-  const newRole = sel.value;
-  adminChangeRole(email, newRole);
-}
-function deleteUserFromBtn(btn){
-  deleteUser(btn.dataset.userid, btn.dataset.email);
-}
-
-async function deleteUser(userId, email){
-  if(!confirm(`⚠️ ${email} 계정을 완전히 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.`)) return;
-  const supabaseUrl = (SUPABASE_URL || localStorage.getItem('sb_url') || '').replace(/[\r\n\t]/g, '').trim();
-  if(!supabaseUrl){ showToast('Supabase URL이 설정되지 않았습니다.'); return; }
-  const funcUrl = supabaseUrl.replace(/\/+$/, '') + '/functions/v1/delete-user';
-  const { data:{ session } } = await sb.auth.getSession();
-  if(!session){ showToast('세션이 만료됐습니다. 다시 로그인해주세요.'); return; }
-  try {
-    const res = await fetch(funcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ userId }),
-    });
-    const json = await res.json();
-    if(!res.ok || json.error){
-      showToast('삭제 실패: ' + (json.error || res.statusText));
-    } else {
-      showToast('✅ ' + email + ' 계정이 삭제되었습니다.');
-      await loadAdminUsers();
-    }
-  } catch(e){
-    showToast('오류: ' + e.message);
-  }
-}
-
-function adminResetPasswordQuickFromBtn(btn){
-  adminResetPasswordQuick(btn.dataset.email);
-}
-
-async function adminChangeRole(email, newRole){
-  const roleLabels = { admin: '관리자', staff: '일반', viewer: '조회전용' };
-  if(!confirm(`${email} 의 권한을 "${roleLabels[newRole] || newRole}"으로 변경하시겠습니까?`)){ loadAdminUsers(); return; }
-  const { error } = await sb.rpc('admin_set_user_role', { target_email: email, new_role: newRole });
-  if(error){ showToast('권한 변경 실패: ' + error.message); loadAdminUsers(); return; }
-  showToast('✅ 권한이 변경되었습니다. 대상자는 재로그인해야 적용됩니다.');
-  loadAdminUsers();
-}
-
-function adminResetPasswordQuick(email){
-  document.getElementById('resetTargetEmail').value = email;
-  // 사용자 관리 서브탭이 이미 활성화된 상태이므로 하단 카드로 스크롤
-  document.getElementById('resetTargetEmail').scrollIntoView({ behavior:'smooth', block:'center' });
-  document.getElementById('resetTargetEmail').focus();
 }
 
 // ============================================================
@@ -3249,8 +3052,20 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.10';
+const APP_VERSION = 'v2.7.11';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.11',
+    date: '2026-07-18',
+    category: '보안·코드 정리',
+    title: '통합대시보드 연동 코드 전체 점검 — 보안 구멍 정리 및 죽은 코드 제거',
+    adminOnly: true,
+    notes: [
+      '로그아웃(버튼 클릭·세션 만료 등 모든 경로)에도 통합 로그인 정책이 적용되도록 수정 — 이전엔 최초 진입 시점만 막아놔서, 로그인 중 세션이 끊기면 M3 자체 로그인 화면으로 새는 구멍이 있었음',
+      '이미 안 쓰는 옛 "사용자 관리(admin)" 코드, 옛 "연결설정"(URL/key 직접입력) UI 등 실제로는 실행되지 않던 죽은 코드 제거',
+      'DB 쪽도 함께 정리: 감사 로그·문서버전 이력에 "누가 했는지" 기록이 화면에서 보낸 값을 그대로 믿던 구조였던 걸, 서버(DB)가 실제 로그인 계정 이메일로 강제 기록하도록 변경 (v36 SQL 별도 실행 필요)',
+    ]
+  },
   {
     version: 'v2.7.10',
     date: '2026-07-18',
