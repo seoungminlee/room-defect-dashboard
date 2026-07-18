@@ -505,6 +505,9 @@
 </head>
 <body>
 
+<!-- v2.7.10: 세션 확인(또는 통합 대시보드 리다이렉트) 판단 전까지 M3 자체 로그인 화면이 잠깐 보이는 걸 가리는 스플래시 -->
+<div id="bootSplash" style="position:fixed;inset:0;background:var(--bg);z-index:1000;"></div>
+
 <!-- ===================== 로그인 화면 ===================== -->
 <div id="loginScreen">
   <div class="login-card">
@@ -1860,6 +1863,11 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const HUB_URL = 'https://seoungminlee.github.io/lecollective-hub/';
 const REQUIRE_HUB_LOGIN = true;
 
+function hideBootSplash(){
+  const el = document.getElementById('bootSplash');
+  if(el) el.style.display = 'none';
+}
+
 function loadConfig(){
   initSupabase(SUPABASE_URL, SUPABASE_KEY);
 }
@@ -1892,9 +1900,12 @@ function initSupabase(url, key){
         onLoginSuccess(userData?.user || session.user);
       } else if(REQUIRE_HUB_LOGIN){
         // 세션 없음 + 로그인 창구 일원화 켜짐 → 통합 대시보드 로그인으로 이동, 원래 보려던 화면 주소를 return으로 함께 전달
+        // (페이지를 벗어날 것이므로 스플래시를 굳이 안 걷음 — M3 로그인 폼이 잠깐이라도 보이는 걸 방지)
         location.href = HUB_URL + '?return=' + encodeURIComponent(location.href);
+      } else {
+        // 세션 없고 REQUIRE_HUB_LOGIN=false → 기존처럼 M3 자체 로그인 화면 노출
+        hideBootSplash();
       }
-      // 세션 없고 REQUIRE_HUB_LOGIN=false면 기존처럼 M3 자체 로그인 화면 유지
     });
     // 세션 변경 감지 (탭 전환, 토큰 만료 등)
     sb.auth.onAuthStateChange((event, session) => {
@@ -1936,6 +1947,7 @@ async function doLogin(){
 }
 
 function onLoginSuccess(user){
+  hideBootSplash();
   CURRENT_USER = user;
   // v19: role은 app_metadata가 유일한 출처 (user_metadata는 위조 가능하므로 사용 금지)
   const _r = user?.app_metadata?.role;
@@ -3237,8 +3249,18 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.9';
+const APP_VERSION = 'v2.7.10';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.10',
+    date: '2026-07-18',
+    category: '버그 수정',
+    title: '통합 대시보드로 넘어가기 전 M3 로그인 화면이 잠깐 보이던 문제 수정',
+    adminOnly: true,
+    notes: [
+      '세션 확인(→ 통합 대시보드 리다이렉트 여부 판단) 중에는 화면을 스플래시로 가려서, M3 자체 로그인 폼이 순간적으로 노출됐다가 사라지는 깜빡임 제거',
+    ]
+  },
   {
     version: 'v2.7.9',
     date: '2026-07-18',
@@ -6336,7 +6358,10 @@ try{
   loadConfig();
 }catch(e){
   console.error('초기화 중 오류:', e);
+  hideBootSplash(); // 초기화 실패 시에도 화면이 계속 가려진 채로 남지 않도록
 }
+// 안전장치: 네트워크 문제 등으로 세션 확인이 오래 걸려도 6초 후엔 무조건 화면 노출
+setTimeout(hideBootSplash, 6000);
 </script>
 
 <!-- PDF 출력 전용 영역 (화면에서는 숨김, 인쇄 시에만 표시) -->
