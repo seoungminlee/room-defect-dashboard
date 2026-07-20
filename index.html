@@ -11,7 +11,22 @@
 <title>시흥 웨이브파크 하자관리</title>
 <script src="chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.0/dist/umd/supabase.min.js"></script>
-<script src="xlsx.min.js"></script>
+<!-- v2.7.13: xlsx.min.js(864KB)는 엑셀 다운로드/업로드를 실제로 쓸 때만 지연 로딩 (ensureXLSX() 참조) -->
+<script>
+  let _xlsxLoadPromise = null;
+  function ensureXLSX(){
+    if(typeof XLSX !== 'undefined') return Promise.resolve();
+    if(_xlsxLoadPromise) return _xlsxLoadPromise;
+    _xlsxLoadPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'xlsx.min.js';
+      s.onload = () => resolve();
+      s.onerror = () => { _xlsxLoadPromise = null; reject(new Error('xlsx.min.js 로드 실패')); };
+      document.head.appendChild(s);
+    });
+    return _xlsxLoadPromise;
+  }
+</script>
 <style>
   :root{
     --bg:#f4f5f7; --card:#ffffff; --border:#e3e5e9; --text:#1c1f24; --sub:#6b7280;
@@ -2646,6 +2661,7 @@ async function printReport(){
 }
 
 async function downloadReportExcel(){
+  try{ await ensureXLSX(); }catch(e){ showToast('Excel 라이브러리 로드 실패'); return; }
   if(typeof XLSX === 'undefined'){ showToast('Excel 라이브러리 로드 실패'); return; }
   const defects = getReportDefects();
   const from = document.getElementById('reportDateFrom').value;
@@ -3386,8 +3402,20 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.12';
+const APP_VERSION = 'v2.7.13';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.13',
+    date: '2026-07-20',
+    category: '성능 개선',
+    title: '엑셀 라이브러리(xlsx.min.js) 지연 로딩',
+    adminOnly: false,
+    notes: [
+      '엑셀 다운로드(보고서)·엑셀 업로드(객실 일괄등록) 기능에서만 쓰는 xlsx.min.js(864KB)를 페이지 로드 시 무조건 불러오던 방식에서, 실제로 해당 기능을 누를 때만 불러오도록 변경',
+      '엑셀 기능을 쓰지 않는 대부분의 세션에서 탭 메모리·초기 로딩 부담이 줄어듦',
+      '엑셀 다운로드/업로드 버튼을 처음 누를 때 아주 짧은 로딩 지연(1초 이내)이 있을 수 있음 — 정상 동작',
+    ]
+  },
   {
     version: 'v2.7.12',
     date: '2026-07-20',
@@ -5861,6 +5889,7 @@ async function handleExcelRoomUpload(event){
   const file = event.target.files[0];
   if(!file) return;
   try{
+    await ensureXLSX();
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, {type:'array'});
     const sheet = wb.Sheets[wb.SheetNames[0]];
