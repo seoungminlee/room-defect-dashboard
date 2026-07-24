@@ -95,12 +95,13 @@
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
   .filterbar select,.filterbar input{padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:#fff;}
   .filterbar .spacer{flex:1;}
-  .btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
   .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
   .btn.small{padding:5px 10px;font-size:12px;}
 
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   table{width:100%;border-collapse:collapse;font-size:13.5px;}
-  th{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);color:var(--sub);font-weight:600;background:#fafbfc;}
+  th{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);color:var(--sub);font-weight:600;background:#fafbfc;white-space:nowrap;}
   td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
   tr:hover td{background:#f9fafb;}
 
@@ -3421,8 +3422,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.15';
+const APP_VERSION = 'v2.7.16';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.16',
+    date: '2026-07-20',
+    category: '버그 수정',
+    title: '표 헤더·버튼 글자가 세로로 쪼개져 보이던 문제 수정',
+    adminOnly: false,
+    notes: [
+      '하자 목록 등 표 헤더("우선순위", "처리기한", "담당자" 등)와 "수정"/"삭제" 버튼 글자가 컬럼 폭이 좁을 때 세로로 줄바꿈되어 읽기 불편했던 문제 수정',
+      '이제 헤더·버튼 글자는 항상 한 줄로 표시되고, 화면보다 표가 넓어지면 좌우로 스크롤됩니다',
+    ]
+  },
   {
     version: 'v2.7.15',
     date: '2026-07-20',
