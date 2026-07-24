@@ -119,6 +119,11 @@
   th{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);color:var(--sub);font-weight:600;background:#fafbfc;white-space:nowrap;}
   td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
   tr:hover td{background:#f9fafb;}
+  /* v2.7.19: 하자 목록 표의 날짜·증상·부위 등 짧은 값이 컬럼폭 때문에
+     세로로 줄바꿈되던 문제 — 이 표 안에서는 기본적으로 줄바꿈을 막고,
+     문장이 긴 "하자 내용" 칸만 예외적으로 줄바꿈을 허용함 */
+  #defectsTableBody td{white-space:nowrap;}
+  #defectsTableBody td.col-wrap{white-space:normal;}
 
   .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;}
   .badge.s-접수{background:#fee2e2;color:#b91c1c;}
@@ -3447,8 +3452,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.18';
+const APP_VERSION = 'v2.7.19';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.19',
+    date: '2026-07-24',
+    category: '버그 수정',
+    title: '하자 목록 표에서 날짜·증상 등이 세로로 쪼개져 보이던 문제 수정',
+    adminOnly: false,
+    notes: [
+      '등록일(예: "2026. 7. 23.")이나 증상명(예: "주방설비") 같은 짧은 값이 컬럼 폭이 좁을 때 글자 단위로 줄바꿈되던 문제 수정',
+      '"하자 내용"처럼 원래 문장이 긴 칸은 기존대로 줄바꿈되고, 나머지 짧은 값들은 항상 한 줄로 표시됩니다',
+    ]
+  },
   {
     version: 'v2.7.18',
     date: '2026-07-24',
@@ -4736,7 +4752,7 @@ function renderDefectsTable(){
       </td>
       <td>${escapeHtml(d.symptom||'-')}</td>
       <td class="col-hide-mobile">${escapeHtml(d.defect_locations?.name||'-')}</td>
-      <td>${escapeHtml(d.title)}</td>
+      <td class="col-wrap">${escapeHtml(d.title)}</td>
       <td><span class="badge p-${d.priority}">${escapeHtml(d.priority)}</span></td>
       <td class="col-hide-mobile"><span class="badge ${d.is_outsourced?'outsourced':'internal'}">${d.is_outsourced? '외주':'자체'}</span></td>
       <td onclick="event.stopPropagation()">
