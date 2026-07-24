@@ -1918,6 +1918,20 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
       <select id="formReporter" onchange="handleManualEmployeeInput(this)"></select>
     </div>
 
+    <!-- v2.7.20: 사진은 "추가 정보" 접힘 영역 안에 있으면 모바일에서 기본적으로
+         숨겨져 있어(현장에서 바로 찍어 등록한다는 원래 취지와 안 맞음) 항상 보이는
+         필수 필드 영역으로 이동 -->
+    <div class="form-row" id="formPhotoSection">
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>사진 <span style="color:#9ca3af;font-weight:400;">(최대 5장)</span></span>
+        <button type="button" id="formPhotoDownloadAllBtn" class="btn small secondary" style="display:none;" onclick="downloadAllFormPhotos()">⬇ 전체 다운로드</button>
+      </label>
+      <div id="formPhotoGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+      <input type="file" id="formPhotoFileInput" accept="image/*" multiple style="display:none;" onchange="handleFormPhotoFileSelect(event)" />
+      <button type="button" class="btn small secondary" id="formPhotoAddBtn" onclick="document.getElementById('formPhotoFileInput').click()">📷 사진 추가</button>
+      <span id="formPhotoStatus" style="font-size:12px;color:var(--sub);margin-left:8px;"></span>
+    </div>
+
     <!-- ── 추가 필드 토글 버튼 ── -->
     <div class="modal-section-divider"><span>선택 입력 (담당자·비용·방막 등)</span></div>
     <button id="toggleExtraFields" onclick="toggleDefectExtraFields()" style="
@@ -2003,16 +2017,6 @@ SITE_URL = https://seoungminlee.github.io/room-defect-dashboard</pre>
           </div>
         </div>
         <div style="margin-top:6px;font-size:12.5px;color:var(--sub);" id="totalCostDisplay"></div>
-      </div>
-      <div class="form-row" id="formPhotoSection">
-        <label style="display:flex;align-items:center;justify-content:space-between;">
-          <span>사진 <span style="color:#9ca3af;font-weight:400;">(최대 5장)</span></span>
-          <button type="button" id="formPhotoDownloadAllBtn" class="btn small secondary" style="display:none;" onclick="downloadAllFormPhotos()">⬇ 전체 다운로드</button>
-        </label>
-        <div id="formPhotoGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
-        <input type="file" id="formPhotoFileInput" accept="image/*" multiple style="display:none;" onchange="handleFormPhotoFileSelect(event)" />
-        <button type="button" class="btn small secondary" id="formPhotoAddBtn" onclick="document.getElementById('formPhotoFileInput').click()">📷 사진 추가</button>
-        <span id="formPhotoStatus" style="font-size:12px;color:var(--sub);margin-left:8px;"></span>
       </div>
     </div>
 
@@ -3452,8 +3456,19 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.19';
+const APP_VERSION = 'v2.7.20';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.20',
+    date: '2026-07-24',
+    category: '버그 수정',
+    title: '등록 화면 사진 첨부가 모바일에서 안 보이던 문제 수정',
+    adminOnly: false,
+    notes: [
+      'v2.7.17에서 등록 화면에 사진 첨부를 추가했지만, "추가 정보" 접힘 영역 안에 들어있어 모바일(또는 좁은 화면)에서는 기본적으로 숨겨져 있었음',
+      '사진 항목을 접히지 않는 필수 필드 영역으로 옮겨 이제 화면 크기와 무관하게 등록 화면을 열자마자 바로 보임',
+    ]
+  },
   {
     version: 'v2.7.19',
     date: '2026-07-24',
