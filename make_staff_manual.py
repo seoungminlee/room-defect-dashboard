@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 사용설명서 생성 — 전 직원 공용 (v2.7.18 기준, 2026-07)
+# 사용설명서 생성 — 전 직원 공용 (v2.7.21 기준, 2026-08)
 # 실행: python3 make_staff_manual.py
 #   → 하자관리시스템_사용설명서.docx 생성
 #   → soffice --headless --convert-to pdf 로 PDF 변환 (스크립트가 자동 실행)
@@ -80,7 +80,7 @@ _set_font(p.add_run('시흥 웨이브파크'), 13, color=GRAY)
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_after = Pt(14)
 _set_font(p.add_run('하자관리 시스템 사용설명서'), 25, True, DARK)
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-_set_font(p.add_run('전 직원 공용  |  2026년 7월  |  시스템 v2.7.18 기준'), 11, color=GRAY)
+_set_font(p.add_run('전 직원 공용  |  2026년 8월  |  시스템 v2.7.21 기준'), 11, color=GRAY)
 doc.add_page_break()
 
 # ═══ 1. 로그인과 첫 시작 ═══
@@ -182,6 +182,11 @@ make_table(['상태','의미'], [
     ['✅ 완료','처리가 끝나 종료된 상태 (KPI 집계에서 제외)'],
 ], [3,13])
 bullet('하자 목록에서 상태 드롭다운을 바로 바꾸거나, 수정 화면에서 변경할 수 있습니다.')
+heading2('5-1-1. 여러 건 한꺼번에 완료 처리하기 (일괄완료)')
+bullet('하자 목록 표의 각 행 맨 앞 체크박스로 여러 건을 선택할 수 있습니다. 헤더의 체크박스를 누르면 현재 필터·검색 결과에 걸린 항목 전체가 선택됩니다.')
+bullet('한 건이라도 선택하면 표 위쪽에 파란색 안내 바("N건 선택됨")와 "✅ 선택 항목 일괄완료" 버튼이 나타납니다. 버튼을 누르고 확인하면 선택한 건이 한 번에 "완료" 상태로 바뀝니다.')
+bullet('이미 완료 상태인 건을 같이 선택해도 자동으로 제외되고 몇 건이 제외됐는지 안내됩니다.')
+info_box('💡 일괄완료로 처리해도 개별로 완료 처리한 것과 동일하게 수정이력에 기록이 남습니다. 조회전용(viewer) 계정에는 체크박스와 일괄완료 버튼이 보이지 않습니다.')
 heading2('5-2. 경과일 배지(SLA)와 처리기한 배지는 다른 개념입니다')
 make_table(['배지','기준','표시'], [
     ['경과일 배지','등록일로부터 지난 일수 (완료 전까지 계속 증가)','0~2일 정상 / 3~6일 임박 / 7일 이상 초과'],
@@ -273,7 +278,7 @@ for q,a in faqs:
     body(a, size=10)
 
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_before = Pt(24)
-_set_font(p.add_run('시흥 웨이브파크 하자관리 시스템  |  문의: 관리자 (mac.lee@handys.co.kr)  |  v2.7.18 · 2026-07'), 9, color=GRAY)
+_set_font(p.add_run('시흥 웨이브파크 하자관리 시스템  |  문의: 관리자 (mac.lee@handys.co.kr)  |  v2.7.21 · 2026-08'), 9, color=GRAY)
 
 here = os.path.dirname(os.path.abspath(__file__))
 docx_path = os.path.join(here, '하자관리시스템_사용설명서.docx')
