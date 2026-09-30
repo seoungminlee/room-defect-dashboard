@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# 사용설명서 생성 — 전 직원 공용 (v2.7.21 기준, 2026-08)
+# 사용설명서 생성 — 전 직원 공용 (v2.7.23 기준, 2026-09)
 # 실행: python3 make_staff_manual.py
 #   → 하자관리시스템_사용설명서.docx 생성
 #   → soffice --headless --convert-to pdf 로 PDF 변환 (스크립트가 자동 실행)
@@ -80,7 +80,7 @@ _set_font(p.add_run('시흥 웨이브파크'), 13, color=GRAY)
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_after = Pt(14)
 _set_font(p.add_run('하자관리 시스템 사용설명서'), 25, True, DARK)
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-_set_font(p.add_run('전 직원 공용  |  2026년 8월  |  시스템 v2.7.21 기준'), 11, color=GRAY)
+_set_font(p.add_run('전 직원 공용  |  2026년 9월  |  시스템 v2.7.23 기준'), 11, color=GRAY)
 doc.add_page_break()
 
 # ═══ 1. 로그인과 첫 시작 ═══
@@ -238,7 +238,7 @@ make_table(['항목','내용'], [
     ['하자증상','하자 등록 시 선택하는 증상 목록. 새 유형이 필요하면 여기서 바로 추가할 수 있습니다'],
     ['수리부속·단가','부품명, 단가, 단위, 주거래처, 예상 월평균 사용량'],
 ], [3.5,12.5])
-info_box('💡 직원 명단과 외주업체(계좌·서류 포함) 등록은 관리자만 가능합니다.')
+info_box('💡 외주업체는 직원도 등록·수정하고 사업자등록증·계좌사본·계약서를 업로드할 수 있습니다(지출품의용 서류 다운로드 포함). 업체 삭제와 직원 명단 관리는 관리자만 가능합니다.')
 
 # ═══ 10. 용어 설명 ═══
 heading1('10. 용어 설명')
@@ -278,7 +278,7 @@ for q,a in faqs:
     body(a, size=10)
 
 p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_before = Pt(24)
-_set_font(p.add_run('시흥 웨이브파크 하자관리 시스템  |  문의: 관리자 (mac.lee@handys.co.kr)  |  v2.7.21 · 2026-08'), 9, color=GRAY)
+_set_font(p.add_run('시흥 웨이브파크 하자관리 시스템  |  문의: 관리자 (mac.lee@handys.co.kr)  |  v2.7.23 · 2026-09'), 9, color=GRAY)
 
 here = os.path.dirname(os.path.abspath(__file__))
 docx_path = os.path.join(here, '하자관리시스템_사용설명서.docx')

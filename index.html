@@ -763,7 +763,7 @@
       <h2 style="margin:0;font-size:17px;font-weight:700;">🏢 외주업체 관리</h2>
       <div style="display:flex;gap:8px;">
         <button class="btn secondary" onclick="toggleInactiveVendors()"><span id="inactiveVendorToggleLabel">비활성 업체 숨김</span></button>
-        <button class="btn" onclick="openVendorModal()">+ 업체 등록</button>
+        <button class="btn" id="vendorAddBtn" onclick="openVendorModal()">+ 업체 등록</button>
       </div>
     </div>
 
@@ -3199,8 +3199,21 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.22';
+const APP_VERSION = 'v2.7.23';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.23',
+    date: '2026-09-30',
+    category: '권한 변경',
+    title: '직원도 외주업체 등록·수정·서류 업로드 가능',
+    adminOnly: false,
+    notes: [
+      '직원(staff) 계정도 외주업체 등록·수정·활성/비활성 변경과 사업자등록증·계좌사본·계약서 업로드 가능 (지출품의 업무용)',
+      '업체 삭제는 기존대로 관리자만 가능 — 관리자가 아니면 삭제 버튼이 보이지 않음',
+      '조회전용(viewer) 계정에는 등록·수정 버튼이 보이지 않음 (서류 열람·다운로드는 가능)',
+      '권한이 없어 저장이 막힐 때 영어 오류 대신 한글 안내가 표시되도록 개선',
+    ]
+  },
   {
     version: 'v2.7.22',
     date: '2026-08-31',
@@ -4369,6 +4382,12 @@ function stepQty(inputId, delta){
 }
 
 // v2.5: RLS가 조용히 거부한 수정/삭제 감지 — 0건 반영이면 권한 문제
+// v2.7.23: RLS(행 단위 보안 정책) 거부 오류 판별 — 영어 원문 대신 한글 안내를 띄우기 위함
+function isRlsError(err){
+  const m = String(err?.message || '').toLowerCase();
+  return m.includes('row-level security') || m.includes('permission denied') || err?.code === '42501' || String(err?.statusCode) === '403';
+}
+
 function rlsBlocked(rows){
   if(rows && rows.length) return false;
   alert('권한이 없습니다. 관리자에게 문의하십시오.');
@@ -6378,6 +6397,10 @@ async function saveSafetyFactor(){
 function renderVendors(){
   const area = document.getElementById('vendorListArea');
   if(!area) return;
+  // v2.7.23: 등록·수정은 staff/admin, 삭제는 admin만 (v37 SQL 정책과 동일 기준)
+  const canEditVendor = CURRENT_ROLE === 'admin' || CURRENT_ROLE === 'staff';
+  const addBtn = document.getElementById('vendorAddBtn');
+  if(addBtn) addBtn.style.display = canEditVendor ? '' : 'none';
   const list = SHOW_INACTIVE_VENDORS ? VENDORS : VENDORS.filter(v=>v.is_active!==false);
   document.getElementById('inactiveVendorToggleLabel').textContent =
     SHOW_INACTIVE_VENDORS ? '비활성 업체 표시중' : '비활성 업체 숨김';
@@ -6404,11 +6427,11 @@ function renderVendors(){
           ${v.is_active===false? '<span style="font-size:12px;color:#9ca3af;margin-left:8px;">(비활성)</span>' : ''}
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn secondary small" onclick="openEditVendorModal(${v.id})">수정</button>
+          ${canEditVendor ? `<button class="btn secondary small" onclick="openEditVendorModal(${v.id})">수정</button>
           <button class="btn secondary small" style="color:${v.is_active===false?'var(--ok)':'var(--sub)'};"
-            onclick="toggleVendorActive(${v.id}, ${v.is_active===false})">${v.is_active===false?'활성화':'비활성화'}</button>
-          <button class="btn secondary small" style="color:var(--danger);border-color:var(--danger);"
-            onclick="deleteVendor(${v.id})">삭제</button>
+            onclick="toggleVendorActive(${v.id}, ${v.is_active===false})">${v.is_active===false?'활성화':'비활성화'}</button>` : ''}
+          ${CURRENT_ROLE === 'admin' ? `<button class="btn secondary small" style="color:var(--danger);border-color:var(--danger);"
+            onclick="deleteVendor(${v.id})">삭제</button>` : ''}
         </div>
       </div>
       <div class="vendor-card-body">
@@ -6485,7 +6508,12 @@ async function saveVendor(){
     ({error} = await sb.from('vendors').insert(payload));
     _vr = error ? [] : [true];
   }
-  if(error){ alert('저장 실패: '+error.message); return; }
+  if(error){
+    alert(isRlsError(error)
+      ? '업체 저장 권한이 없습니다.\n조회전용 계정이거나, 권한이 바뀐 뒤 다시 로그인하지 않은 경우입니다. 로그아웃 후 다시 로그인해보세요.'
+      : '저장 실패: '+error.message);
+    return;
+  }
   if(rlsBlocked(_vr)) return;
   document.getElementById('vendorModal').classList.remove('active');
   showToast('✅ 업체 정보가 저장되었습니다.');
@@ -6567,8 +6595,9 @@ async function uploadVendorDoc(inputEl, targetFieldId){
 
   const {data, error} = await sb.storage.from('vendor-docs').upload(path, file, {upsert:false});
   if(error){
-    if(statusEl){ statusEl.style.display=''; statusEl.textContent='업로드 실패: '+error.message; }
-    alert('업로드 실패: '+error.message+'\n\nStorage 버킷 "vendor-docs"가 생성되어 있는지 확인해주세요.');
+    const msg = isRlsError(error) ? '서류 업로드 권한이 없습니다. (조회전용 계정이거나, 권한 변경 후 다시 로그인하지 않은 경우)' : '업로드 실패: '+error.message;
+    if(statusEl){ statusEl.style.display=''; statusEl.textContent=msg; }
+    alert(msg);
     inputEl.value = '';
     return;
   }
