@@ -3209,6 +3209,7 @@ const APP_UPDATE_HISTORY = [
     adminOnly: false,
     notes: [
       '가장 큰 막대의 금액 라벨(예: 1,538,800원)이 차트 윗부분에 걸려 잘려 보이던 문제 수정 — 차트 위쪽에 여백 추가',
+      '세로축을 10배 단위(로그) 눈금에서 일반 금액 눈금으로 변경 — 외주·자체 비용 차이가 막대 높이에 실제 비율대로 보이도록',
     ]
   },
   {
@@ -4852,7 +4853,7 @@ async function renderMainDashboard(){
       plugins: [valueLabelPlugin],
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
-      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:22}}, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{type:'logarithmic', min:1, ticks:{callback:v=>{if([1,10,100,1000,10000,100000,1000000,10000000].includes(v))return v.toLocaleString()+'원'; return null;}}}} }
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:22}}, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{beginAtZero:true, grace:'10%', ticks:{callback:v=>Number(v).toLocaleString()+'원'}}} }
     });
   }
 
