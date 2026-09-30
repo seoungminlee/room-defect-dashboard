@@ -3199,8 +3199,18 @@ function loadAdminSettingsUI(){
 
 // ── 업데이트 로그 (상수 기반, 자동 반영) ──────────────────────
 // ★ 배포 시 이 두 곳만 수정하세요 ★
-const APP_VERSION = 'v2.7.23';
+const APP_VERSION = 'v2.7.24';
 const APP_UPDATE_HISTORY = [
+  {
+    version: 'v2.7.24',
+    date: '2026-10-01',
+    category: '버그 수정',
+    title: '"외주 vs 자체 수리비용" 차트 금액 표시 잘림 수정',
+    adminOnly: false,
+    notes: [
+      '가장 큰 막대의 금액 라벨(예: 1,538,800원)이 차트 윗부분에 걸려 잘려 보이던 문제 수정 — 차트 위쪽에 여백 추가',
+    ]
+  },
   {
     version: 'v2.7.23',
     date: '2026-09-30',
@@ -4842,7 +4852,7 @@ async function renderMainDashboard(){
       plugins: [valueLabelPlugin],
       type:'bar',
       data:{ labels:['외주 처리', '자체 처리'], datasets:[{label:'비용(원)', data:[outsourcedCost, internalCost], backgroundColor:['#6d28d9','#0369a1']}]},
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{type:'logarithmic', min:1, ticks:{callback:v=>{if([1,10,100,1000,10000,100000,1000000,10000000].includes(v))return v.toLocaleString()+'원'; return null;}}}} }
+      options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{top:22}}, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toLocaleString()+'원'}}}, scales:{y:{type:'logarithmic', min:1, ticks:{callback:v=>{if([1,10,100,1000,10000,100000,1000000,10000000].includes(v))return v.toLocaleString()+'원'; return null;}}}} }
     });
   }
 
